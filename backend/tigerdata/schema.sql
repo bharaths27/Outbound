@@ -45,7 +45,6 @@ with (timescaledb.continuous, timescaledb.materialized_only = false) as
 select time_bucket('1 hour', time) as bucket,
        line,
        avg(delay_s)                as avg_delay_s,
-       percentile_cont(0.9) within group (order by delay_s) as p90_delay_s,
        count(delay_s)              as samples
 from arrival_predictions
 where delay_s is not null
