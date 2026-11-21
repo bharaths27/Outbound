@@ -11,7 +11,9 @@ const toggleVariants = cva(
     variants: {
       variant: {
         default: "bg-transparent",
-        chip: "rounded-full border border-border bg-background data-[state=on]:border-secondary",
+        // Selected chips are periwinkle in both themes (DESIGN.md): --secondary in light,
+        // --primary in dark, where --secondary is a dark navy.
+        chip: "rounded-full border border-border bg-background data-[state=on]:border-secondary dark:data-[state=on]:border-primary dark:data-[state=on]:bg-primary dark:data-[state=on]:text-primary-foreground",
         outline: "border border-input bg-transparent hover:bg-muted",
       },
       size: {

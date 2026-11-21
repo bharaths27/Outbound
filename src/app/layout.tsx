@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { StationHubHost } from "@/features/hub";
 import { AppShell } from "@/features/shell/app-shell";
 import { ThemeProvider } from "@/features/shell/theme-provider";
 import "./globals.css";
@@ -33,6 +34,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <ThemeProvider>
           <AppShell>{children}</AppShell>
+          {/* The station hub opens over any page from ?station=<id> (src/features/hub). */}
+          <StationHubHost />
           <Toaster />
         </ThemeProvider>
       </body>
