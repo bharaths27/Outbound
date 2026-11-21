@@ -127,3 +127,26 @@ Give `replay.json` to Verna.
 - x2 when a squad-mate from a **different school** checked in to the same quest within 60 min (both get the gold border)
 - Passport tier per neighborhood: bronze 1 to 2 quests, silver 3 to 4, gold 5+
 - Leaderboard: resets Mondays (Boston time); a school needs 5+ players to be `eligible`
+
+## Gamification handoff
+
+On an existing Outbound database, run only `supabase/005_gamification.sql` after 004.
+Then wire these calls into the frontend:
+
+| UI | Backend |
+| --- | --- |
+| Signed-in passport or profile | `supabase.rpc("my_game_progress")` returns `badges`, `current_streak`, and `longest_streak`. Refresh after check-in. |
+| Players tab by the school rankings | `supabase.from("leaderboard_players_weekly").select("*").order("rank").order("user_id").limit(10)` |
+| Daily quest highlight | `supabase.rpc("quest_of_the_day")` returns zero or one row with `quest_id`, `quest_date`, and `base_xp_multiplier`. The `check_in` response lists the extra base XP as `quest_of_the_day` in `xp_breakdown`. |
+| Share a quest | `/api/share-card/<questId>` renders a PNG with a QR linking to `/q/<questId>`. That page shows the quest and station. The card contains only catalog details. |
+
+Line Collector credits the Red, Orange, and Green lines served by visited stations,
+including multiple lines at a transfer stop. Night Owl credits check-ins from
+10 PM up to midnight. Squad Goals counts three distinct players including you
+in the same squad at the same station within one hour. Cross-town counts four
+distinct neighborhoods in one Monday–Sunday week. A streak stays active until
+you miss a full Boston calendar day.
+
+Rankings show only public players and count only visible visits. The daily quest
+rotates through non-QR quests with positive XP. Changes to the eligible catalog
+can shift the rotation. On check-in, its base XP doubles before other bonuses.
