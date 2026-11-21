@@ -5,14 +5,25 @@ Live 3D map of the T on a globe: whole USA, zooms into Massachusetts and Boston.
 | File | What |
 | --- | --- |
 | `TransitMap.tsx` | The map page: controls, station card with live countdown, train card, replay bar |
-| `style.ts` | Basemap: OpenFreeMap Liberty (real OpenStreetMap data, no key) restyled, 3D buildings, campus highlight, Esri satellite toggle |
+| `style.ts` | Basemap: OpenFreeMap Liberty (real OpenStreetMap data, no key) restyled, Esri satellite toggle, offline fallback basemap |
+| `buildings3d.ts` | Real 3D buildings of central Boston (BPDA 3D Smart Model meshes: roofs, towers, setbacks) |
+| `SearchBox.tsx` | Search places, streets, stations, campuses (bundled index offline + Photon geocoder online) |
 | `trains3d.ts` | Train animation along the real track + three.js layer that draws every car |
 | `trainModels.ts` | 3D models of the current cars: Red #1900, Orange #1400, Green Type 9 |
 | `track.ts` | Snaps trains onto the track and walks along it (so cars follow curves) |
 | `feed.ts` | Live `/api/trains` every 12 s, `/api/lateness`, replay, demo fallback |
 | `places.ts` | Campus pins and sample friend visits |
 
-Data in `public/data/` comes from `scripts/build_transit_data.py` (MassGIS track + stations, TransitMatters stop ids).
+Data in `public/data/` comes from `scripts/build_transit_data.py` (MassGIS track + stations, TransitMatters stop ids)
+and `scripts/data-build/` (buildings, campuses, search index; see its README).
+
+## Buildings, campuses, search
+- Central Boston (Back Bay, downtown, Seaport, Fenway, South End, Longwood): real building models + 2023 aerial photos from the
+  Boston Planning Department 3D Smart Model (`public/data/bpda/`, loaded tile by tile from zoom 12.5).
+- Cambridge: real footprints with real roof heights from City of Cambridge GIS (`public/data/cambridge/`).
+- Everywhere else: OpenStreetMap buildings from the basemap (hidden where the real ones are, to avoid doubles).
+- Campuses: outline + see-through fill from real parcels/buildings (`public/data/campuses.geojson`); Tufts, BC, UMass Boston and Brandeis are pins only.
+- Search: stations, campuses and ~3,000 streets/parks/landmarks work offline; online it also asks Photon (OpenStreetMap geocoder, no key).
 
 ## Fallbacks for the demo
 1. Live: `GET /api/trains` every 12 s (needs `MBTA_API_KEY` in `.env.local`).

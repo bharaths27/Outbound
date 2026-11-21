@@ -68,3 +68,4 @@ body {
   color: #1f2937;
 }
 .ob-popup .maplibregl-popup-content { border-radius: 12px; padding: 8px 12px; font-size: 12px; line-height: 1.45; }
+.ob-search-pin { width: 22px; height: 22px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #e11d48; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); margin-bottom: 8px; }

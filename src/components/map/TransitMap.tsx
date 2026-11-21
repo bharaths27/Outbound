@@ -9,7 +9,9 @@ import type { Arrival, LineLateness, Station, Train } from "@/lib/types";
 import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
 import { TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
-import { loadBaseStyle, groundLayerIds } from "./style";
+import { loadBaseStyle, groundLayerIds, cambridgeBuildingsLayer } from "./style";
+import { CityBuildingsLayer, fetchBpdaManifest, inBpda } from "./buildings3d";
+import SearchBox, { pointInRing } from "./SearchBox";
 import {
   LIVE_INTERVAL_MS, ReplayFrame, DemoFeed, fetchLive, fetchReplay, fetchLateness, fetchArrivals,
   sampleArrivals, destinationOf, LATENESS_HEX,
@@ -66,10 +68,12 @@ export default function TransitMap() {
     let disposed = false;
     let map: MlMap | null = null;
     (async () => {
-      const [{ style, offline }, linesGeo, stations] = await Promise.all([
-        loadBaseStyle(),
+      const manifest = await fetchBpdaManifest();
+      const [{ style, offline }, linesGeo, stations, cambridgeOutline] = await Promise.all([
+        loadBaseStyle(manifest),
         fetch("data/mbta-lines.geojson").then((r) => r.json()),
         fetch("data/mbta-stations.json").then((r) => r.json()) as Promise<StationData[]>,
+        fetch("data/cambridge/outline.geojson").then((r) => r.json()).catch(() => null),
       ]);
       if (disposed || !box.current) return;
       setOfflineBasemap(offline);
@@ -113,6 +117,11 @@ export default function TransitMap() {
         const firstSymbol = m.getStyle().layers.find((l) => l.type === "symbol")?.id;
         const firstBuilding = m.getStyle().layers.find((l) => l.type === "fill-extrusion")?.id;
         const beforeLines = firstBuilding ?? firstSymbol;
+        // 3D layers go right above the basemap's buildings and under its labels (the first symbol layer in
+        // Liberty is a one-way arrow below the bridges, which would paint roads over our buildings)
+        const styleLayers = m.getStyle().layers;
+        const lastExt = styleLayers.map((l) => l.type).lastIndexOf("fill-extrusion");
+        const labelsStart = styleLayers.slice(lastExt + 1).find((l) => l.type === "symbol")?.id ?? firstSymbol;
 
         m.addSource("mbta-lines", { type: "geojson", data: linesGeo });
         m.addLayer({
@@ -137,11 +146,34 @@ export default function TransitMap() {
           paint: { "line-color": lineColorExpr(LINE_COLORS), "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.9, 13, 1.7, 17, 3.4] },
         }, beforeLines);
 
+        // campuses: outline + see-through fill, like a selection (real campus land from city parcel/building data)
+        m.addSource("campuses", { type: "geojson", data: "data/campuses.geojson" });
+        m.addLayer({ id: "campus-fill", type: "fill", source: "campuses", paint: { "fill-color": ["get", "color"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0.22, 16, 0.14] } }, beforeLines);
+        m.addLayer({ id: "campus-halo", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.5, 16, 5], "line-opacity": 0.85 } }, beforeLines);
+        m.addLayer({ id: "campus-line", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 16, 2.4], "line-dasharray": [3, 2] } }, beforeLines);
+
+        // real buildings: City of Cambridge footprints + heights, and Boston's own 3D models (BPDA)
+        if (!m.getSource("cam-buildings")) {
+          m.addSource("cam-buildings", { type: "geojson", data: new URL("data/cambridge/buildings.geojson", document.baseURI).href });
+          m.addLayer(cambridgeBuildingsLayer(), labelsStart);
+        }
+        if (manifest) m.addLayer(new CityBuildingsLayer(manifest), labelsStart);
+        // OpenStreetMap's boxy buildings only where the real city models don't cover the view
+        const cambRing = cambridgeOutline?.geometry?.coordinates?.[0] as [number, number][] | undefined;
+        const osmBuildings = m.getStyle().layers.filter((l) => l.type === "fill-extrusion" && (l as { source?: string }).source === "openmaptiles").map((l) => l.id);
+        const pickBuildings = () => {
+          const c = m.getCenter();
+          const real = (manifest && inBpda(c.lng, c.lat)) || (cambRing && pointInRing([c.lng, c.lat], cambRing));
+          for (const id of osmBuildings) m.setFilter(id, real ? ["==", ["get", "render_height"], -1] : null);
+        };
+        pickBuildings();
+        m.on("moveend", pickBuildings);
+
         // 3D trains (depth-tested against buildings)
         const layer = new Trains3DLayer(animator);
         layer.minZoom = TRAIN_3D_MIN_ZOOM;
         layerRef.current = layer;
-        m.addLayer(layer, firstSymbol);
+        m.addLayer(layer, labelsStart);
 
         // stations
         m.addSource("stations", {
@@ -278,7 +310,7 @@ export default function TransitMap() {
     };
     update();
     map.on("zoom", update);
-    for (const id of ["campus-fill", "campus-line"])
+    for (const id of ["campus-fill", "campus-halo", "campus-line"])
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", show.campuses ? "visible" : "none");
     return () => {
       map.off("zoom", update);
@@ -503,7 +535,7 @@ export default function TransitMap() {
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
 
       {/* top-left: brand, feed status, Tiger Data badges */}
-      <div className="absolute left-3 top-3 flex max-w-[calc(100vw-24px)] flex-col gap-2 sm:left-4 sm:top-4">
+      <div className="absolute left-3 top-3 flex max-w-[calc(100vw-212px)] sm:max-w-[calc(100vw-24px)] flex-col gap-2 sm:left-4 sm:top-4">
         <div className="ob-panel flex items-center gap-3 px-3 py-2">
           <span className="text-base font-semibold tracking-tight text-slate-900">Outbound</span>
           <span className="flex items-center gap-1.5 text-xs text-slate-600">
@@ -511,6 +543,17 @@ export default function TransitMap() {
             {statusText}
           </span>
         </div>
+        <SearchBox
+          map={ready ? mapRef.current : null}
+          stations={stationsRef.current}
+          online={!offlineBasemap}
+          onStation={(id) => {
+            const s = stationsRef.current.find((x) => x.id === id);
+            if (!s) return;
+            setTrain(null);
+            setStation(s);
+          }}
+        />
         {autoFallback && feedMode !== "live" && (
           <div className="ob-panel px-3 py-1.5 text-xs text-amber-800">Live feed is down. Showing {feedMode === "replay" ? "saved trains" : "demo trains"}; retrying every 30 s.</div>
         )}
@@ -677,7 +720,7 @@ function Toggle({ label, on, set, small }: { label: string; on: boolean; set: (v
 
 function Card({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="ob-panel absolute bottom-24 left-3 w-[min(300px,calc(100vw-24px))] p-3.5 text-sm sm:bottom-auto sm:left-4 sm:top-[150px]">
+    <div className="ob-panel absolute bottom-24 left-3 w-[min(300px,calc(100vw-24px))] p-3.5 text-sm sm:left-4">
       <button onClick={onClose} className="absolute right-2.5 top-2 text-lg leading-none text-slate-400 hover:text-slate-700" aria-label="Close">
         ×
       </button>

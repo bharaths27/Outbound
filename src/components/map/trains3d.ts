@@ -176,7 +176,7 @@ const _a = new THREE.Matrix4();
  * Mercator: mainMatrix takes 0..1 mercator coords. Globe: mainMatrix takes a unit-sphere planet.
  * (Same math as MapLibre 5's transform.getMatrixForModel, which MapLibre 6 no longer exposes.)
  */
-function modelMatrix(out: THREE.Matrix4, lng: number, lat: number, globe: boolean) {
+export function modelMatrix(out: THREE.Matrix4, lng: number, lat: number, globe: boolean) {
   if (globe) {
     const s = 1 / EARTH_RADIUS;
     out.makeRotationY((lng * Math.PI) / 180);
