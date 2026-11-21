@@ -146,11 +146,8 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
         body: JSON.stringify({ email: accountId }),
       });
       if (!res.ok) throw new Error(`demo login ${res.status}`);
-      // The route set the session cookie; the browser client picks it up on refresh.
-      await db().auth.refreshSession().catch(() => {});
-      const profile = await this.getCurrentUser();
-      if (!profile) throw new Error("demo login: no session");
-      return profile;
+      // The route set the session cookie. The running browser client started signed out
+      // and won't notice, so the caller reloads the page (see DataService.signInDemo).
     },
 
     async signOut() {

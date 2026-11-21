@@ -85,6 +85,13 @@ in `content/README.md`; `npm test` checks every row.
 - [ ] **Paul Revere House** hours are seasonal. We used the winter hours (10:00–16:15) and
   added the summer closing time to the description. Confirm that's right for the demo date.
 - [x] **XP.** Lowered to 50–80 per quest.
+- [ ] **Neighborhood names must match Bharath's stations.** The passport groups by the
+  station's `neighborhood`, so spelling decides which quests share a tier. Fixed: your CSV
+  had `Fenway–Kenmore` (en dash) but the other 6 Fenway stations use `Fenway-Kenmore`
+  (hyphen); the CSV now uses the hyphen. Please confirm two choices that differ from
+  Bharath's seed: Park Street is `Downtown` (his says `Beacon Hill`), which groups it with
+  Government Center (6 quests, Gold reachable); Haymarket is `North End / Downtown` (his
+  says `Downtown`), its own 3-quest neighborhood.
 - [ ] **Quests per neighborhood.** Gold takes 5 different quests in a neighborhood, but
   only Fenway–Kenmore and Downtown have 5+. Chinatown, Harvard Square, Central Square,
   Back Bay, and North End / Downtown have 3 each, so players there top out at Silver. The

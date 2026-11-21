@@ -22,7 +22,8 @@ describe("seed", () => {
 
 describe("mock service", () => {
   it("computes levels like the generated columns (250 XP per level)", async () => {
-    const maya = await data.signInDemo("demo-maya");
+    await data.signInDemo("demo-maya");
+    const maya = (await data.getCurrentUser())!;
     expect(maya.is_demo).toBe(true);
     expect(maya.level).toBe(Math.floor(maya.xp / 250) + 1);
     expect(maya.xp_to_next_level).toBe(250 - (maya.xp % 250));
@@ -57,7 +58,7 @@ describe("mock service", () => {
   it("gives Maya a Gold and a Silver neighborhood", async () => {
     await data.signInDemo("demo-maya");
     const passport = await data.getPassport("demo-maya");
-    expect(passport.find((n) => n.neighborhood === "Fenway–Kenmore")).toMatchObject({
+    expect(passport.find((n) => n.neighborhood === "Fenway-Kenmore")).toMatchObject({
       tier: "gold",
       has_cross_school_stamp: true,
       next_tier: null,

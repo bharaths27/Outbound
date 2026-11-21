@@ -11,8 +11,8 @@
 begin;
 
 insert into public.stations (id, name, lines, lat, lon, neighborhood, story) values
-  ('place-bucen', 'Boston University Central', array['Green-B']::text[], 42.350082, -71.106865, 'Fenway–Kenmore', 'The B branch stops on Commonwealth Avenue beside Marsh Chapel. Head behind the chapel and the campus opens toward the Charles River.'),
-  ('place-kencl', 'Kenmore', array['Green-B', 'Green-C', 'Green-D']::text[], 42.348949, -71.095169, 'Fenway–Kenmore', 'Three Green Line branches meet here. The Citgo sign marks the square, and the streets south of it lead to Fenway Park.'),
+  ('place-bucen', 'Boston University Central', array['Green-B']::text[], 42.350082, -71.106865, 'Fenway-Kenmore', 'The B branch stops on Commonwealth Avenue beside Marsh Chapel. Head behind the chapel and the campus opens toward the Charles River.'),
+  ('place-kencl', 'Kenmore', array['Green-B', 'Green-C', 'Green-D']::text[], 42.348949, -71.095169, 'Fenway-Kenmore', 'Three Green Line branches meet here. The Citgo sign marks the square, and the streets south of it lead to Fenway Park.'),
   ('place-coecl', 'Copley', array['Green-B', 'Green-C', 'Green-D', 'Green-E']::text[], 42.349974, -71.077447, 'Back Bay', 'Come out onto Boylston Street between the Central Library and Copley Square, with Newbury Street and the Commonwealth Avenue Mall a few blocks away.'),
   ('place-pktrm', 'Park Street', array['Red', 'Green-B', 'Green-C', 'Green-D', 'Green-E']::text[], 42.3563946, -71.0624242, 'Downtown', 'The Red and Green lines meet at the corner of Boston Common. Start on Tremont Street or cut through the Common toward the Public Garden.'),
   ('place-gover', 'Government Center', array['Blue', 'Green-B', 'Green-C', 'Green-D', 'Green-E']::text[], 42.359705, -71.059215, 'Downtown', 'The Blue and Green lines meet next to City Hall Plaza. Walk downhill toward Faneuil Hall and the market buildings.'),

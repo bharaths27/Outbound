@@ -104,7 +104,8 @@ function LoginForms() {
     setDemoBusy(id);
     try {
       await data.signInDemo(id);
-      router.push(next);
+      // Full load, so the Supabase client starts with the new session cookie.
+      window.location.assign(next);
     } catch {
       toast.error("That demo account isn't available right now.");
       setDemoBusy(null);

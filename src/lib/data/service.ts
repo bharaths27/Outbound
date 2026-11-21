@@ -25,7 +25,9 @@ export interface DataService {
   getCurrentUser(): Promise<Profile | null>;
   signIn(email: string, password: string): Promise<AuthResult>;
   signUp(email: string, password: string): Promise<AuthResult>;
-  signInDemo(accountId: string): Promise<Profile>; // DemoAccount.id; one tap for judges
+  // DemoAccount.id; one tap for judges. Callers reload the page afterward: on Supabase the
+  // session arrives as a server-set cookie, which a running browser client doesn't see.
+  signInDemo(accountId: string): Promise<void>;
   signOut(): Promise<void>;
 
   // content

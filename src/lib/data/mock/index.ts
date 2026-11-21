@@ -200,7 +200,6 @@ export const mockService: DataService = {
     if (!user || !DEMO_IDS.has(userId)) throw new Error(`unknown demo account: ${userId}`);
     state.currentUserId = userId;
     storeUser(userId);
-    return clone(user);
   },
 
   async signOut() {

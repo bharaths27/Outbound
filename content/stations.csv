@@ -1,6 +1,6 @@
 "id","name","lines","neighborhood","lat","lon","story"
-"place-bucen","Boston University Central","Green-B","Fenway–Kenmore","42.350082","-71.106865","The B branch stops on Commonwealth Avenue beside Marsh Chapel. Head behind the chapel and the campus opens toward the Charles River."
-"place-kencl","Kenmore","Green-B|Green-C|Green-D","Fenway–Kenmore","42.348949","-71.095169","Three Green Line branches meet here. The Citgo sign marks the square, and the streets south of it lead to Fenway Park."
+"place-bucen","Boston University Central","Green-B","Fenway-Kenmore","42.350082","-71.106865","The B branch stops on Commonwealth Avenue beside Marsh Chapel. Head behind the chapel and the campus opens toward the Charles River."
+"place-kencl","Kenmore","Green-B|Green-C|Green-D","Fenway-Kenmore","42.348949","-71.095169","Three Green Line branches meet here. The Citgo sign marks the square, and the streets south of it lead to Fenway Park."
 "place-coecl","Copley","Green-B|Green-C|Green-D|Green-E","Back Bay","42.349974","-71.077447","Come out onto Boylston Street between the Central Library and Copley Square, with Newbury Street and the Commonwealth Avenue Mall a few blocks away."
 "place-pktrm","Park Street","Red|Green-B|Green-C|Green-D|Green-E","Downtown","42.3563946","-71.0624242","The Red and Green lines meet at the corner of Boston Common. Start on Tremont Street or cut through the Common toward the Public Garden."
 "place-gover","Government Center","Blue|Green-B|Green-C|Green-D|Green-E","Downtown","42.359705","-71.059215","The Blue and Green lines meet next to City Hall Plaza. Walk downhill toward Faneuil Hall and the market buildings."

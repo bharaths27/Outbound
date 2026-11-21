@@ -12,7 +12,7 @@ export const stations: Station[] = [
     ],
     "lat": 42.350082,
     "lon": -71.106865,
-    "neighborhood": "Fenway–Kenmore",
+    "neighborhood": "Fenway-Kenmore",
     "story": "The B branch stops on Commonwealth Avenue beside Marsh Chapel. Head behind the chapel and the campus opens toward the Charles River."
   },
   {
@@ -25,7 +25,7 @@ export const stations: Station[] = [
     ],
     "lat": 42.348949,
     "lon": -71.095169,
-    "neighborhood": "Fenway–Kenmore",
+    "neighborhood": "Fenway-Kenmore",
     "story": "Three Green Line branches meet here. The Citgo sign marks the square, and the streets south of it lead to Fenway Park."
   },
   {

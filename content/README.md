@@ -27,7 +27,8 @@ Removing Bharath's starter quests is an optional, commented-out step at the end 
 - `id` is the MBTA parent stop id (`place-kencl`), the same ids as `seed_stations.sql`.
 - `lines` uses route names: `Red`, `Orange`, `Blue`, `Green-B` … `Green-E`.
 - Quests in stations with the same `neighborhood` count toward the same passport tier, so
-  spell neighborhoods identically (`Fenway–Kenmore` uses an en dash).
+  spell neighborhoods exactly as `backend/supabase/seed_stations.sql` does (`Fenway-Kenmore`
+  with a hyphen), or the passport splits one neighborhood into two.
 
 **Quests**
 - `id`: lowercase words joined by hyphens, unique.

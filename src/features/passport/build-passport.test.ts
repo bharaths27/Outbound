@@ -31,8 +31,8 @@ const quest = (id: string, station_id: string): Quest => ({
 });
 
 const stations = [
-  station("place-kencl", "Kenmore", "Fenway–Kenmore"),
-  station("place-bucen", "BU Central", "Fenway–Kenmore"),
+  station("place-kencl", "Kenmore", "Fenway-Kenmore"),
+  station("place-bucen", "BU Central", "Fenway-Kenmore"),
   station("place-harsq", "Harvard", "Harvard Square"),
   station("place-chncl", "Chinatown", "Chinatown"),
   station("place-alfcl", "Alewife", "Cambridge"), // no quests
@@ -49,7 +49,7 @@ const quests = [
 ];
 const row = (over: Partial<PassportNeighborhood>): PassportNeighborhood => ({
   user_id: "u",
-  neighborhood: "Fenway–Kenmore",
+  neighborhood: "Fenway-Kenmore",
   quests_done: 1,
   tier: "bronze",
   has_cross_school_stamp: false,
@@ -62,7 +62,7 @@ const row = (over: Partial<PassportNeighborhood>): PassportNeighborhood => ({
 describe("buildPassport", () => {
   const rows = [
     row({
-      neighborhood: "Fenway–Kenmore",
+      neighborhood: "Fenway-Kenmore",
       quests_done: 2,
       stamps: [
         { quest_id: "k1", at: "2026-11-01T10:00:00Z", cross_school: false },
@@ -79,7 +79,7 @@ describe("buildPassport", () => {
   const view = buildPassport(rows, quests, stations);
 
   it("groups one stamp per quest, newest first, and lists what's left", () => {
-    const fk = view.visited.find((v) => v.neighborhood === "Fenway–Kenmore")!;
+    const fk = view.visited.find((v) => v.neighborhood === "Fenway-Kenmore")!;
     expect(fk.earned.map((e) => [e.quest.id, e.visits, e.at, e.crossSchool])).toEqual([
       ["k1", 2, "2026-11-10T10:00:00Z", false],
       ["b1", 1, "2026-11-03T10:00:00Z", true],
@@ -90,7 +90,7 @@ describe("buildPassport", () => {
   });
 
   it("orders neighborhoods by latest activity", () => {
-    expect(view.visited.map((v) => v.neighborhood)).toEqual(["Fenway–Kenmore", "Harvard Square"]);
+    expect(view.visited.map((v) => v.neighborhood)).toEqual(["Fenway-Kenmore", "Harvard Square"]);
     expect(view.totalStamps).toBe(3);
   });
 

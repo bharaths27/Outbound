@@ -174,7 +174,7 @@ type VisitSeed = Pick<Visit, "user_id" | "quest_id"> &
   Partial<Pick<Visit, "squad_id" | "cross_school" | "hidden">> & { daysAgo: number };
 
 const visitSeeds: VisitSeed[] = [
-  // Maya: Gold in Fenway–Kenmore (6), Silver in Chinatown (3), Bronze in Harvard Square
+  // Maya: Gold in Fenway-Kenmore (6), Silver in Chinatown (3), Bronze in Harvard Square
   { user_id: "demo-maya", quest_id: "kenmore-citgo-angle", daysAgo: 30 },
   { user_id: "demo-maya", quest_id: "marsh-plaza-details", daysAgo: 26 },
   { user_id: "demo-maya", quest_id: "pavement-bu-bagel", daysAgo: 21 },
