@@ -32,7 +32,8 @@ async function loadQuests(): Promise<GuideQuest[]> {
 }
 
 async function askGrok(message: string, history: GuideTurn[], quests: GuideQuest[]) {
-  const key = process.env.XAI_API_KEY;
+  // Tolerate stray spaces or quotes pasted around the key.
+  const key = process.env.XAI_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (!key) throw new Error("XAI_API_KEY not set");
   const res = await fetch("https://api.x.ai/v1/responses", {
     method: "POST",
