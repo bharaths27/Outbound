@@ -1,5 +1,5 @@
 "use client";
-// Floating "Ask Outbound Guide" chat, powered by Grok via /api/guide.
+// Floating "Ask Outbound Guide" chat, powered by Grok via /api/guide. Type, or snap a photo of food or a place.
 // Self-contained: drop <GrokGuide /> anywhere (it's in the root layout so it shows on every page).
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -15,18 +15,41 @@ interface Pick {
 interface Msg {
   role: "user" | "assistant";
   content: string;
+  image?: string; // data URL, shown in the chat only (not resent in history)
   quests?: Pick[];
+}
+
+// Shrink any photo (including iPhone HEIC, which the browser can decode) to a JPEG of at most 1024 px.
+async function toJpeg(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const scale = Math.min(1, 1024 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.8);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 const PRICE = ["Free", "$", "$$", "$$$"];
 const STARTERS = ["Cheap eats open now", "Photo spot on the Green Line", "Date night, about 2 hours"];
+const WELCOME =
+  "Hey! Tell me your craving, budget, or how much time you have, or tap 📷 to snap a photo of food or a place. I'll find you a quest on the T.";
 
 export default function GrokGuide() {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "assistant", content: "Hey! Tell me your craving, budget, or how much time you have, and I'll find you a quest on the T." },
+    { role: "assistant", content: WELCOME },
   ]);
   const [input, setInput] = useState("");
+  const [photo, setPhoto] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -34,18 +57,33 @@ export default function GrokGuide() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, busy]);
 
+  async function pickPhoto(file: File | undefined) {
+    if (!file) return;
+    try {
+      setPhoto(await toJpeg(file));
+    } catch {
+      setMsgs((m) => [...m, { role: "assistant", content: "I couldn't open that photo. Try a JPEG or PNG?" }]);
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
   async function send(text: string) {
     const message = text.trim();
-    if (!message || busy) return;
-    const history = msgs.slice(1).map(({ role, content }) => ({ role, content }));
-    setMsgs((m) => [...m, { role: "user", content: message }]);
+    const image = photo;
+    if ((!message && !image) || busy) return;
+    const history = msgs
+      .slice(1)
+      .map(({ role, content, image: img }) => ({ role, content: img ? `[sent a photo] ${content}`.trim() : content }));
+    setMsgs((m) => [...m, { role: "user", content: message, image: image ?? undefined }]);
     setInput("");
+    setPhoto(null);
     setBusy(true);
     try {
       const res = await fetch("/api/guide", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ message, history }),
+        body: JSON.stringify({ message, history, image }),
       });
       const data = await res.json();
       setMsgs((m) => [
@@ -78,9 +116,15 @@ export default function GrokGuide() {
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
             {msgs.map((m, i) => (
               <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
-                <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 ${m.role === "user" ? "bg-emerald-600 text-white" : "bg-neutral-100 dark:bg-neutral-900"}`}>
-                  {m.content}
-                </div>
+                {m.image && (
+                  // eslint-disable-next-line @next/next/no-img-element -- local data URL preview
+                  <img src={m.image} alt="Your photo" className="mb-1 ml-auto max-h-40 rounded-2xl" />
+                )}
+                {m.content && (
+                  <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 ${m.role === "user" ? "bg-emerald-600 text-white" : "bg-neutral-100 dark:bg-neutral-900"}`}>
+                    {m.content}
+                  </div>
+                )}
                 {m.quests && m.quests.length > 0 && (
                   <div className="mt-2 space-y-1.5">
                     {m.quests.map((q) => (
@@ -95,7 +139,7 @@ export default function GrokGuide() {
                 )}
               </div>
             ))}
-            {busy && <p className="text-xs text-neutral-500">Guide is thinking…</p>}
+            {busy && <p className="text-xs text-neutral-500">{photo === null && msgs.at(-1)?.image ? "Looking at your photo…" : "Guide is thinking…"}</p>}
             {msgs.length === 1 && (
               <div className="flex flex-wrap gap-1.5">
                 {STARTERS.map((s) => (
@@ -108,6 +152,16 @@ export default function GrokGuide() {
             <div ref={endRef} />
           </div>
 
+          {photo && (
+            <div className="flex items-center gap-2 border-t border-neutral-200 px-3 pt-2 text-xs text-neutral-500 dark:border-neutral-800">
+              {/* eslint-disable-next-line @next/next/no-img-element -- local data URL preview */}
+              <img src={photo} alt="Photo to send" className="h-10 w-10 rounded-lg object-cover" />
+              Photo ready. Add a note or just tap Ask.
+              <button type="button" onClick={() => setPhoto(null)} aria-label="Remove photo" className="ml-auto px-1 text-base">
+                ×
+              </button>
+            </div>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -116,13 +170,30 @@ export default function GrokGuide() {
             className="flex gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800"
           >
             <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => pickPhoto(e.target.files?.[0])}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy}
+              aria-label="Snap or upload a photo"
+              title="Snap or upload a photo"
+              className="rounded-full border border-neutral-300 px-3 text-base disabled:opacity-40 dark:border-neutral-700"
+            >
+              📷
+            </button>
+            <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               maxLength={500}
-              placeholder="Cheap dumplings, 1 hour…"
-              className="flex-1 rounded-full border border-neutral-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-neutral-700"
+              placeholder={photo ? "What do you want to know?" : "Cheap dumplings, 1 hour…"}
+              className="min-w-0 flex-1 rounded-full border border-neutral-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-neutral-700"
             />
-            <button type="submit" disabled={busy || !input.trim()} className="rounded-full bg-emerald-600 px-4 text-sm font-medium text-white disabled:opacity-40">
+            <button type="submit" disabled={busy || (!input.trim() && !photo)} className="rounded-full bg-emerald-600 px-4 text-sm font-medium text-white disabled:opacity-40">
               Ask
             </button>
           </form>
