@@ -1,5 +1,7 @@
-/* Outbound theme. Every value here comes from DESIGN.md: change DESIGN.md first, then
-   this file. Components use these tokens only (no raw hex, no default grays).
+/* Outbound theme (v1 · Maroon). Every value comes from DESIGN.md §3 and
+   design/hifi/outbound-handoff/tokens.css: change those first, then this file.
+   shadcn's role variables point at the maroon/gold palette so existing components follow it;
+   the extra Outbound tokens are below. Light mode only for now (DESIGN.md §12).
    Owner: Angie. The whole team imports it; ask before editing. */
 
 @import "tailwindcss";
@@ -7,6 +9,12 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+
+/* Desktop layout starts at 1024 px (DESIGN.md §2.5); 768–1023 uses the mobile shell.
+   A breakpoint (not a custom variant) so both desk: and max-desk: exist. */
+@theme {
+  --breakpoint-desk: 64rem;
+}
 
 @theme inline {
   /* shadcn roles */
@@ -29,125 +37,222 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* Outbound tokens */
+  /* Brand */
+  --color-maroon: var(--maroon-700);
+  --color-maroon-800: var(--maroon-800);
+  --color-maroon-600: var(--maroon-600);
+  --color-maroon-500: var(--maroon-500);
   --color-gold: var(--gold);
   --color-gold-foreground: var(--gold-foreground);
+  --color-gold-500: var(--gold-500);
+  --color-gold-600: var(--gold-600);
+
+  /* Surfaces and text */
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-paper: var(--paper);
+  --color-sand: var(--sand);
+  --color-cream: var(--cream);
+  --color-border-strong: var(--border-strong);
+  --color-divider: var(--divider);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted-2: var(--muted-2);
+  --color-on-maroon: var(--on-maroon);
+  --color-on-maroon-muted: var(--on-maroon-muted);
+  --color-pill: var(--pill); /* removable "understood" pills */
+  --color-sample: var(--sample);
+  --color-sample-foreground: var(--sample-foreground);
+
+  /* Quest categories and XP */
+  --color-cat-food: var(--cat-food-bg);
+  --color-cat-food-ink: var(--cat-food-ink);
+  --color-cat-event: var(--cat-event-bg);
+  --color-cat-event-ink: var(--cat-event-ink);
+  --color-cat-scenery: var(--cat-scenery-bg);
+  --color-cat-scenery-ink: var(--cat-scenery-ink);
+  --color-xp-chip: var(--xp-chip-bg);
+  --color-xp-chip-ink: var(--xp-chip-ink);
+  --color-xp: var(--xp);
+
+  /* Status */
+  --color-success: var(--success);
+  --color-closed: var(--closed);
+  --color-danger: var(--danger);
+
+  /* Tiers and stamps */
   --color-tier-bronze: var(--tier-bronze);
   --color-tier-silver: var(--tier-silver);
   --color-tier-gold: var(--tier-gold);
-  --color-xp: var(--xp);
+  --color-stamp-dot-on: var(--gold-600);
+  --color-stamp-dot-off: var(--stamp-dot-off);
   --color-overlay: var(--overlay);
 
-  /* Type: Archivo with the width axis (loaded in layout.tsx) */
-  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  /* Type: Fraunces (display) and DM Sans (UI), loaded in layout.tsx */
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-heading: var(--font-fraunces), Georgia, serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Radius hierarchy: inputs and buttons 10, cards 12, drawers and sheets 20, chips full */
-  --radius-sm: 6px;
-  --radius-md: 8px; /* photos inside cards, menu items */
-  --radius-lg: 10px; /* inputs, buttons */
-  --radius-xl: 12px; /* cards, dialogs */
-  --radius-2xl: 16px;
-  --radius-sheet: 20px; /* drawer and sheet corners */
+  /* Radii: icon buttons 12 · inputs/buttons 14 · cards 20 · panels/dialogs 24 · map 28 */
+  --radius-sm: 8px; /* station sign */
+  --radius-md: 12px; /* icon buttons, thumbnails inside cards */
+  --radius-lg: 14px; /* inputs, primary buttons */
+  --radius-xl: 20px; /* cards */
+  --radius-2xl: 24px; /* panels, dialogs */
+  --radius-3xl: 28px; /* desktop map card */
+  --radius-sheet: 24px; /* bottom sheet top corners */
+
+  /* Maroon-tinted elevation */
+  --shadow-card: 0 8px 24px 0 rgb(74 20 36 / 0.2);
+  --shadow-float: 0 4px 14px rgb(74 20 36 / 0.18);
+  --shadow-panel: 0 10px 30px rgb(74 20 36 / 0.12);
+  --shadow-nav: 0 2px 10px 0 rgb(74 20 36 / 0.2);
+  --shadow-dialog: 0 20px 60px rgb(43 26 31 / 0.35);
+  --shadow-glow: 0 6px 18px rgb(229 169 47 / 0.45); /* gold Check in button */
 }
 
 :root {
-  --radius: 10px;
+  --radius: 14px;
 
-  --background: #ffffff;
-  --foreground: #383d57;
-  --card: #ffffff;
-  --card-foreground: #383d57;
-  --popover: #ffffff;
-  --popover-foreground: #383d57;
-  --primary: #383d57;
+  /* Brand */
+  --maroon-700: #6b1f33;
+  --maroon-800: #4a1424;
+  --maroon-600: #8a2a44;
+  --maroon-500: #7d2a40;
+  --gold: #f2c14e; /* gold-400 */
+  --gold-foreground: #4a1424;
+  --gold-500: #e5a92f;
+  --gold-600: #c7901a;
+
+  /* Surfaces */
+  --page: #fff8ef;
+  --surface: #ffffff;
+  --paper: #fbf6ec;
+  --sand: #f1e6d3;
+  --cream: #f6eddd;
+  --border-strong: #e2d3bc;
+  --divider: #e6d8c2;
+
+  /* Text */
+  --ink: #2b1a1f;
+  --ink-2: #3d2a2e;
+  --muted-2: #5a4549;
+  --on-maroon: #ffffff;
+  --on-maroon-muted: #f6e6ea;
+  --pill: #f4e3e6;
+  --sample: #efe7da;
+  --sample-foreground: #5a4549;
+
+  /* shadcn roles mapped onto the palette */
+  --background: var(--page);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--maroon-700);
   --primary-foreground: #ffffff;
-  --secondary: #9cb9e7;
-  --secondary-foreground: #262a3e;
-  --muted: #e8ecf5;
-  --muted-foreground: #5b6280;
-  --accent: #7a3e5b;
+  --secondary: var(--pill);
+  --secondary-foreground: var(--maroon-700);
+  --muted: var(--sand);
+  --muted-foreground: #6e5a5e; /* 4.5:1 on white and cream */
+  --accent: var(--maroon-700); /* links */
   --accent-foreground: #ffffff;
-  --destructive: #c2362b;
-  --border: #d6dcea;
-  --input: #d6dcea;
-  --ring: #9cb9e7;
+  --destructive: var(--maroon-600);
+  --border: #eaddc8;
+  --input: var(--border-strong);
+  --ring: var(--maroon-700);
 
-  --gold: #ffc533;
-  --gold-foreground: #383d57;
-  --tier-bronze: #b87b4b;
-  --tier-silver: #9aa4bc;
-  --tier-gold: var(--gold);
-  --xp: #7a3e5b;
-  --overlay: rgb(56 61 87 / 0.35); /* navy scrim behind dialogs and drawers */
+  /* Categories, XP, status */
+  --cat-food-bg: #f8e1e6;
+  --cat-food-ink: #8a2a44;
+  --cat-event-bg: #e8e2f5;
+  --cat-event-ink: #4b3a80;
+  --cat-scenery-bg: #dde8f5;
+  --cat-scenery-ink: #1f4a7a;
+  --xp-chip-bg: #fce9b8;
+  --xp-chip-ink: #5c3f00;
+  --xp: var(--maroon-600);
+  --success: #2f6b4f;
+  --closed: #8a2a44;
+  --danger: #b3121f;
+
+  /* Tiers and stamps */
+  --tier-bronze: #a8643a;
+  --tier-silver: #9aa3b2;
+  --tier-gold: #e5a92f;
+  --stamp-dot-off: #dccfbd;
+  --overlay: rgb(43 26 31 / 0.55); /* scrim behind dialogs and sheets */
 }
 
+/* Dark mode isn't designed yet (DESIGN.md §12). The theme provider forces light; this
+   block stays so the plumbing is ready. */
 .dark {
-  --background: #1c1f30;
-  --foreground: #eef1f8;
-  --card: #262a40;
-  --card-foreground: #eef1f8;
-  --popover: #262a40;
-  --popover-foreground: #eef1f8;
-  --primary: #9cb9e7;
-  --primary-foreground: #262a3e;
-  --secondary: #30354f;
-  --secondary-foreground: #eef1f8;
-  --muted: #30354f;
-  --muted-foreground: #a6adc6;
-  --accent: #d69bb8;
-  --accent-foreground: #262a3e;
-  --destructive: #f07a6e;
-  --border: #3b4060;
-  --input: #3b4060;
-  --ring: #9cb9e7;
-
-  --gold: #ffc533;
-  --gold-foreground: #262a3e;
-  --tier-bronze: #c98d5d;
-  --tier-silver: #aeb7cc;
-  --tier-gold: var(--gold);
-  --xp: #d69bb8;
-  --overlay: rgb(10 12 20 / 0.6);
+  --background: var(--page);
 }
 
-/* Type styles from DESIGN.md. Use these instead of ad-hoc text sizes. */
-@utility type-display {
-  font-size: 32px;
+/* Type styles. Use these instead of ad-hoc sizes. */
+@utility type-hero {
+  font-family: var(--font-display);
+  font-size: 30px;
   line-height: 36px;
-  font-weight: 800;
-  font-stretch: 125%;
+  font-weight: 600;
+  @media (width >= 64rem) {
+    font-size: 44px;
+    line-height: 52px;
+  }
+}
+@utility type-display {
+  /* page titles */
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 600;
+  @media (width >= 64rem) {
+    font-size: 40px;
+    line-height: 48px;
+  }
 }
 @utility type-title {
+  /* card and dialog titles */
+  font-family: var(--font-display);
   font-size: 22px;
   line-height: 28px;
-  font-weight: 700;
-  font-stretch: 112%;
+  font-weight: 600;
 }
 @utility type-heading {
   font-size: 17px;
   line-height: 24px;
-  font-weight: 600;
-  font-stretch: 100%;
+  font-weight: 700;
 }
 @utility type-body {
   font-size: 15px;
   line-height: 22px;
   font-weight: 400;
-  font-stretch: 100%;
 }
 @utility type-small {
   font-size: 13px;
   line-height: 18px;
   font-weight: 500;
-  font-stretch: 100%;
 }
 @utility type-tiny {
   font-size: 11px;
   line-height: 14px;
-  font-weight: 600;
-  font-stretch: 100%;
+  font-weight: 700;
+}
+@utility type-eyebrow {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+@utility type-sign {
+  /* station names, like a station sign */
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 700;
 }
 
 @layer base {
@@ -164,9 +269,14 @@
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
-  /* lucide icons: stroke width 1.75 everywhere */
+  /* lucide icons: 1.8 stroke, round caps (DESIGN.md §3 Icons) */
   svg.lucide {
-    stroke-width: 1.75;
+    stroke-width: 1.8;
+  }
+  /* Visible focus: 2 px maroon ring with a 2 px offset (DESIGN.md §10) */
+  :focus-visible {
+    outline: 2px solid var(--maroon-700);
+    outline-offset: 2px;
   }
   @media (prefers-reduced-motion: reduce) {
     *,

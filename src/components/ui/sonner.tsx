@@ -4,13 +4,19 @@ import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
+// Toasts are a dark ink pill at the bottom center, above the mobile tab bar
+// (DESIGN.md §4 Toasts), 3 s by default.
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const { theme = "light" } = useTheme()
 
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      position="bottom-center"
+      duration={3000}
+      offset={24}
+      mobileOffset={{ bottom: "calc(96px + env(safe-area-inset-bottom))" }}
       icons={{
         success: (
           <CircleCheckIcon className="size-4" />
@@ -30,10 +36,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       style={
         {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
+          "--normal-bg": "var(--ink)",
+          "--normal-text": "#ffffff",
+          "--normal-border": "var(--ink)",
+          "--border-radius": "999px",
         } as React.CSSProperties
       }
       toastOptions={{

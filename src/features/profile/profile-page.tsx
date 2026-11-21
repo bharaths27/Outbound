@@ -15,6 +15,7 @@ import { Stamp } from "@/features/passport/stamp";
 import { privacyLabel } from "@/features/settings/privacy-choice";
 import { data } from "@/lib/data";
 import type { Profile, School, SquadWithMembers, Tier } from "@/lib/data/types";
+import { PageHeader } from "@/features/shell/page-header";
 
 type Ready = {
   status: "ready";
@@ -71,7 +72,9 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-8 px-4 py-6 md:px-6 md:py-10">
+    <>
+    <PageHeader title="Profile" />
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-8 px-4 py-6 md:px-6 desk:max-w-[1360px] desk:px-8">
       {load.status === "loading" && (
         <div className="flex flex-col gap-4" aria-busy aria-label="Loading your profile">
           <Skeleton className="size-20 rounded-full" />
@@ -82,7 +85,7 @@ export function ProfilePage() {
       {load.status === "error" && <p className="type-body text-muted-foreground">Your profile didn&apos;t load. Refresh to try again.</p>}
       {load.status === "signed-out" && (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
-          <h1 className="type-title">Sign in to see your profile</h1>
+          <h2 className="type-title">Sign in to see your profile</h2>
           <p className="type-body max-w-sm text-muted-foreground">Your level, stamps, and squads live here.</p>
           <Button asChild>
             <Link href="/login?next=/profile">Sign in</Link>
@@ -91,6 +94,7 @@ export function ProfilePage() {
       )}
       {load.status === "ready" && <ProfileView load={load} onSignOut={signOut} />}
     </div>
+    </>
   );
 }
 
@@ -109,7 +113,7 @@ function ProfileView({ load, onSignOut }: { load: Ready; onSignOut: () => void }
           <AvatarFallback className="type-title">{initials(profile.display_name)}</AvatarFallback>
         </Avatar>
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h1 className="type-title truncate">{profile.display_name ?? "New player"}</h1>
+          <h2 className="type-title truncate">{profile.display_name ?? "New player"}</h2>
           <p className="type-body text-muted-foreground">{school?.name ?? "Your school"}</p>
           {profile.is_demo && <p className="type-small text-muted-foreground">Demo account</p>}
         </div>

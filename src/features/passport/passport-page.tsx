@@ -16,6 +16,7 @@ import type { Profile, Tier } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { TIER_LABEL, buildPassport, progressLine, type NeighborhoodView, type PassportView } from "./build-passport";
 import { Stamp } from "./stamp";
+import { PageHeader } from "@/features/shell/page-header";
 
 type Load =
   | { status: "loading" }
@@ -50,8 +51,9 @@ export function PassportPage() {
   }, [attempt]);
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6 md:py-10">
-      <h1 className="type-display">Your passport</h1>
+    <>
+    <PageHeader title="My Passport" />
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6 desk:max-w-[1360px] desk:px-8">
       {load.status === "loading" && <PassportSkeleton />}
       {load.status === "error" && (
         <Centered
@@ -83,6 +85,7 @@ export function PassportPage() {
       )}
       {load.status === "ready" && <Passport profile={load.profile} view={load.view} />}
     </div>
+    </>
   );
 }
 
@@ -90,7 +93,7 @@ function Passport({ profile, view }: { profile: Profile; view: PassportView }) {
   const empty = view.visited.length === 0;
   return (
     <>
-      <p className="type-body -mt-4 text-muted-foreground tabular-nums">
+      <p className="type-body text-muted-foreground tabular-nums">
         {view.totalStamps} {view.totalStamps === 1 ? "stamp" : "stamps"} · {view.visited.length}{" "}
         {view.visited.length === 1 ? "neighborhood" : "neighborhoods"} · Level {profile.level}
       </p>

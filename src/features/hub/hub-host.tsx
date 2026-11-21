@@ -12,9 +12,9 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/
 import { closeStationHub, forgetHubHistory } from "./open-hub";
 import { StationHub } from "./station-hub";
 
-const DESKTOP = "(min-width: 768px)";
+const DESKTOP = "(min-width: 1024px)"; // DESIGN.md §2.5
 /** Peek shows the header: station name, lines, next train. */
-const PEEK = "176px";
+const PEEK = "228px"; // handle + sign + lines + next-trains box
 const SNAP_POINTS: (string | number)[] = [PEEK, 0.55, 1];
 
 function useMediaQuery(query: string): boolean | null {
@@ -70,7 +70,8 @@ function HubHost() {
           showCloseButton={false}
           onInteractOutside={(e) => e.preventDefault()} // map clicks swap stations instead
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="gap-0 data-[side=right]:w-[420px] data-[side=right]:sm:max-w-[420px]"
+          // A floating card right of the map, under the top bar (DESIGN.md §7).
+          className="gap-0 overflow-hidden rounded-[22px] border border-border bg-background shadow-card data-[side=right]:top-[88px] data-[side=right]:right-6 data-[side=right]:bottom-6 data-[side=right]:h-auto data-[side=right]:w-[420px] data-[side=right]:sm:max-w-[420px]"
         >
           <SheetTitle className="sr-only">Station</SheetTitle>
           <SheetDescription className="sr-only">Quests and filters for this station</SheetDescription>
@@ -91,7 +92,7 @@ function HubHost() {
       activeSnapPoint={snap}
       setActiveSnapPoint={setSnap}
     >
-      <DrawerContent className="h-[96dvh] shadow-lg data-[vaul-drawer-direction=bottom]:max-h-[96dvh]">
+      <DrawerContent className="h-[96dvh] border-0 bg-background shadow-[0_-8px_30px_rgb(74_20_36/0.22)] data-[vaul-drawer-direction=bottom]:max-h-[96dvh]">
         <DrawerTitle className="sr-only">Station</DrawerTitle>
         <DrawerDescription className="sr-only">Quests and filters for this station</DrawerDescription>
         {/* Scrolls only when fully open; below that, drags move the drawer. */}

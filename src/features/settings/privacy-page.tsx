@@ -3,7 +3,6 @@
 // Privacy settings: who can see my visits (including ghost mode), and hiding single
 // visits. Changes save as you make them.
 
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -13,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { data } from "@/lib/data";
 import type { Privacy, Profile, Quest, Visit } from "@/lib/data/types";
 import { PrivacyChoice } from "./privacy-choice";
+import { PageHeader } from "@/features/shell/page-header";
 
 type Load =
   | { status: "loading" }
@@ -75,14 +75,9 @@ export function PrivacyPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 py-6 md:px-6 md:py-10">
-      <Button variant="ghost" asChild className="-ml-3 self-start">
-        <Link href="/profile">
-          <ArrowLeft aria-hidden />
-          Profile
-        </Link>
-      </Button>
-      <h1 className="type-title">Privacy</h1>
+    <>
+    <PageHeader title="Privacy" back={{ href: "/profile", label: "Profile" }} />
+    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6 px-4 py-6 md:px-6 desk:px-8">
 
       {load.status === "loading" && <Skeleton className="h-72 w-full rounded-xl" />}
       {load.status === "error" && <p className="type-body text-muted-foreground">Your settings didn&apos;t load. Refresh to try again.</p>}
@@ -130,5 +125,6 @@ export function PrivacyPage() {
         </>
       )}
     </div>
+    </>
   );
 }

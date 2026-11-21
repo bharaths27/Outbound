@@ -1,6 +1,6 @@
 "use client";
 
-// Compete (/leaderboard): Schools and Squads tabs. Tournaments are out of scope.
+// Leaderboard (/leaderboard; "Compete" before DESIGN.md v1): Schools and Squads. Tournaments are out of scope.
 // /leaderboard?tab=squads opens the Squads tab (the join page sends players there).
 
 import Link from "next/link";
@@ -12,15 +12,18 @@ import { data } from "@/lib/data";
 import type { Profile } from "@/lib/data/types";
 import { SchoolsTab } from "./schools-tab";
 import { SquadsTab } from "./squads-tab";
+import { PageHeader } from "@/features/shell/page-header";
 
 export function CompetePage() {
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6 md:py-10">
-      <h1 className="type-display">Compete</h1>
-      <Suspense fallback={null}>
-        <CompeteTabs />
-      </Suspense>
-    </div>
+    <>
+      <PageHeader title="Leaderboard" />
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6 desk:max-w-[1360px] desk:px-8">
+        <Suspense fallback={null}>
+          <CompeteTabs />
+        </Suspense>
+      </div>
+    </>
   );
 }
 

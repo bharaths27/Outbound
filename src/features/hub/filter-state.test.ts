@@ -99,7 +99,7 @@ describe("helpers", () => {
   });
 
   it("labels things", () => {
-    expect(cravingLabel("scenic")).toBe("Scenic");
+    expect(cravingLabel("scenic")).toBe("Scenery");
     expect(cravingLabel("photo-spot")).toBe("Photo spot");
     expect(minutesLabel(60)).toBe("1 hr");
     expect(minutesLabel(45)).toBe("45 min");

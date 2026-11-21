@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Outbound · Leaderboard (desktop)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#6B1F33}a:hover{color:#4A1424}
+</style>
+</helmet>
+<div style="min-height: 100vh; font-family: 'DM Sans', system-ui, sans-serif; color: #2B1A1F; background-color: #FFF8EF">
+  <header style="background: #6B1F33; color: #FFFFFF">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 12px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px">
+      <a href="explore-default.html" style="display: flex; align-items: center; padding: 8px 0; text-decoration: none"><img src="../../assets/outbound-wordmark.svg" alt="Outbound home" style="height: 28px; width: auto; display: block"></a>
+      <nav aria-label="Primary" style="flex: 1; display: flex; flex-wrap: wrap; gap: 4px">
+        <a href="explore-default.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Explore</a>
+        <a href="quests.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Quests</a>
+        <a href="passport.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Passport</a>
+        <a href="leaderboard-schools.html" aria-current="page" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; background: #FBF6EC; color: #6B1F33; font-size: 15px; font-weight: 700; text-decoration: none; box-shadow: 0px 2px 10px 0px #4a142433">Leaderboard</a>
+        <a href="#" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Events</a>
+      </nav>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; background: #F2C14E; color: #4A1424; font-size: 14px; font-weight: 700"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z"></path></svg>3,420 XP</span>
+        <button aria-label="Notifications" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: rgba(255, 255, 255, 0.12); color: #FFFFFF; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"></path></svg></button>
+        <a href="passport.html" aria-label="Your profile" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #F2C14E; color: #4A1424; border: 2px solid #FBF6EC; box-sizing: border-box; font-family: 'Fraunces', Georgia, serif; font-size: 18px; font-weight: 700; text-decoration: none">V</a>
+      </div>
+    </div>
+  </header>
+
+  <div style="max-width: 1360px; margin: 0 auto; padding: 32px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px">
+      <div style="flex: 1 1 420px; min-width: 0">
+        <h1 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 40px; font-weight: 600; color: #6B1F33">School Leaderboard</h1>
+        <p style="margin: 6px 0 0; font-size: 16px; color: #6E5A5E">Every quest you finish adds XP to your school’s total.</p>
+      </div>
+      <div role="tablist" aria-label="Time range" style="display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: #F1E6D3">
+        <sc-for list="{{ranges}}" as="r" hint-placeholder-count="2">
+          <sc-if value="{{r.on}}" hint-placeholder-val="{{false}}">
+            <button role="tab" aria-selected="true" onClick="{{r.pick}}" style="height: 44px; padding: 0 22px; border: 0; border-radius: 999px; background: #6B1F33; color: #FFFFFF; font: 700 15px 'DM Sans', sans-serif; cursor: pointer">{{r.label}}</button>
+          </sc-if>
+          <sc-if value="{{r.off}}" hint-placeholder-val="{{true}}">
+            <button role="tab" aria-selected="false" onClick="{{r.pick}}" style="height: 44px; padding: 0 22px; border: 0; border-radius: 999px; background: transparent; color: #5A4549; font: 600 15px 'DM Sans', sans-serif; cursor: pointer">{{r.label}}</button>
+          </sc-if>
+        </sc-for>
+      </div>
+    </div>
+
+    <section aria-label="Top three schools" style="padding: 28px 32px 0; border-radius: 24px; background: #6B1F33; color: #FFFFFF">
+      <ol style="margin: 0 auto; padding: 0; max-width: 760px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: end">
+        <sc-for list="{{podium}}" as="p" hint-placeholder-count="3">
+          <li style="list-style: none; display: flex; flex-direction: column; align-items: center; gap: 8px">
+            <svg width="{{p.size}}" height="{{p.size}}" viewBox="0 0 64 64" role="img" aria-label="{{p.name}}, rank {{p.rank}}"><circle cx="32" cy="32" r="29" fill="{{p.color}}" stroke="#FBF6EC" stroke-width="4"></circle><text x="32" y="38.5" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="17" font-weight="700" fill="#FFFFFF">{{p.abbr}}</text></svg>
+            <div style="font-size: 18px; font-weight: 700; text-align: center">{{p.name}}</div>
+            <div style="font-size: 15px; color: #F2C14E; font-weight: 700">{{p.xp}} XP</div>
+            <div style="width: 100%; height: {{p.h}}; display: flex; align-items: flex-start; justify-content: center; padding-top: 12px; box-sizing: border-box; border-radius: 16px 16px 0 0; background: #8A2A44; font-family: 'Fraunces', Georgia, serif; font-size: 36px; font-weight: 700; color: #F2C14E; box-shadow: 0px 2px 20px 0px #4a142445">{{p.rank}}</div>
+          </li>
+        </sc-for>
+      </ol>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+      <section aria-label="All schools" style="flex: 999 1 600px; min-width: 0; border-radius: 20px; background: #FFFFFF; border: 1px solid #EADDC8; overflow: hidden">
+        <ol style="margin: 0; padding: 0">
+          <sc-for list="{{rows}}" as="s" hint-placeholder-count="7">
+            <li style="list-style: none; display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid #F1E6D3">
+              <span style="width: 28px; font-size: 16px; font-weight: 700; color: #6E5A5E; text-align: center">{{s.rank}}</span>
+              <svg width="40" height="40" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="32" fill="{{s.color}}"></circle><text x="32" y="39" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="18" font-weight="700" fill="#FFFFFF">{{s.abbr}}</text></svg>
+              <span style="flex: 0 0 140px; font-size: 16px; font-weight: 700">{{s.name}}</span>
+              <div style="flex: 1; height: 8px; border-radius: 999px; background: #F1E6D3; overflow: hidden"><div style="width: {{s.pct}}; height: 100%; border-radius: 999px; background: {{s.bar}}"></div></div>
+              <span style="flex: 0 0 100px; text-align: right; font-size: 15px; font-weight: 600; color: #3D2A2E">{{s.xp}} XP</span>
+            </li>
+          </sc-for>
+        </ol>
+        <p style="margin: 0; padding: 12px 20px; font-size: 13px; color: #6E5A5E">Resets every Monday at 12:00 AM · Sample standings</p>
+      </section>
+
+      <aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+        <section style="padding: 20px; border-radius: 20px; background: #FFFFFF; border: 1px solid #EADDC8">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <div aria-hidden="true" style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #F2C14E; color: #4A1424; font-family: 'Fraunces', Georgia, serif; font-size: 22px; font-weight: 700">V</div>
+            <div><div style="font-size: 17px; font-weight: 700">Your BU contribution</div><div style="font-size: 14px; color: #6E5A5E">Verna · BU ’27</div></div>
+          </div>
+          <div style="margin-top: 14px; font-family: 'Fraunces', Georgia, serif; font-size: 32px; font-weight: 700; color: #6B1F33">3,420 XP</div>
+          <div style="font-size: 14px; color: #6E5A5E">this week · top [N]% of BU riders</div>
+          <a href="quests.html" style="display: flex; align-items: center; justify-content: center; height: 46px; margin-top: 16px; border-radius: 14px; background: #6B1F33; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none">Earn more XP</a>
+        </section>
+        <section style="padding: 20px; border-radius: 20px; background: #FFFFFF; border: 1px solid #EADDC8">
+          <h2 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; color: #6B1F33">How XP counts</h2>
+          <ul style="margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.45; color: #3D2A2E">
+            <li style="list-style: none; display: flex; gap: 10px"><span style="flex: none; padding: 2px 8px; border-radius: 999px; background: #FCE9B8; color: #5C3F00; font-weight: 700; font-size: 12px">XP</span>Each quest you finish adds its XP to your school.</li>
+            <li style="list-style: none; display: flex; gap: 10px"><span style="flex: none; padding: 2px 8px; border-radius: 999px; background: #FCE9B8; color: #5C3F00; font-weight: 700; font-size: 12px">2×</span>Cross-school quests count double for both schools.</li>
+            <li style="list-style: none; display: flex; gap: 10px"><span style="flex: none; padding: 2px 8px; border-radius: 999px; background: #FCE9B8; color: #5C3F00; font-weight: 700; font-size: 12px">Wk</span>Weekly totals reset Monday; All Time keeps adding up.</li>
+          </ul>
+        </section>
+      </aside>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { range: 'week' }; }
+  renderVals() {
+    const S = [
+      ['BU', 'BU', '#B3121F', 12480, 184300], ['Northeastern', 'NEU', '#26262B', 10930, 171050], ['Tufts', 'TU', '#2C5F9E', 8760, 122400],
+      ['MIT', 'MIT', '#8A1538', 7215, 118900], ['Harvard', 'HU', '#A51C30', 6980, 109250], ['Emerson', 'EC', '#5E3A8C', 4120, 61700], ['Suffolk', 'SU', '#1B365D', 3560, 52300]
+    ];
+    const k = this.state.range === 'week' ? 3 : 4;
+    const rows0 = S.map((s) => ({ name: s[0], abbr: s[1], color: s[2], n: s[k] })).sort((a, b) => b.n - a.n);
+    const top = rows0[0].n;
+    const BAR = ['#E5A92F', '#9AA3B2', '#A8643A'];
+    const ranked = rows0.map((r, i) => ({ ...r, rank: i + 1, xp: r.n.toLocaleString('en-US'), pct: Math.round(r.n / top * 100) + '%', bar: BAR[i] || '#9A7FB8' }));
+    const podium = [ranked[1], ranked[0], ranked[2]].map((r) => ({ ...r, size: r.rank === 1 ? 96 : 76, h: r.rank === 1 ? '120px' : r.rank === 2 ? '88px' : '68px' }));
+    const ranges = [['week', 'This Week'], ['all', 'All Time']].map(([id, label]) => ({
+      label, on: this.state.range === id, off: this.state.range !== id, pick: () => this.setState({ range: id }) }));
+    return { podium, rows: ranked, ranges };
+  }
+}
+</script>
+</body>
+</html>

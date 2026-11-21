@@ -222,6 +222,38 @@ export function formatSchedule(hours: string | null): string[] | null {
     });
 }
 
+export interface ScheduleRow {
+  days: string; // "Mon–Thu", "Every day"
+  time: string; // "7 AM – 8 PM", "Open 24 hours", "Closed"
+  today: boolean;
+}
+
+/**
+ * Rows for an hours card: one per distinct time range, plus "Closed" for days not listed,
+ * with today's row flagged (Boston time). Null when unknown.
+ */
+export function scheduleRows(hours: string | null, now: Date): ScheduleRow[] | null {
+  const s = parseSchedule(hours);
+  if (s === null) return null;
+  if (s === "always") return [{ days: "Every day", time: "Open 24 hours", today: true }];
+  const { day: today } = bostonTime(now);
+  const byRange = new Map<string, { time: string; days: number[] }>();
+  for (const p of s) {
+    const time = p.start === p.end ? "Open 24 hours" : `${capitalize(formatClock(p.start))} – ${formatClock(p.end)}`;
+    const entry = byRange.get(time) ?? { time, days: [] };
+    if (!entry.days.includes(p.day)) entry.days.push(p.day);
+    byRange.set(time, entry);
+  }
+  const listed = new Set(s.map((p) => p.day));
+  const closed = [0, 1, 2, 3, 4, 5, 6].filter((d) => !listed.has(d));
+  const groups = [...byRange.values()];
+  if (closed.length) groups.push({ time: "Closed", days: closed });
+  return groups
+    .map((g) => ({ ...g, days: [...g.days].sort((a, b) => a - b) }))
+    .sort((a, b) => firstDay(a.days) - firstDay(b.days))
+    .map((g) => ({ days: g.days.length === 7 ? "Every day" : dayRanges(g.days), time: g.time, today: g.days.includes(today) }));
+}
+
 /** All hours on one line ("Mon–Thu 9 AM – 8 PM · Sun 11 AM – 5 PM"), or null. */
 export function formatHours(hours: string | null): string | null {
   return formatSchedule(hours)?.join(" · ") ?? null;

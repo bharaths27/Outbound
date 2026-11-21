@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bostonMinutes, bostonTime, formatHours, formatSchedule, isOpenAt, openState, parseHours, parseSchedule } from "./hours";
+import { bostonMinutes, bostonTime, formatHours, formatSchedule, isOpenAt, openState, parseHours, parseSchedule, scheduleRows } from "./hours";
 
 // Boston is UTC-5 in November (EST) and UTC-4 in July (EDT).
 const bostonNov = (hhmm: string) => new Date(`2026-11-21T${hhmm}:00-05:00`);
@@ -120,5 +120,20 @@ describe("weekday schedules", () => {
     expect(formatSchedule("Sat,Sun 08:00-16:00; Mon-Fri 07:00-15:00")).toEqual(["Mon–Fri 7 AM – 3 PM", "Sat, Sun 8 AM – 4 PM"]);
     expect(formatSchedule("Mon-Sat 07:00-20:00; Sun 07:30-19:00")).toEqual(["Mon–Sat 7 AM – 8 PM", "Sun 7:30 AM – 7 PM"]);
     expect(formatSchedule("Sun-Tue 08:00-18:00; Wed-Sat 08:00-20:00")).toEqual(["Sun–Tue 8 AM – 6 PM", "Wed–Sat 8 AM – 8 PM"]);
+  });
+});
+
+describe("scheduleRows", () => {
+  it("lists each range with closed days and flags today", () => {
+    // 2026-11-21 is a Saturday
+    expect(scheduleRows("Mon,Fri 10:00-18:00; Tue-Thu 10:00-21:00; Sat 10:00-14:00", at("21", "12:00"))).toEqual([
+      { days: "Mon, Fri", time: "10 AM – 6 PM", today: false },
+      { days: "Tue–Thu", time: "10 AM – 9 PM", today: false },
+      { days: "Sat", time: "10 AM – 2 PM", today: true },
+      { days: "Sun", time: "Closed", today: false },
+    ]);
+    expect(scheduleRows("07:00-19:00", at("21", "12:00"))).toEqual([{ days: "Every day", time: "7 AM – 7 PM", today: true }]);
+    expect(scheduleRows("always", at("21", "12:00"))).toEqual([{ days: "Every day", time: "Open 24 hours", today: true }]);
+    expect(scheduleRows(null, at("21", "12:00"))).toBeNull();
   });
 });

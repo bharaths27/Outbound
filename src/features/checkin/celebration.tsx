@@ -1,24 +1,24 @@
 "use client";
 
-// The check-in celebration (DESIGN.md "Motion"): the stamp lands, XP counts up with its
-// breakdown, and the neighborhood ring fills. A requestAnimationFrame clock drives the
-// pure timeline in sequence.ts. Tap to skip; with reduced motion it fades in at the end.
+// The check-in celebration (DESIGN.md §8.5; reference check-in-success.html): maroon,
+// full-screen on phones and a 520 px dialog on desktop. The stamp drops in and lands at
+// −8°, the tier ring fills, the eyebrow says "Tier up" or "First stamp", XP counts up while
+// the bonus lines appear, then the next-tier and level lines. A requestAnimationFrame clock
+// drives the pure timeline in sequence.ts; Skip (or a tap) jumps to the end, and reduced
+// motion starts there with a fade.
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Stamp } from "@/features/passport/stamp";
 import type { CheckInResult, Quest, Tier } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
-import { REASON_LABEL, TIER_LABEL, TOTAL_MS, frameAt, nextTierLine, summary } from "./sequence";
+import { REASON_LABEL, TIER_LABEL, TOTAL_MS, frameAt, summary } from "./sequence";
 
-const RING_SIZE = 168;
-const RING_WIDTH = 6;
-const RADIUS = (RING_SIZE - RING_WIDTH) / 2;
+const RING = 176;
+const STROKE = 6;
+const RADIUS = (RING - STROKE * 2) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-const TIER_VAR: Record<Tier, string> = {
-  bronze: "var(--tier-bronze)",
-  silver: "var(--tier-silver)",
-  gold: "var(--tier-gold)",
-};
+/** Tier ring colors on maroon (lighter than the stamp inks so they read on the dark background). */
+const RING_ON_MAROON: Record<Tier, string> = { bronze: "#E0A878", silver: "#C9D0DC", gold: "#F2C14E" };
 
 function usePrefersReducedMotion(): boolean {
   return useSyncExternalStore(
@@ -63,17 +63,33 @@ export interface CelebrationProps {
   result: CheckInResult;
   /** The player's tier in this neighborhood before the check-in (null if it's new). */
   prevTier: Tier | null;
+  /** Squad name for the squad bonus line ("Squad bonus · Night Owls"), if any. */
+  squadName?: string;
+  /** The buttons (See your passport / Done), rendered under the summary. */
+  actions: React.ReactNode;
+  /** Renders the accessible title; the dialog supplies its own Title component. */
+  renderTitle: (text: string) => React.ReactNode;
 }
 
-export function Celebration({ quest, result, prevTier }: CelebrationProps) {
+export function Celebration({ quest, result, prevTier, squadName, actions, renderTitle }: CelebrationProps) {
   const reduced = usePrefersReducedMotion();
   const { t, skip } = useTimeline(reduced);
   const f = frameAt(t, result, prevTier);
-  const drop = 1 - f.stamp; // 1 at the start, 0 when landed (negative while overshooting)
+  const s = f.stamp; // 0 → 1 with a small overshoot
+
+  const firstStamp = prevTier === null;
+  const eyebrow = f.tierUp ? "Tier up" : firstStamp ? "First stamp" : "Checked in";
+  const headline = f.tierUp
+    ? `${TIER_LABEL[result.tier]} in ${result.neighborhood}`
+    : firstStamp
+      ? `First stamp in ${result.neighborhood}`
+      : quest.title;
+  const show = (visible: boolean) =>
+    cn("transition-[opacity,transform] duration-300 ease-out", visible ? "opacity-100" : "translate-y-1.5 opacity-0");
 
   return (
     <div
-      className={cn("flex flex-col items-center gap-5 text-center", reduced && "animate-in fade-in-0 duration-150")}
+      className={cn("flex flex-col items-center gap-3.5 text-center", reduced && "animate-in fade-in-0 duration-200")}
       onPointerDown={f.done ? undefined : skip}
     >
       {/* Screen readers get the outcome at once, not the count-up. */}
@@ -81,65 +97,88 @@ export function Celebration({ quest, result, prevTier }: CelebrationProps) {
         {summary(result, prevTier)}
       </p>
 
-      <div className="relative grid place-items-center" style={{ width: RING_SIZE, height: RING_SIZE }} aria-hidden>
-        <svg width={RING_SIZE} height={RING_SIZE} className="absolute inset-0 -rotate-90">
-          <circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS} fill="none" stroke="var(--border)" strokeWidth={RING_WIDTH} />
+      <div className="flex min-h-11 w-full justify-end">
+        {!f.done && (
+          <button type="button" onClick={skip} className="min-h-11 px-3 text-sm font-semibold text-on-maroon-muted">
+            Skip
+          </button>
+        )}
+      </div>
+
+      <div className="relative grid place-items-center" style={{ width: RING, height: RING }} aria-hidden>
+        <svg width={RING} height={RING} className="absolute inset-0 -rotate-90">
+          <circle cx={RING / 2} cy={RING / 2} r={RADIUS} fill="none" stroke="rgb(255 255 255 / 0.15)" strokeWidth={STROKE} />
           <circle
-            cx={RING_SIZE / 2}
-            cy={RING_SIZE / 2}
+            cx={RING / 2}
+            cy={RING / 2}
             r={RADIUS}
             fill="none"
-            stroke={TIER_VAR[f.ringTier]}
-            strokeWidth={RING_WIDTH}
+            stroke={RING_ON_MAROON[f.ringTier]}
+            strokeWidth={STROKE}
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={CIRCUMFERENCE * (1 - f.ring)}
           />
         </svg>
+        {/* ob-drop: falls from above, tilted and enlarged, overshoots, lands at −8°. */}
         <div
+          className="flex rounded-full bg-background"
           style={{
             opacity: f.stampOpacity,
-            transform: `translateY(${-48 * Math.max(0, drop)}px) scale(${1 + 0.5 * drop})`,
+            transform: `translateY(${-140 * (1 - s)}px) rotate(${-30 + 22 * s}deg) scale(${1.3 - 0.3 * Math.min(s, 1)})`,
           }}
         >
           <Stamp
             questId={quest.id}
             title={quest.title}
             neighborhood={result.neighborhood}
-            type={quest.type}
             tier={result.tier}
             crossSchool={result.cross_school}
             size={128}
+            rotate={0}
           />
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-1" aria-hidden>
-        <p className="type-display text-xp tabular-nums">+{f.xp} XP</p>
-        <ul className="type-small flex flex-col items-center gap-0.5 text-muted-foreground">
-          {result.xp_breakdown.slice(0, f.lines).map((line) => (
-            <li key={line.reason} className="tabular-nums">
-              {REASON_LABEL[line.reason]} <span className="text-foreground">+{line.xp}</span>
-            </li>
-          ))}
-        </ul>
+      <div className={cn("flex flex-col items-center gap-1", show(t >= 450))}>
+        <p className="text-xs font-bold tracking-[0.12em] text-gold uppercase">{eyebrow}</p>
+        {renderTitle(headline)}
       </div>
 
-      <div className="flex flex-col items-center gap-1" aria-hidden>
-        {f.tierUp && f.done ? (
-          <p className="type-heading">
-            {TIER_LABEL[result.tier]} in {result.neighborhood}
-          </p>
-        ) : prevTier === null ? (
-          <p className="type-heading">First stamp in {result.neighborhood}</p>
-        ) : null}
-        <p className="type-small text-muted-foreground">{nextTierLine(result)}</p>
-        <p className="type-small text-muted-foreground tabular-nums">
+      <p className="font-display text-5xl leading-none font-bold text-gold tabular-nums" aria-hidden>
+        +{f.xp} XP
+      </p>
+
+      <ul className="flex w-full flex-col gap-1.5 rounded-2xl bg-white/8 px-4 py-3 text-[15px]" aria-hidden>
+        {result.xp_breakdown.map((line, i) => (
+          <li key={line.reason} className={cn("flex justify-between gap-3", show(i < f.lines))}>
+            <span>
+              {REASON_LABEL[line.reason]}
+              {line.reason === "squad" && squadName && ` · ${squadName}`}
+            </span>
+            <b className="tabular-nums">+{line.xp}</b>
+          </li>
+        ))}
+      </ul>
+
+      <p className={cn("text-sm leading-relaxed text-on-maroon-muted", show(f.done))} aria-hidden>
+        {result.next_tier === null ? (
+          <>
+            <b className="text-gold">Gold.</b> You&apos;ve collected this neighborhood.
+          </>
+        ) : (
+          <>
+            {result.quests_to_next_tier} more {result.quests_to_next_tier === 1 ? "quest" : "quests"} here for{" "}
+            <b className="text-gold">{TIER_LABEL[result.next_tier]}</b>
+          </>
+        )}
+        <br />
+        <span className="tabular-nums">
           Level {result.level} · {result.xp_to_next_level} XP to level {result.level + 1}
-        </p>
-      </div>
+        </span>
+      </p>
 
-      {!f.done && <p className="type-tiny text-muted-foreground">Tap to skip</p>}
+      <div className="mt-2 flex w-full flex-col gap-2.5 desk:flex-row-reverse">{actions}</div>
     </div>
   );
 }

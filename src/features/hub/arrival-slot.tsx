@@ -44,20 +44,35 @@ export function ArrivalSlot({ stationId }: { stationId: string }) {
   }, [stationId]);
 
   const trains = feed.status === "ready" ? nextTrains(feed.arrivals, now) : [];
-  let text: string;
-  if (feed.status === "loading" || feed.status === "error") text = "Next train: —";
-  else if (trains.length === 0) text = "No trains due";
-  else text = trains.map((t) => `${t.destination} ${formatMinutes(t.minutes)}`).join(" · ");
+  const live = trains.length > 0;
+  let fallback: string | null = null;
+  if (feed.status === "loading" || feed.status === "error") fallback = "Next train: —";
+  else if (!live) fallback = "No trains due";
 
+  // A white box with a live dot: "Heath St 2 min · Park St 4 min" (DESIGN.md §6).
   return (
-    <p
-      className="type-small min-w-0 truncate text-muted-foreground tabular-nums"
+    <div
+      className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2.5 text-sm"
       aria-live="polite"
-      title={text}
       data-station-id={stationId}
     >
-      {trains.length > 0 && <span className="sr-only">Next trains: </span>}
-      {text}
-    </p>
+      <span
+        aria-hidden
+        className={live ? "size-2 shrink-0 rounded-full bg-success shadow-[0_0_0_4px_#D6EEDF]" : "size-2 shrink-0 rounded-full bg-stamp-dot-off"}
+      />
+      {fallback ? (
+        <span className="text-muted-foreground">{fallback}</span>
+      ) : (
+        <p className="min-w-0 truncate tabular-nums">
+          <span className="sr-only">Next trains: </span>
+          {trains.map((t, i) => (
+            <span key={t.key}>
+              {i > 0 && <span className="px-1.5 text-[#B7ABA4]" aria-hidden>·</span>}
+              <b className="font-bold">{t.destination}</b> {formatMinutes(t.minutes)}
+            </span>
+          ))}
+        </p>
+      )}
+    </div>
   );
 }

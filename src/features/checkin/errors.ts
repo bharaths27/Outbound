@@ -36,7 +36,7 @@ export function errorCopy(e: FlowError): ErrorCopy {
       return {
         title: "Already stamped today",
         body: "You checked in here today. Come back tomorrow for more XP, or find another quest nearby.",
-        steps: ["close", "passport"],
+        steps: ["passport", "close"],
       };
     case "LOCATION_DENIED":
       return {

@@ -18,7 +18,7 @@ export const EMPTY_FILTERS: HubFilters = { craving: "any", budget: null, minutes
 export const TYPE_OPTIONS: { value: QuestType; label: string }[] = [
   { value: "food", label: "Food" },
   { value: "event", label: "Events" },
-  { value: "scenic", label: "Scenic" },
+  { value: "scenic", label: "Scenery" }, // DESIGN.md calls the category "Scenery"
 ];
 
 /** budget is a max price tier (0 free … 3 splurge). */

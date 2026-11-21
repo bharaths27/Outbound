@@ -23,13 +23,13 @@ function ChipRow({ label, hint, children }: { label: string; hint?: string; chil
   const id = useId();
   return (
     <div role="group" aria-labelledby={id} className="flex flex-col gap-1.5">
-      <p id={id} className="type-small text-muted-foreground">
+      <p id={id} className="text-xs font-bold tracking-[0.06em] text-muted-foreground uppercase">
         {label}
-        {hint && <span className="font-normal"> · {hint}</span>}
+        {hint && <span className="font-semibold tracking-normal normal-case"> · {hint}</span>}
       </p>
       {/* Phones: one row that scrolls sideways, bleeding into the box's padding.
           Desktop: chips wrap. */}
-      <div className="-mx-3 overflow-x-auto px-3 py-1 [scrollbar-width:none] md:mx-0 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
+      <div className="-mx-4 overflow-x-auto px-4 py-0.5 [scrollbar-width:none] desk:mx-0 desk:overflow-visible desk:px-0 [&::-webkit-scrollbar]:hidden">
         {children}
       </div>
     </div>
@@ -44,7 +44,7 @@ export function FilterBar({ filters, cravings, resultCount, onChange }: FilterBa
     cravings.find((c) => normalizeTag(c.value) === normalizeTag(filters.craving))?.value ?? "";
 
   return (
-    <section aria-label="Filters" className="flex flex-col gap-3 rounded-xl bg-muted/60 p-3 md:p-4">
+    <section aria-label="Filters" className="flex flex-col gap-4">
       <ChipRow label="Craving">
         <ToggleGroup
           type="single"
@@ -52,7 +52,7 @@ export function FilterBar({ filters, cravings, resultCount, onChange }: FilterBa
           value={activeCraving}
           onValueChange={(v) => set({ craving: v || "any" })}
           aria-label="Craving"
-          className="md:w-auto md:flex-wrap"
+          className="gap-2 desk:w-auto desk:flex-wrap"
         >
           {cravings.map((c) => (
             <ToggleGroupItem key={c.value} value={c.value}>
@@ -69,7 +69,7 @@ export function FilterBar({ filters, cravings, resultCount, onChange }: FilterBa
           value={filters.budget === null ? "" : String(filters.budget)}
           onValueChange={(v) => set({ budget: v === "" ? null : (Number(v) as PriceTier) })}
           aria-label="Budget"
-          className="md:w-auto md:flex-wrap"
+          className="gap-2 desk:w-auto desk:flex-wrap"
         >
           {BUDGET_OPTIONS.map((o) => (
             <ToggleGroupItem key={o.value} value={String(o.value)}>
@@ -86,7 +86,7 @@ export function FilterBar({ filters, cravings, resultCount, onChange }: FilterBa
           value={filters.minutes === null ? "" : String(filters.minutes)}
           onValueChange={(v) => set({ minutes: v === "" ? null : Number(v) })}
           aria-label="Time you have"
-          className="md:w-auto md:flex-wrap"
+          className="gap-2 desk:w-auto desk:flex-wrap"
         >
           {TIME_OPTIONS.map((o) => (
             <ToggleGroupItem key={o.value} value={String(o.value)} className="tabular-nums">
@@ -102,20 +102,17 @@ export function FilterBar({ filters, cravings, resultCount, onChange }: FilterBa
         </ToggleGroup>
       </ChipRow>
 
-      <div className="flex min-h-11 items-center justify-between gap-3 border-t border-border/70 pt-3">
-        <label htmlFor={openId} className="type-small flex items-center gap-2">
+      <div className="flex min-h-11 items-center justify-between gap-3">
+        <label htmlFor={openId} className="flex items-center gap-2.5 text-[15px] font-semibold">
           <Switch id={openId} checked={filters.openNow} onCheckedChange={(openNow) => set({ openNow })} />
           Open now
         </label>
         <div className="flex items-center gap-1">
-          <p className="type-small tabular-nums" aria-live="polite">
+          <p className="text-sm font-bold tabular-nums" aria-live="polite">
             {resultLabel(resultCount)}
           </p>
           {activeCount(filters) > 0 && (
-            <Button
-              variant="ghost"
-              onClick={() => onChange(EMPTY_FILTERS)}
-            >
+            <Button variant="link" onClick={() => onChange(EMPTY_FILTERS)} className="h-11 px-1 font-bold text-maroon underline">
               Clear
             </Button>
           )}

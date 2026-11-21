@@ -1,8 +1,8 @@
-// Hub header (DESIGN.md "Station hub header"): the station name like a station sign,
-// line badges, and the next-train slot. It is what the drawer's peek height shows.
+// Hub header (DESIGN.md §6 Station hub): the station name set like a station sign, its
+// lines, a round close button, and the live next-trains box. It's what the drawer's peek
+// height shows, and it stays pinned while the rest of the hub scrolls.
 
 import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Station } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
@@ -11,42 +11,53 @@ import { LineBadges } from "./line-badge";
 
 function CloseButton({ onClose }: { onClose: () => void }) {
   return (
-    <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close station" className="-mr-2 -mt-1 shrink-0">
-      <X aria-hidden />
-    </Button>
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label="Close station"
+      className="flex size-11 shrink-0 items-center justify-center rounded-full bg-sand text-ink"
+    >
+      <X className="size-[18px]" strokeWidth={2.2} aria-hidden />
+    </button>
   );
 }
 
 export function HubHeader({ station, onClose }: { station: Station; onClose: () => void }) {
   return (
-    <header className="flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-3">
-        {/* Long names ("Boston University Central") step down a size so the peek height
-            still shows the lines and next train. */}
-        <h2 className={cn("type-display min-w-0 text-balance", station.name.length > 18 && "text-[26px] leading-[30px]")}>
-          {station.name}
-        </h2>
+    <header className="flex flex-col gap-3">
+      <div className="flex items-start gap-2.5">
+        <div className="min-w-0 flex-1">
+          {/* Long names ("Boston University Central") step down a size (DESIGN.md §3). */}
+          <h2
+            className={cn(
+              "inline-block max-w-full rounded-sm bg-ink px-3 py-1 font-bold tracking-[-0.01em] text-white",
+              station.name.length > 18 ? "text-[21px] leading-7" : "type-sign",
+            )}
+          >
+            {station.name}
+          </h2>
+          <div className="mt-2">
+            <LineBadges routes={station.lines} />
+          </div>
+        </div>
         <CloseButton onClose={onClose} />
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <LineBadges routes={station.lines} />
-        <ArrivalSlot stationId={station.id} />
-      </div>
+      <ArrivalSlot stationId={station.id} />
     </header>
   );
 }
 
 export function HubHeaderSkeleton({ onClose }: { onClose: () => void }) {
   return (
-    <header className="flex flex-col gap-2" aria-busy>
-      <div className="flex items-start justify-between gap-3">
-        <Skeleton className="h-9 w-48" />
+    <header className="flex flex-col gap-3" aria-busy>
+      <div className="flex items-start gap-2.5">
+        <div className="flex flex-1 flex-col gap-2">
+          <Skeleton className="h-10 w-44 rounded-sm" />
+          <Skeleton className="h-4 w-28" />
+        </div>
         <CloseButton onClose={onClose} />
       </div>
-      <div className="flex gap-1.5">
-        <Skeleton className="h-5 w-14 rounded-full" />
-        <Skeleton className="h-5 w-20 rounded-full" />
-      </div>
+      <Skeleton className="h-11 w-full rounded-lg" />
     </header>
   );
 }

@@ -27,16 +27,22 @@ const NO_QUESTS: Quest[] = [];
 
 function Story({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
-  const long = text.length > 220;
+  const long = text.length > 160;
   return (
-    <div className="flex flex-col items-start gap-1">
-      <p className={long && !expanded ? "type-body line-clamp-3" : "type-body"}>{text}</p>
+    <p className="text-sm leading-[1.5] text-muted-2">
+      {/* Inline "Read more", like the reference: cut at a word near 150 characters. */}
+      {long && !expanded ? `${text.slice(0, text.lastIndexOf(" ", 150)).trimEnd()}… ` : `${text} `}
       {long && (
-        <Button variant="link" className="h-auto px-0 py-1" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
+        <button
+          type="button"
+          className="font-bold text-maroon underline-offset-4 hover:underline"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+        >
           {expanded ? "Show less" : "Read more"}
-        </Button>
+        </button>
       )}
-    </div>
+    </p>
   );
 }
 
@@ -87,7 +93,7 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
 
   if (load.status === "loading") {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <HubHeaderSkeleton onClose={onClose} />
         <ListSkeleton />
       </div>
@@ -132,8 +138,11 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
   const openQuest = openQuestId ? quests.find((q) => q.id === openQuestId) : undefined;
 
   return (
-    <div ref={rootRef} className="flex flex-col gap-6">
-      <HubHeader station={station} onClose={onClose} />
+    <div ref={rootRef} className="flex flex-col gap-4">
+      {/* Pinned while the rest scrolls (DESIGN.md §7). */}
+      <div className="sticky top-0 z-10 -mx-4 bg-background px-4 pb-1 desk:-mx-6 desk:px-6">
+        <HubHeader station={station} onClose={onClose} />
+      </div>
 
       {openQuest ? (
         <QuestDetail
@@ -148,7 +157,7 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
         <>
           {station.story && <Story text={station.story} />}
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             <SearchBar
               stationName={station.name}
               knownTags={knownTags}
@@ -165,8 +174,8 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
                 No quests here yet. Try a station nearby.
               </p>
             ) : results.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-6 text-center">
-                <p className="type-body text-muted-foreground">Nothing here matches all of those.</p>
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <p className="type-body text-muted-foreground">No quests match these filters.</p>
                 <Button variant="outline" onClick={() => setFilters(EMPTY_FILTERS)}>
                   Clear filters
                 </Button>

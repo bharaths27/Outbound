@@ -48,18 +48,18 @@ export function SearchBar({ stationName, knownTags, filters, onSearch, onChange 
     <div className="flex flex-col gap-2">
       <form role="search" onSubmit={submit} className="relative">
         <Search
-          className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground"
-          strokeWidth={1.75}
+          className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2 text-muted-foreground"
+          strokeWidth={2}
           aria-hidden
         />
         <Input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={`Cheap spicy noodles, 30 min…`}
+          placeholder="Cheap pastry and coffee, 45 min…"
           aria-label={`Search quests near ${stationName}`}
           enterKeyHint="search"
-          className="h-11 pr-10 pl-10"
+          className="h-12 rounded-full pr-10 pl-10 font-medium"
         />
         {searching && (
           <Loader2
@@ -70,17 +70,17 @@ export function SearchBar({ stationName, knownTags, filters, onSearch, onChange 
       </form>
 
       {removable.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label="Active filters">
+        <ul className="flex flex-wrap gap-1.5" aria-label="What the search understood">
           {removable.map((r) => (
             <li key={r.key}>
               <button
                 type="button"
                 onClick={() => onChange({ ...filters, ...r.clear })}
                 aria-label={`Remove ${r.label}`}
-                className="type-tiny relative inline-flex h-6 items-center gap-1 rounded-full bg-secondary pr-1.5 pl-2.5 text-secondary-foreground dark:bg-primary dark:text-primary-foreground outline-none after:absolute after:-inset-y-2.5 after:inset-x-0 hover:opacity-85 focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="relative inline-flex h-8 items-center gap-1.5 rounded-full bg-pill pr-2.5 pl-3 text-[13px] font-semibold text-maroon after:absolute after:-inset-y-1.5 after:inset-x-0 hover:brightness-[0.97]"
               >
                 {r.label}
-                <X className="size-3.5" aria-hidden />
+                <X className="size-3" strokeWidth={2.6} aria-hidden />
               </button>
             </li>
           ))}

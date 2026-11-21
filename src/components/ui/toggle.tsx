@@ -11,14 +11,13 @@ const toggleVariants = cva(
     variants: {
       variant: {
         default: "bg-transparent",
-        // Selected chips are periwinkle in both themes (DESIGN.md): --secondary in light,
-        // --primary in dark, where --secondary is a dark navy.
-        chip: "rounded-full border border-border bg-background data-[state=on]:border-secondary dark:data-[state=on]:border-primary dark:data-[state=on]:bg-primary dark:data-[state=on]:text-primary-foreground",
+        // Filter chips (DESIGN.md §5): sand with a border; selected is maroon with white text.
+        chip: "rounded-full border border-border-strong bg-sand font-semibold text-ink hover:bg-sand hover:brightness-[0.97] data-[state=on]:border-maroon data-[state=on]:bg-maroon data-[state=on]:text-white aria-pressed:bg-maroon aria-pressed:text-white",
         outline: "border border-input bg-transparent hover:bg-muted",
       },
       size: {
         default:
-          "relative h-9 min-w-9 px-3 after:absolute after:inset-x-0 after:-inset-y-1 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5",
+          "relative h-10 min-w-10 px-4 after:absolute after:inset-x-0 after:-inset-y-0.5 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5",
         sm: "h-7 min-w-7 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-9 min-w-9 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
       },
