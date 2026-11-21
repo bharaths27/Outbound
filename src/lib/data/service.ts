@@ -31,6 +31,7 @@ export interface DataService {
   getStation(id: string): Promise<Station | null>;
   getQuests(stationId: string, filters?: Filters): Promise<Quest[]>;
   getQuest(id: string): Promise<Quest | null>;
+  getAllQuests(): Promise<Quest[]>; // every quest, for the passport's locked stamps
   getDeals(questIds: string[]): Promise<Deal[]>;
   searchQuests(query: string, stationId?: string): Promise<{ filters: Filters; quests: Quest[] }>;
 

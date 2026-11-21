@@ -21,6 +21,7 @@ export const supabaseService: DataService = {
   getStation: notImplemented("getStation"),
   getQuests: notImplemented("getQuests"),
   getQuest: notImplemented("getQuest"),
+  getAllQuests: notImplemented("getAllQuests"),
   getDeals: notImplemented("getDeals"),
   searchQuests: notImplemented("searchQuests"),
   checkIn: notImplemented("checkIn"),

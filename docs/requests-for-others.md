@@ -62,6 +62,11 @@ in `content/README.md`; `npm test` checks every row.
 - [ ] **Paul Revere House** hours are seasonal. We used the winter hours (10:00–16:15) and
   added the summer closing time to the description. Confirm that's right for the demo date.
 - [x] **XP.** Lowered to 50–80 per quest.
+- [ ] **Quests per neighborhood.** Gold takes 5 different quests in a neighborhood, but
+  only Fenway–Kenmore and Downtown have 5+. Chinatown, Harvard Square, Central Square,
+  Back Bay, and North End / Downtown have 3 each, so players there top out at Silver. The
+  passport says so ("Gold unlocks as new quests are added"). Add 2+ quests to those, or
+  merge neighborhoods.
 - [ ] **Sample deals.** None in the CSV. The mock has three made-up sample deals (Pavement,
   Winsor Dim Sum, Thinking Cup Newbury). Keep `is_sample = true` and the `SAMPLE:` prefix
   on any real ones.

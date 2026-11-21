@@ -196,6 +196,11 @@ export const mockService: DataService = {
     return clone(seed.quests.filter((q) => q.station_id === stationId && matchesFilters(q, filters)));
   },
 
+  async getAllQuests() {
+    await wait();
+    return clone(seed.quests);
+  },
+
   async getQuest(id) {
     await wait();
     const q = questById(id);

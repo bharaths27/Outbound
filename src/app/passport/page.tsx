@@ -1,4 +1,9 @@
-// Owner: Angie. Placeholder so routing works from day one.
-export default function PassportPage() {
-  return <main className="p-8"><h1 className="text-2xl font-bold">Passport</h1></main>;
+// Owner: Angie.
+import type { Metadata } from "next";
+import { PassportPage } from "@/features/passport/passport-page";
+
+export const metadata: Metadata = { title: "Passport" };
+
+export default function Page() {
+  return <PassportPage />;
 }
