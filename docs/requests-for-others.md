@@ -52,6 +52,10 @@ Ordered by demo impact.
 - [ ] **Data-source switch.** The frontend picks mock or real data with
   `NEXT_PUBLIC_DATA_SOURCE=mock|supabase` (default `mock`). Please add it to
   `.env.example` and the Vercel project.
+- [ ] **`npm run start` crashes after `npm run build`.** `next start` exits with
+  `TypeError: routesManifest.dataRoutes is not iterable` (Next 15.5.29, with
+  `build --turbopack`). Vercel doesn't use `next start`, so deploys may be fine, but
+  running a production build locally doesn't work. `npm run dev` works.
 - [ ] **Tournaments.** The schema has no tournament tables. The frontend plan had
   restaurant-hosted tournaments with prizes. Are they in scope? If not, we'll drop them
   for the hackathon.
