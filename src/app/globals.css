@@ -24,3 +24,47 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ---------- map UI ---------- */
+.ob-panel {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.12);
+}
+.ob-pulse { animation: ob-pulse 2s ease-in-out infinite; }
+@keyframes ob-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.ob-campus {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1.5px solid var(--c);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+  font: 600 11px/1.1 var(--font-geist-sans), system-ui, sans-serif;
+  color: #0f172a;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ob-campus-dot { width: 10px; height: 10px; border-radius: 999px; background: var(--c); }
+.ob-campus:hover { transform: translateY(-1px); }
+
+.ob-friend { cursor: pointer; }
+.ob-friend-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fde68a, #fca5a5);
+  border: 2.5px solid var(--c);
+  box-shadow: 0 0 0 2px #fff, 0 3px 10px rgba(15, 23, 42, 0.3);
+  font: 700 11px/1 var(--font-geist-sans), system-ui, sans-serif;
+  color: #1f2937;
+}
+.ob-popup .maplibregl-popup-content { border-radius: 12px; padding: 8px 12px; font-size: 12px; line-height: 1.45; }
