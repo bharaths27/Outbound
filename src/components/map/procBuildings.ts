@@ -163,6 +163,9 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
   return g;
 }
 
+/** Seconds, shared by all tree materials (wind animation). */
+export const TREE_TIME = { value: 0 };
+
 /** Low-poly stylized trees, instanced: round crown on a short trunk. */
 export function makeTreeMesh(points: { x: number; z: number; s: number }[]) {
   const crown = new THREE.IcosahedronGeometry(1, 1);
@@ -172,7 +175,21 @@ export function makeTreeMesh(points: { x: number; z: number; s: number }[]) {
     [crown, [74, 140, 70]],
     [trunk, [110, 78, 52]],
   ]);
-  const mesh = new THREE.InstancedMesh(merged, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), points.length);
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  // crowns sway a little in the wind (trunks stay put)
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = TREE_TIME;
+    shader.vertexShader = "uniform float uTime;\n" + shader.vertexShader.replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>
+      float sway = max(transformed.y - 0.9, 0.0);
+      vec3 ip = instanceMatrix[3].xyz;
+      float gust = 0.6 + 0.4 * sin(uTime * 0.35 + ip.x * 0.01);
+      transformed.x += sin(uTime * 1.7 + ip.x * 0.17 + ip.z * 0.11) * 0.07 * sway * gust;
+      transformed.z += cos(uTime * 1.3 + ip.z * 0.13) * 0.05 * sway * gust;`,
+    );
+  };
+  const mesh = new THREE.InstancedMesh(merged, mat, points.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3();
   const tint = new THREE.Color();
   points.forEach((p, i) => {

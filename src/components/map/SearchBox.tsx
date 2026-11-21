@@ -24,6 +24,7 @@ interface Result {
   lat: number;
   bbox?: [number, number, number, number];
   stationId?: string;
+  placeId?: string; // Google suggestion: location is looked up when picked
 }
 
 /** Ray-casting point-in-polygon for a single [lng, lat] ring. */
@@ -72,6 +73,7 @@ export default function SearchBox({
   const [places, setPlaces] = useState<[string, string, number, number][]>([]);
   const [remote, setRemote] = useState<Result[]>([]);
   const marker = useRef<maplibregl.Marker | null>(null);
+  const session = useRef(Math.random().toString(36).slice(2)); // groups Google autocomplete calls for billing
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -115,6 +117,28 @@ export default function SearchBox({
     if (!online || q.trim().length < 3) return;
     const ctl = new AbortController();
     const t = setTimeout(async () => {
+      // 1) Google Places (any place or address, like Google Maps), through our /api/places route
+      try {
+        const r = await fetch(`/api/places?q=${encodeURIComponent(q)}&session=${session.current}`, { signal: ctl.signal });
+        const j = await r.json();
+        if (r.ok && Array.isArray(j.results)) {
+          setRemote(
+            j.results.map((p: { id: string; name: string; sub: string; types: string[] }) => ({
+              key: `g-${p.id}`,
+              name: p.name,
+              sub: p.sub,
+              kind: (p.types.includes("route") ? "street" : p.types.includes("street_address") || p.types.includes("premise") ? "address" : p.types.includes("park") ? "park" : "place") as Kind,
+              lng: NaN,
+              lat: NaN,
+              placeId: p.id,
+            })),
+          );
+          return;
+        }
+      } catch {
+        /* no Google key or no server (artifact): use the free geocoder */
+      }
+      // 2) Photon (OpenStreetMap), free, no key
       try {
         const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=42.36&lon=-71.06&limit=6&lang=en&bbox=-73.6,41.2,-69.8,42.9`;
         const r = await fetch(url, { signal: ctl.signal });
@@ -149,8 +173,11 @@ export default function SearchBox({
   }, [q, online]);
 
   const results = useMemo(() => {
-    const seen = new Set(local.map((r) => expand(r.name)));
-    return [...local, ...remote.filter((r) => !seen.has(expand(r.name)))].slice(0, 9);
+    // with Google: our stations/campuses first, then Google's places and addresses
+    const google = remote.some((r) => r.placeId);
+    const mine = google ? local.filter((r) => r.kind === "station" || r.kind === "campus").slice(0, 3) : local;
+    const seen = new Set(mine.map((r) => expand(r.name)));
+    return [...mine, ...remote.filter((r) => !seen.has(expand(r.name)))].slice(0, 9);
   }, [local, remote]);
 
   useEffect(() => setActive(0), [results.length]);
@@ -164,10 +191,20 @@ export default function SearchBox({
     return () => document.removeEventListener("pointerdown", h);
   }, []);
 
-  const go = (r: Result) => {
+  const go = async (r: Result) => {
     setOpen(false);
     setQ(r.name);
     if (!map) return;
+    if (r.placeId) {
+      try {
+        const d = await (await fetch(`/api/places?id=${encodeURIComponent(r.placeId)}&session=${session.current}`)).json();
+        session.current = Math.random().toString(36).slice(2);
+        if (typeof d.lng !== "number") return;
+        r = { ...r, lng: d.lng, lat: d.lat, bbox: d.bbox ?? undefined };
+      } catch {
+        return;
+      }
+    }
     marker.current?.remove();
     if (r.kind !== "station" && r.kind !== "campus") {
       const el = document.createElement("div");

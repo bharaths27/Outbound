@@ -11,6 +11,7 @@ import { TrackNetwork } from "./track";
 import { TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
 import { loadBaseStyle, groundLayerIds } from "./style";
 import { CityBuildingsLayer, fetchBpdaManifest, inBpda } from "./buildings3d";
+import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
 import SearchBox, { pointInRing } from "./SearchBox";
 import {
   LIVE_INTERVAL_MS, ReplayFrame, DemoFeed, fetchLive, fetchReplay, fetchLateness, fetchArrivals,
@@ -43,6 +44,7 @@ export default function TransitMap() {
   const animRef = useRef<TrainAnimator | null>(null);
   const layerRef = useRef<Trains3DLayer | null>(null);
   const cityRef = useRef<CityBuildingsLayer | null>(null);
+  const googleRef = useRef<GoogleTilesLayer | null>(null);
   const stationsRef = useRef<StationData[]>([]);
   const markersRef = useRef<{ campus: maplibregl.Marker[]; friends: maplibregl.Marker[] }>({ campus: [], friends: [] });
   const groundRef = useRef<string[]>([]);
@@ -89,9 +91,9 @@ export default function TransitMap() {
       map = new maplibregl.Map({
         container: box.current,
         style,
-        center: VIEWS.usa.center,
-        zoom: 1.6,
-        pitch: 0,
+        center: VIEWS.mass.center,
+        zoom: VIEWS.mass.zoom,
+        pitch: VIEWS.mass.pitch,
         maxPitch: 78,
         attributionControl: { compact: true },
         canvasContextAttributes: { antialias: true },
@@ -157,14 +159,31 @@ export default function TransitMap() {
         const city = new CityBuildingsLayer(manifest);
         cityRef.current = city;
         m.addLayer(city, labelsStart);
+        // real photo-textured 3D (Google) when a key is set: replaces the game-style city and OSM boxes
+        let google: GoogleTilesLayer | null = null;
+        if (GOOGLE_KEY) {
+          google = new GoogleTilesLayer();
+          google.onError = (msg) => {
+            console.warn(msg);
+            if (google && m.getLayer(google.id)) m.removeLayer(google.id);
+            google = null;
+            googleRef.current = null;
+            city.hidden = false;
+            pickBuildings();
+          };
+          googleRef.current = google;
+          if (process.env.NODE_ENV !== "production") (window as unknown as { __obGoogle: GoogleTilesLayer }).__obGoogle = google; // for tests
+          city.hidden = true;
+          m.addLayer(google, beforeLines);
+        }
         // OpenStreetMap's boxy buildings only where the real city models don't cover the view
         const cambRing = cambridgeOutline?.geometry?.coordinates?.[0] as [number, number][] | undefined;
         const osmBuildings = m.getStyle().layers.filter((l) => l.type === "fill-extrusion" && (l as { source?: string }).source === "openmaptiles").map((l) => l.id);
         const pickBuildings = () => {
           const c = m.getCenter();
           const real = (manifest && inBpda(c.lng, c.lat)) || (cambRing && pointInRing([c.lng, c.lat], cambRing));
-          // (the 3D city layer draws Cambridge and central Boston itself)
-          for (const id of osmBuildings) m.setFilter(id, real ? ["==", ["get", "render_height"], -1] : null);
+          // (the 3D city layer draws Cambridge and central Boston itself; Google's 3D draws everything)
+          for (const id of osmBuildings) m.setFilter(id, real || google ? ["==", ["get", "render_height"], -1] : null);
         };
         pickBuildings();
         m.on("moveend", pickBuildings);
@@ -253,10 +272,8 @@ export default function TransitMap() {
           m.on("mouseleave", id, () => (m.getCanvas().style.cursor = ""));
         }
         setReady(true);
-        setTimeout(() => {
-          m.flyTo({ ...VIEWS.usa, duration: 2200 });
-          setTimeout(() => m.flyTo({ ...VIEWS.boston, duration: 6500, curve: 1.6 }), 2600);
-        }, 400);
+        // open on Massachusetts, then glide into Boston
+        setTimeout(() => m.flyTo({ ...VIEWS.boston, duration: 4500, curve: 1.2, essential: true }), 600);
       });
     })();
     return () => {
@@ -323,6 +340,7 @@ export default function TransitMap() {
     if (!ready || !map) return;
     if (layerRef.current) layerRef.current.visible = is3D && show.trains;
     if (cityRef.current) cityRef.current.visible = is3D;
+    if (googleRef.current) googleRef.current.visible = is3D;
     for (const l of map.getStyle().layers)
       if (l.type === "fill-extrusion") map.setLayoutProperty(l.id, "visibility", is3D ? "visible" : "none");
     map.setPaintProperty(

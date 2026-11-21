@@ -13,6 +13,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
+    "3d-tiles-renderer": "^0.4.28",
     "maplibre-gl": "^6.19.0",
     "next": "^15.5.29",
     "pg": "^8.16.3",

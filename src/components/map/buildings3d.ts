@@ -8,8 +8,9 @@
 import * as THREE from "three";
 import type { CustomLayerInterface, CustomRenderMethodInput, Map as MlMap } from "maplibre-gl";
 import { modelMatrix } from "./trains3d";
-import { brightenPalette, makeFacadeMaterial } from "./facade";
-import { buildCityMesh, makeTreeMesh, type Footprint } from "./procBuildings";
+import { brightenPalette, makeFacadeMaterial, FACADE_NIGHT } from "./facade";
+import { sunLight } from "./sun";
+import { buildCityMesh, makeTreeMesh, TREE_TIME, type Footprint } from "./procBuildings";
 
 export interface BpdaTile {
   name: string;
@@ -79,6 +80,8 @@ export class CityBuildingsLayer implements CustomLayerInterface {
   type = "custom" as const;
   renderingMode = "3d" as const;
   visible = true;
+  /** true while Google's photorealistic 3D is drawing the city instead */
+  hidden = false;
   minZoom = 12.5;
 
   private map!: MlMap;
@@ -87,7 +90,6 @@ export class CityBuildingsLayer implements CustomLayerInterface {
   private camera = new THREE.Camera();
   private parts: { obj: THREE.Object3D; center: [number, number]; unit: number }[] = [];
   private trees: THREE.Object3D | null = null;
-  private loading = false;
   private materials = new Map<number, THREE.Material>();
   private tmp = new THREE.Matrix4();
   private scale = new THREE.Matrix4();
@@ -101,10 +103,30 @@ export class CityBuildingsLayer implements CustomLayerInterface {
     this.renderer.autoClear = false;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     // warm, bright "late afternoon" light like a game map
-    this.scene.add(new THREE.HemisphereLight(0xfff6e8, 0x7a7468, 1.7));
-    const sun = new THREE.DirectionalLight(0xffe2b8, 2.6);
-    sun.position.set(-60, 80, 40);
-    this.scene.add(sun);
+    this.scene.add(this.sky, this.sun);
+    this.updateSun();
+    // follow the real time of day
+    this.sunTimer = window.setInterval(() => this.updateSun(), 60_000);
+  }
+
+  onRemove() {
+    clearInterval(this.sunTimer);
+  }
+
+  private sky = new THREE.HemisphereLight(0xfff6e8, 0x7a7468, 1.7);
+  private sun = new THREE.DirectionalLight(0xffe2b8, 2.6);
+  private sunTimer = 0;
+  /** Light the city like the real sun over Boston now (or at `date`): warm at sunset, dark with lit windows at night. */
+  updateSun(date = new Date()) {
+    const { dir, night, golden } = sunLight(date);
+    this.sun.position.set(dir[0] * 100, dir[1] * 100, dir[2] * 100);
+    const day = new THREE.Color(0xfff0d8), gold = new THREE.Color(0xffb070), moon = new THREE.Color(0x8fa6d8);
+    this.sun.color.copy(day).lerp(gold, golden).lerp(moon, night);
+    this.sun.intensity = 2.6 * (1 - night) + 0.5 * night;
+    this.sky.color.set(0xfff6e8).lerp(new THREE.Color(0x4a5a8a), night);
+    this.sky.intensity = 1.7 * (1 - night) + 0.55 * night;
+    FACADE_NIGHT.value = night;
+    this.map?.triggerRepaint();
   }
 
   private material(unit: number) {
@@ -121,23 +143,25 @@ export class CityBuildingsLayer implements CustomLayerInterface {
     this.map.triggerRepaint();
   }
 
-  private async load() {
-    this.loading = true;
-    const c = this.map.getCenter();
-    const near = (p: [number, number]) => Math.hypot(p[0] - c.lng, p[1] - c.lat);
-    const jobs: { at: [number, number]; run: () => Promise<void> }[] = [];
+  private jobs: { at: [number, number]; r: number; minZoom: number; run: () => Promise<void> }[] | null = null;
+  private running = 0;
 
+  private makeJobs() {
+    const jobs: NonNullable<typeof this.jobs> = [];
     for (const t of this.manifest?.tiles ?? [])
       jobs.push({
         at: t.center,
+        r: 0.013, // each tile is ~1.5 km square
+        minZoom: this.minZoom,
         run: async () => {
           const { geometry, unit, center } = await loadTile(dataUrl(`bpda/${t.file}`));
           this.add(new THREE.Mesh(geometry, this.material(unit)), center, unit);
         },
       });
-
     jobs.push({
       at: CAMBRIDGE_CENTER,
+      r: 0.035,
+      minZoom: this.minZoom,
       run: async () => {
         const fc = await (await fetch(dataUrl("cambridge/buildings.geojson"))).json();
         const feats: Footprint[] = [];
@@ -151,9 +175,10 @@ export class CityBuildingsLayer implements CustomLayerInterface {
         this.add(new THREE.Mesh(buildCityMesh(feats, CAMBRIDGE_CENTER), mat), CAMBRIDGE_CENTER, 1);
       },
     });
-
     jobs.push({
       at: TREES_CENTER,
+      r: 0.06,
+      minZoom: TREES_MIN_ZOOM,
       run: async () => {
         const pts: [number, number, number][] = await (await fetch(dataUrl("trees.json"))).json();
         const [lng0, lat0] = TREES_CENTER;
@@ -163,25 +188,33 @@ export class CityBuildingsLayer implements CustomLayerInterface {
         this.add(mesh, TREES_CENTER, 1);
       },
     });
+    return jobs;
+  }
 
-    jobs.sort((a, b) => near(a.at) - near(b.at));
-    // nearest first, a few at a time
-    const worker = async () => {
-      for (let j = jobs.shift(); j; j = jobs.shift()) {
-        try {
-          await j.run();
-        } catch (e) {
-          console.warn("[buildings] part failed", e);
-        }
-      }
-    };
-    await Promise.all([worker(), worker(), worker()]);
+  /** Load only what is near the view (nearest first, 3 at a time); more loads as you move around. */
+  private loadNear(zoom: number) {
+    this.jobs ??= this.makeJobs();
+    if (!this.jobs.length || this.running >= 3) return;
+    const c = this.map.getCenter();
+    const reach = Math.min(0.12, 0.012 * Math.pow(2, 16 - zoom));
+    const dist = (j: { at: [number, number]; r: number }) => Math.hypot(j.at[0] - c.lng, (j.at[1] - c.lat) * 1.35) - j.r;
+    const ready = this.jobs.filter((j) => zoom >= j.minZoom && dist(j) < reach).sort((a, b) => dist(a) - dist(b));
+    for (const j of ready.slice(0, 3 - this.running)) {
+      this.jobs.splice(this.jobs.indexOf(j), 1);
+      this.running++;
+      j.run()
+        .catch((e) => console.warn("[buildings] part failed", e))
+        .finally(() => {
+          this.running--;
+          this.map.triggerRepaint();
+        });
+    }
   }
 
   render(_gl: WebGLRenderingContext | WebGL2RenderingContext, args: CustomRenderMethodInput) {
     const zoom = this.map.getZoom();
-    if (!this.visible || zoom < this.minZoom) return;
-    if (!this.loading) void this.load();
+    if (!this.visible || this.hidden || zoom < this.minZoom) return;
+    this.loadNear(zoom);
     if (!this.parts.length) return;
     const pd = args.defaultProjectionData;
     const globe = pd.fallbackMatrix !== pd.mainMatrix && pd.projectionTransition > 0.5;
@@ -192,6 +225,7 @@ export class CityBuildingsLayer implements CustomLayerInterface {
     this.camera.projectionMatrix = main.multiply(origin);
     this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
     if (this.trees) this.trees.visible = zoom >= TREES_MIN_ZOOM;
+    TREE_TIME.value = performance.now() / 1000;
     for (const p of this.parts) {
       modelMatrix(this.tmp, p.center[0], p.center[1], globe).premultiply(this.originInv);
       p.obj.matrix.copy(this.tmp).multiply(this.scale.makeScale(p.unit, p.unit, p.unit));
@@ -199,5 +233,6 @@ export class CityBuildingsLayer implements CustomLayerInterface {
     }
     this.renderer.resetState();
     this.renderer.render(this.scene, this.camera);
+    if (this.trees?.visible) this.map.triggerRepaint(); // keep the wind moving
   }
 }
