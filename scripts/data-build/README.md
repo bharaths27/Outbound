@@ -17,3 +17,5 @@ Sources (download them first, then edit the input paths at the top of each scrip
 
 `public/data/fonts/*.json` are Noto Sans glyphs (Latin, 0-255) from github.com/maplibre/demotiles (SIL Open Font License),
 base64-wrapped so the offline map can draw labels where only text/data files are served.
+| `overture_buildings.py` | `region/` buildings for the rest of the T area (Overture Maps, read from its public S3 bucket; ODbL) |
+| `commuter_rail.py` | `cr-lines.geojson`, `cr-stations.json` (MBTA GTFS copy at github.com/OkuraKenG/Trains `gtfs_data/mbta`) |

@@ -4,6 +4,8 @@
 // Uses /api/places (Google Places) and /api/route (Google Routes); without a Google key these return nothing.
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
+import { ArrowLeft, Clock, Coffee, FerrisWheel, Footprints, IceCreamCone, MapPin, Star, Utensils, Wine, X } from "lucide-react";
+import { createElement, type IconNode, Coffee as CoffeeNode, FerrisWheel as FerrisNode, IceCreamCone as IceCreamNode, MapPin as MapPinNode, Utensils as UtensilsNode, Wine as WineNode } from "lucide";
 import type { Map as MlMap, GeoJSONSource } from "maplibre-gl";
 
 export interface Place {
@@ -44,16 +46,29 @@ export interface ExplorerHandle {
   show: (p: Place) => void;
 }
 
-const CRAVINGS: [string, string, string[]][] = [
-  ["All", "", []],
-  ["Food", "🍴", ["restaurant", "food", "meal_takeaway"]],
-  ["Coffee", "☕", ["cafe", "coffee_shop"]],
-  ["Dessert", "🍦", ["bakery", "ice_cream_shop", "dessert_shop", "dessert_restaurant"]],
-  ["Bars", "🍹", ["bar", "pub", "night_club"]],
-  ["Fun", "🎡", ["tourist_attraction", "museum", "park", "amusement_center", "movie_theater"]],
+type IconC = typeof MapPin;
+const CRAVINGS: [string, IconC | null, string[], IconNode | null][] = [
+  ["All", null, [], null],
+  ["Food", Utensils, ["restaurant", "food", "meal_takeaway"], UtensilsNode],
+  ["Coffee", Coffee, ["cafe", "coffee_shop"], CoffeeNode],
+  ["Dessert", IceCreamCone, ["bakery", "ice_cream_shop", "dessert_shop", "dessert_restaurant"], IceCreamNode],
+  ["Bars", Wine, ["bar", "pub", "night_club"], WineNode],
+  ["Fun", FerrisWheel, ["tourist_attraction", "museum", "park", "amusement_center", "movie_theater"], FerrisNode],
 ];
-const iconFor = (types: string[]) => (CRAVINGS.find(([, , t]) => t.some((x) => types.includes(x)))?.[1] || "📍");
-const stars = (r: number | null) => (r == null ? "" : `${r.toFixed(1)} ★`);
+const cravingOf = (types: string[]) => CRAVINGS.find(([, , t]) => t.some((x) => types.includes(x)));
+const IconFor = ({ types, size = 18 }: { types: string[]; size?: number }) => {
+  const I = cravingOf(types)?.[1] ?? MapPin;
+  return <I size={size} strokeWidth={2} aria-hidden />;
+};
+/** the same icon as an SVG string, for map pins (plain DOM elements) */
+const iconSvg = (types: string[]) => {
+  const el = createElement(cravingOf(types)?.[3] ?? MapPinNode);
+  el.setAttribute("width", "14");
+  el.setAttribute("height", "14");
+  el.setAttribute("stroke-width", "2.2");
+  return el.outerHTML;
+};
+const stars = (r: number | null) => (r == null ? "" : `${r.toFixed(1)}`);
 const dollars = (p: number | null) => (p == null ? "" : p === 0 ? "Free" : "$".repeat(p));
 
 const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [number, number] | null }>(function Explorer({ map, userLoc }, ref) {
@@ -122,7 +137,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
     for (const p of list) {
       const el = document.createElement("button");
       el.className = "ob-place-pin";
-      el.innerHTML = `<span class="ob-place-pin-icon">${iconFor(p.types)}</span>${p.rating ? `<span class="ob-place-pin-rating">${p.rating.toFixed(1)}</span>` : ""}`;
+      el.innerHTML = `<span class="ob-place-pin-icon">${iconSvg(p.types)}</span>${p.rating ? `<span class="ob-place-pin-rating">${p.rating.toFixed(1)}</span>` : ""}`;
       el.title = p.name;
       el.onclick = (e) => {
         e.stopPropagation();
@@ -186,12 +201,12 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
       <div className="flex items-center gap-2 border-b border-slate-200/70 px-3 py-2">
         {place && results && (
           <button className="rounded px-1 text-slate-500 hover:text-slate-900" onClick={() => (setPlace(null), setRoute(null))} aria-label="Back to results">
-            ←
+            <ArrowLeft size={16} />
           </button>
         )}
         <div className="min-w-0 flex-1 truncate font-medium text-slate-900">{place ? place.name : `“${query}”`}</div>
         <button className="rounded px-1 text-slate-400 hover:text-slate-800" onClick={close} aria-label="Close">
-          ×
+          <X size={16} />
         </button>
       </div>
 
@@ -199,9 +214,10 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
         <>
           {/* filter chips, like the mockup: Craving / Budget / Time */}
           <div className="flex flex-wrap gap-1.5 border-b border-slate-200/70 px-3 py-2 text-xs">
-            {CRAVINGS.map(([n, icon]) => (
-              <button key={n} onClick={() => setCraving(n)} className={`rounded-full px-2.5 py-1 ${craving === n ? "bg-[#6b1d3a] text-white" : "bg-slate-100 text-slate-700"}`}>
-                {icon} {n}
+            {CRAVINGS.map(([n, Icon]) => (
+              <button key={n} onClick={() => setCraving(n)} className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${craving === n ? "bg-[#6b1d3a] text-white" : "bg-slate-100 text-slate-700"}`}>
+                {Icon && <Icon size={13} strokeWidth={2.2} aria-hidden />}
+                {n}
               </button>
             ))}
             {[1, 2, 3].map((b) => (
@@ -210,7 +226,8 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
               </button>
             ))}
             <button onClick={() => setOpenNow(!openNow)} className={`rounded-full px-2.5 py-1 ${openNow ? "bg-[#6b1d3a] text-white" : "bg-slate-100 text-slate-700"}`}>
-              🕒 Open now
+              <Clock size={13} strokeWidth={2.2} className="mr-1 inline -translate-y-px" aria-hidden />
+              Open now
             </button>
           </div>
           <div className="overflow-auto">
@@ -226,10 +243,13 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                 }}
                 className="flex w-full gap-2.5 border-b border-slate-100 px-3 py-2 text-left hover:bg-slate-50"
               >
-                <span className="text-lg leading-6">{iconFor(p.types)}</span>
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#6b1d3a]/10 text-[#6b1d3a]">
+                  <IconFor types={p.types} size={15} />
+                </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium text-slate-900">{p.name}</span>
                   <span className="block truncate text-xs text-slate-500">
+                    {p.rating != null && <Star size={11} className="mr-0.5 inline -translate-y-px fill-amber-400 text-amber-400" aria-hidden />}
                     {[stars(p.rating) + (p.ratings ? ` (${p.ratings.toLocaleString()})` : ""), dollars(p.price), p.category].filter(Boolean).join(" · ")}
                   </span>
                   {p.openNow != null && <span className={`text-[11px] ${p.openNow ? "text-emerald-700" : "text-rose-700"}`}>{p.openNow ? "Open now" : "Closed"}</span>}
@@ -243,7 +263,8 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
       {place && (
         <div className="overflow-auto px-3 py-2.5">
           <div className="text-xs text-slate-600">
-            {[stars(place.rating) + (place.ratings ? ` (${place.ratings.toLocaleString()})` : ""), dollars(place.price), place.category].filter(Boolean).join(" · ")}
+            {place.rating != null && <Star size={11} className="mr-0.5 inline -translate-y-px fill-amber-400 text-amber-400" aria-hidden />}
+                    {[stars(place.rating) + (place.ratings ? ` (${place.ratings.toLocaleString()})` : ""), dollars(place.price), place.category].filter(Boolean).join(" · ")}
           </div>
           {place.openNow != null && <div className={`text-xs ${place.openNow ? "text-emerald-700" : "text-rose-700"}`}>{place.openNow ? "Open now" : "Closed now"}</div>}
           <div className="mt-1 text-xs text-slate-500">{place.address}</div>
@@ -268,7 +289,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                   <li key={i} className="flex gap-2 text-xs text-slate-700">
                     {s.mode === "walk" ? (
                       <>
-                        <span className="w-12 shrink-0 text-slate-400">🚶 {s.minutes}m</span>
+                        <span className="flex w-12 shrink-0 items-center gap-0.5 text-slate-400"><Footprints size={12} aria-hidden /> {s.minutes}m</span>
                         <span>{s.text}</span>
                       </>
                     ) : (

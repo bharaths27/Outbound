@@ -50,8 +50,13 @@ const FRAG_COLOR = /* glsl */ `
     if (glassy) {
       // curtain wall: tall glass panes, thin mullions, spandrel band per floor
       float mull = smoothstep(0.08 - wx, 0.08 + wx, f.x) * (1.0 - smoothstep(0.86 - wy, 0.86 + wy, f.y));
-      vec3 glass = mix(vec3(0.33, 0.48, 0.62), vec3(0.72, 0.84, 0.93), clamp(f.y * 0.8 + 0.15 * sin(u * 0.05), 0.0, 1.0));
-      c = mix(base * 0.92, glass, mull);
+      // glass picks up the building's tint and a bright sky reflection that sweeps across the facade
+      vec3 deep = mix(vec3(0.2, 0.42, 0.68), base * 0.75, 0.35);
+      vec3 sky = vec3(0.74, 0.88, 0.99);
+      float refl = clamp(f.y * 0.7 + 0.25 * sin(u * 0.045 + h * 0.03) + 0.15, 0.0, 1.0);
+      vec3 glass = mix(deep, sky, refl);
+      vec3 frameCol = obHash(vec2(floor(base.r * 31.0), floor(base.b * 17.0))) > 0.5 ? vec3(0.86, 0.88, 0.92) : base * 0.8;
+      c = mix(frameCol, glass, mull);
       if (obHash(id) > mix(0.9, 0.5, uNight)) obWin = vec3(0.9, 0.75, 0.45) * mix(0.22, 0.8, uNight) * mull;
     } else if (id.y < 1.0 && h > 0.0) {
       // ground floor: big shop windows with a colored awning strip on top
@@ -97,9 +102,17 @@ const FRAG_COLOR = /* glsl */ `
       }
       obWin = vec3(1.0, 0.8, 0.45) * mix(0.2, 0.9, uNight) * win * lit;
     }
-    c *= mix(0.72, 1.0, smoothstep(0.0, 2.5, h));   // soft contact shadow at the base
-    diffuseColor.rgb = mix(base * mix(0.72, 1.0, smoothstep(0.0, 2.5, h)) * (glassy ? 0.95 : 0.93), c, detail);
+    // far away: windows merge into soft floor stripes (still reads as a building, without shimmer)
+    float sy = fwidth(cell.y);
+    float stripes = (1.0 - smoothstep(0.45, 1.4, sy)) * obBox(f.y, glassy ? 0.12 : 0.3, glassy ? 0.86 : 0.8, max(sy * 0.7, 0.08));
+    vec3 winAvg = glassy ? vec3(0.26, 0.48, 0.78) : mix(base, vec3(0.3, 0.38, 0.5), 0.55);
+    vec3 far = mix(base * (glassy ? 0.85 : 0.97), winAvg, stripes * (glassy ? 0.85 : 0.6));
+    // texture: each bay of the facade is a slightly different shade, like real panels and brick
+    float shade = 0.94 + 0.09 * obHash(vec2(id.x, 3.0)) + 0.03 * obHash(id + vec2(1.0, 2.0));
+    float contact = mix(0.72, 1.0, smoothstep(0.0, 2.5, h));   // soft contact shadow at the base
+    diffuseColor.rgb = mix(far, c, detail) * mix(1.0, shade, detail * 0.8) * contact;
     obWin *= max(detail, uNight * 0.7 * (1.0 - smoothstep(0.3, 1.2, px)));   // at night lit windows read from further away, like city lights
+    obWin += vec3(1.0, 0.8, 0.45) * uNight * 0.35 * stripes * (1.0 - detail) * step(0.6, obHash(vec2(id.y, floor(u / 12.0))));
   } else if (up < 0.97) {
     // ---- sloped roof: colored shingles in rows ----
     float pick = fract(dot(base, vec3(13.1, 7.7, 3.3)) * 9.0);
@@ -144,16 +157,16 @@ export function makeFacadeMaterial(unit: number, seed = 0) {
 const REMAP: [number[], number[]][] = [
   [[185, 143, 118], [226, 172, 172]], // brick -> dusty pink
   [[191, 174, 154], [240, 224, 198]], // sand -> cream
-  [[200, 196, 189], [243, 237, 227]], // limestone
-  [[227, 221, 211], [250, 246, 238]], // white
+  [[200, 196, 189], [244, 226, 200]], // limestone -> warm sand
+  [[227, 221, 211], [250, 236, 224]], // white -> soft peach
   [[217, 207, 194], [212, 192, 228]], // peach -> lavender
   [[214, 195, 168], [242, 216, 162]], // mustard -> soft yellow
   [[169, 112, 90], [204, 124, 132]],  // red brick -> rose
   [[205, 191, 174], [180, 210, 194]], // sage -> mint
-  [[169, 184, 200], [160, 186, 224]], // tower glass
-  [[159, 176, 194], [138, 164, 208]],
-  [[201, 210, 219], [198, 216, 238]],
-  [[185, 198, 211], [176, 200, 236]], // gray glass -> sky blue
+  [[169, 184, 200], [130, 176, 230]], // tower glass
+  [[159, 176, 194], [112, 158, 214]], // dark tower glass -> deeper blue
+  [[201, 210, 219], [176, 214, 226]], // pale glass -> aqua
+  [[185, 198, 211], [150, 196, 226]], // gray glass -> sky blue
 ];
 export function brightenPalette(col: Uint8Array) {
   const lut = new Map(REMAP.map(([a, b]) => [(a[0] << 16) | (a[1] << 8) | a[2], b]));

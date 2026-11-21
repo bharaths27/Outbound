@@ -77,13 +77,14 @@ export interface Quest {
   lat: number;
   points: number;
   hint: string;
-  emoji: string;
+  /** lucide icon name */
+  icon: "Landmark" | "Waves" | "Soup" | "BookOpen" | "Sunset" | "Trophy";
 }
 export const SAMPLE_QUESTS: Quest[] = [
-  { id: "q1", title: "Freedom Trail starter", place: "Massachusetts State House", lng: -71.0637, lat: 42.3581, points: 50, hint: "Find the gold dome, then walk the red-brick line", emoji: "🏛️" },
-  { id: "q2", title: "Cross the Zakim", place: "Paul Revere Park", lng: -71.0632, lat: 42.3712, points: 40, hint: "Best bridge view is from the Charlestown side", emoji: "🌉" },
-  { id: "q3", title: "Dumpling crawl", place: "Chinatown Gate", lng: -71.0605, lat: 42.3511, points: 30, hint: "Two spots, one gate. Orange Line to Chinatown", emoji: "🥟" },
-  { id: "q4", title: "Square hopper", place: "Harvard Square", lng: -71.1189, lat: 42.3733, points: 30, hint: "Red Line to Harvard, grab a book and a coffee", emoji: "📚" },
-  { id: "q5", title: "Esplanade sunset", place: "Hatch Shell", lng: -71.0743, lat: 42.3576, points: 25, hint: "Golden hour on the Charles", emoji: "🌅" },
-  { id: "q6", title: "Fenway faithful", place: "Fenway Park", lng: -71.0972, lat: 42.3467, points: 40, hint: "Kenmore on the Green Line, then follow the crowd", emoji: "⚾" },
+  { id: "q1", title: "Freedom Trail starter", place: "Massachusetts State House", lng: -71.0637, lat: 42.3581, points: 50, hint: "Find the gold dome, then walk the red-brick line", icon: "Landmark" },
+  { id: "q2", title: "Cross the Zakim", place: "Paul Revere Park", lng: -71.0632, lat: 42.3712, points: 40, hint: "Best bridge view is from the Charlestown side", icon: "Waves" },
+  { id: "q3", title: "Dumpling crawl", place: "Chinatown Gate", lng: -71.0605, lat: 42.3511, points: 30, hint: "Two spots, one gate. Orange Line to Chinatown", icon: "Soup" },
+  { id: "q4", title: "Square hopper", place: "Harvard Square", lng: -71.1189, lat: 42.3733, points: 30, hint: "Red Line to Harvard, grab a book and a coffee", icon: "BookOpen" },
+  { id: "q5", title: "Esplanade sunset", place: "Hatch Shell", lng: -71.0743, lat: 42.3576, points: 25, hint: "Golden hour on the Charles", icon: "Sunset" },
+  { id: "q6", title: "Fenway faithful", place: "Fenway Park", lng: -71.0972, lat: 42.3467, points: 40, hint: "Kenmore on the Green Line, then follow the crowd", icon: "Trophy" },
 ];

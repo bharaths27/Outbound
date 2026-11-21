@@ -71,9 +71,9 @@ body {
 .ob-search-pin { width: 22px; height: 22px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #e11d48; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); margin-bottom: 8px; }
 .ob-me { width: 18px; height: 18px; border-radius: 999px; background: #1a73e8; border: 3px solid #fff; box-shadow: 0 0 0 8px rgba(26,115,232,.18), 0 1px 4px rgba(0,0,0,.35); }
 .ob-place-pin { display: flex; align-items: center; gap: 3px; padding: 3px 7px 3px 4px; border-radius: 999px; background: #fff; border: 2px solid #6b1d3a; box-shadow: 0 2px 6px rgba(0,0,0,.25); font: 600 11px/1 system-ui, sans-serif; color: #6b1d3a; cursor: pointer; }
-.ob-place-pin-icon { font-size: 14px; line-height: 1; }
+.ob-place-pin-icon { display: grid; place-items: center; line-height: 0; }
 
 /* passport quest pins */
 .ob-quest { cursor: pointer; display: flex; align-items: center; gap: 3px; padding: 3px 7px 3px 4px; border-radius: 999px; background: #fffbeb; border: 2px solid #f59e0b; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.25); }
-.ob-quest-icon { font-size: 15px; line-height: 1; }
+.ob-quest-icon { display: grid; place-items: center; line-height: 0; color: #b45309; }
 .ob-quest-pts { font: 700 10px/1 var(--font-geist-sans), system-ui, sans-serif; color: #b45309; }

@@ -11,6 +11,7 @@ import { modelMatrix } from "./trains3d";
 import { brightenPalette, makeFacadeMaterial, FACADE_NIGHT } from "./facade";
 import { sunLight } from "./sun";
 import { makeLandmarks } from "./landmarks";
+import type { Weather } from "./weather";
 import { buildCityMesh, makeTreeMesh, TREE_TIME, type Footprint } from "./procBuildings";
 
 export interface BpdaTile {
@@ -39,6 +40,45 @@ export async function fetchBpdaManifest(): Promise<BpdaManifest | null> {
   } catch {
     return null;
   }
+}
+
+export interface RegionManifest {
+  source: string;
+  tiles: { name: string; center: [number, number]; file: string; count: number }[];
+}
+/** Greater Boston outside BPDA + Cambridge (the whole T area): Overture Maps footprints + heights, see scripts/data-build. */
+export const REGION_BOUNDS = { west: -71.3, south: 42.195, east: -70.955, north: 42.475 };
+export const inRegion = (lng: number, lat: number) =>
+  lng > REGION_BOUNDS.west && lng < REGION_BOUNDS.east && lat > REGION_BOUNDS.south && lat < REGION_BOUNDS.north;
+export async function fetchRegionManifest(): Promise<RegionManifest | null> {
+  try {
+    const r = await fetch(dataUrl("region/manifest.json"));
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A region tile -> footprints (lng/lat) for buildCityMesh. Format: see scripts/data-build/overture_buildings.py */
+async function loadRegionTile(url: string, center: [number, number]): Promise<Footprint[]> {
+  const j = await (await fetch(url)).json();
+  let buf = Uint8Array.from(atob(j.data), (c) => c.charCodeAt(0)).buffer;
+  buf = await gunzip(buf);
+  const v = new DataView(buf);
+  const n = v.getUint32(0, true);
+  const [lng0, lat0] = center;
+  const kx = 111_320 * Math.cos((lat0 * Math.PI) / 180);
+  const out: Footprint[] = [];
+  let o = 4;
+  for (let i = 0; i < n; i++) {
+    const np = v.getUint16(o, true), h = v.getUint16(o + 2, true) / 10;
+    o += 4;
+    const ring: [number, number][] = [];
+    for (let k = 0; k < np; k++, o += 4) ring.push([lng0 + v.getInt16(o, true) / 10 / kx, lat0 - v.getInt16(o + 2, true) / 10 / 110_540]);
+    ring.push(ring[0]);
+    out.push({ rings: [ring], h });
+  }
+  return out;
 }
 
 const gunzip = async (buf: ArrayBuffer) =>
@@ -76,6 +116,8 @@ const CAMBRIDGE_CENTER: [number, number] = [-71.11, 42.375];
 const TREES_CENTER: [number, number] = [-71.08, 42.36];
 const TREES_MIN_ZOOM = 14;
 
+type Job = { at: [number, number]; r: number; minZoom: number; run: () => Promise<void>; unloadable?: boolean };
+
 export class CityBuildingsLayer implements CustomLayerInterface {
   id = "city-3d";
   type = "custom" as const;
@@ -89,14 +131,17 @@ export class CityBuildingsLayer implements CustomLayerInterface {
   private renderer!: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.Camera();
-  private parts: { obj: THREE.Object3D; center: [number, number]; unit: number }[] = [];
+  private parts: { obj: THREE.Object3D; center: [number, number]; unit: number; job?: Job }[] = [];
   private trees: THREE.Object3D | null = null;
   private materials = new Map<number, THREE.Material>();
   private tmp = new THREE.Matrix4();
   private scale = new THREE.Matrix4();
   private originInv = new THREE.Matrix4();
 
-  constructor(private manifest: BpdaManifest | null) {}
+  constructor(
+    private manifest: BpdaManifest | null,
+    private region: RegionManifest | null = null,
+  ) {}
 
   onAdd(map: MlMap, gl: WebGLRenderingContext | WebGL2RenderingContext) {
     this.map = map;
@@ -117,30 +162,35 @@ export class CityBuildingsLayer implements CustomLayerInterface {
   private sky = new THREE.HemisphereLight(0xfff6e8, 0x7a7468, 1.7);
   private sun = new THREE.DirectionalLight(0xffe2b8, 2.6);
   private sunTimer = 0;
-  /** "auto" follows the real sun over Boston; "day"/"night" pin it (the day/night toggle). */
-  timeMode: "auto" | "day" | "night" = "auto";
   /** called with 0 (day) .. 1 (night) whenever the light changes, to darken the basemap too */
   onNight: (night: number) => void = () => {};
-  setTimeMode(m: "auto" | "day" | "night") {
-    this.timeMode = m;
+  private weather: Weather | null = null;
+  /** Match the light to the weather outside: clouds flatten and grey the sun, rain and snow darken it a bit. */
+  setWeather(w: Weather | null) {
+    this.weather = w;
     this.updateSun();
   }
   /** Light the city like the real sun over Boston now (or at `date`): warm at sunset, blue with lit windows at night. */
   updateSun(date = new Date()) {
-    if (this.timeMode !== "auto") {
-      // a fixed afternoon (day) or late evening (night), today
-      date = new Date(date);
-      date.setUTCHours(this.timeMode === "day" ? 18 : 2, 30, 0, 0); // 1:30 PM / 9:30 PM Boston (EST)
-    }
     const { dir, night, golden } = sunLight(date);
     this.sun.position.set(dir[0] * 100, dir[1] * 100, dir[2] * 100);
     const day = new THREE.Color(0xfff0d8), gold = new THREE.Color(0xffb070), moon = new THREE.Color(0xa8b8e8);
     // keep the pastel colors readable: only a hint of golden hour, and a bright blue "game night" instead of black
     this.sun.color.copy(day).lerp(gold, golden * 0.35).lerp(moon, night);
-    this.sun.intensity = 1.9 * (1 - night) + 0.9 * night;
+    this.sun.intensity = 2.0 * (1 - night) + 0.9 * night;
     this.sky.color.set(0xffffff).lerp(new THREE.Color(0x9aa6d4), night);
     this.sky.groundColor.set(0xb8b0c0).lerp(new THREE.Color(0x6a6488), night);
-    this.sky.intensity = 2.3 * (1 - night) + 1.7 * night;
+    this.sky.intensity = 1.85 * (1 - night) + 1.7 * night;
+    // weather: overcast = soft grey light from the whole sky instead of a warm sun
+    const w = this.weather;
+    if (w) {
+      const wet = w.kind === "rain" || w.kind === "snow" || w.kind === "storm" || w.kind === "fog" ? 1 : 0;
+      const overcast = Math.max(w.cloud * 0.85, wet * 0.9);
+      this.sun.color.lerp(new THREE.Color(0xdfe3ea), overcast * 0.7);
+      this.sun.intensity *= 1 - overcast * 0.6;
+      this.sky.color.lerp(new THREE.Color(w.kind === "snow" ? 0xf2f4f8 : 0xd6dbe4), overcast * 0.6 * (1 - night));
+      this.sky.intensity *= 1 + overcast * 0.12 - (w.kind === "storm" ? 0.25 : 0);
+    }
     FACADE_NIGHT.value = night;
     this.onNight(night);
     this.map?.triggerRepaint();
@@ -152,15 +202,15 @@ export class CityBuildingsLayer implements CustomLayerInterface {
     return m;
   }
 
-  private add(obj: THREE.Object3D, center: [number, number], unit: number) {
+  private add(obj: THREE.Object3D, center: [number, number], unit: number, job?: Job) {
     obj.matrixAutoUpdate = false;
     obj.frustumCulled = false;
     this.scene.add(obj);
-    this.parts.push({ obj, center, unit });
+    this.parts.push({ obj, center, unit, job });
     this.map.triggerRepaint();
   }
 
-  private jobs: { at: [number, number]; r: number; minZoom: number; run: () => Promise<void> }[] | null = null;
+  private jobs: Job[] | null = null;
   private running = 0;
 
   private makeJobs() {
@@ -192,6 +242,22 @@ export class CityBuildingsLayer implements CustomLayerInterface {
         this.add(new THREE.Mesh(buildCityMesh(feats, CAMBRIDGE_CENTER), mat), CAMBRIDGE_CENTER, 1);
       },
     });
+    // the rest of the T area, as illustrated houses and blocks; far-away tiles are dropped again to save memory
+    const regionMat = makeFacadeMaterial(1, 5.3);
+    regionMat.side = THREE.DoubleSide;
+    for (const t of this.region?.tiles ?? []) {
+      const job: Job = {
+        at: t.center,
+        r: 0.011,
+        minZoom: 13.2,
+        unloadable: true,
+        run: async () => {
+          const feats = await loadRegionTile(dataUrl(`region/${t.file}`), t.center);
+          this.add(new THREE.Mesh(buildCityMesh(feats, t.center), regionMat), t.center, 1, job);
+        },
+      };
+      jobs.push(job);
+    }
     jobs.push({
       at: [-71.063, 42.362],
       r: 0.01,
@@ -247,6 +313,20 @@ export class CityBuildingsLayer implements CustomLayerInterface {
     }
   }
 
+  /** Drop region tiles that are far from the view (they load again when you come back). */
+  private unloadFar(lng: number, lat: number, zoom: number) {
+    const keep = Math.max(0.06, Math.min(0.12, 0.016 * Math.pow(2, 16 - zoom)));
+    for (let i = this.parts.length - 1; i >= 0; i--) {
+      const p = this.parts[i];
+      if (!p.job?.unloadable) continue;
+      if (Math.hypot(p.center[0] - lng, (p.center[1] - lat) * 1.35) < keep && zoom >= p.job.minZoom - 1) continue;
+      this.scene.remove(p.obj);
+      (p.obj as THREE.Mesh).geometry?.dispose();
+      this.parts.splice(i, 1);
+      this.jobs?.push(p.job);
+    }
+  }
+
   render(_gl: WebGLRenderingContext | WebGL2RenderingContext, args: CustomRenderMethodInput) {
     const zoom = this.map.getZoom();
     if (!this.visible || this.hidden || zoom < this.minZoom) return;
@@ -261,6 +341,7 @@ export class CityBuildingsLayer implements CustomLayerInterface {
     this.camera.projectionMatrix = main.multiply(origin);
     this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
     if (this.trees) this.trees.visible = zoom >= TREES_MIN_ZOOM;
+    this.unloadFar(center.lng, center.lat, zoom);
     TREE_TIME.value = performance.now() / 1000;
     for (const p of this.parts) {
       modelMatrix(this.tmp, p.center[0], p.center[1], globe).premultiply(this.originInv);

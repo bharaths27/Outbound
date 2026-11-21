@@ -2,6 +2,7 @@
 // Search places and streets like a normal map.
 //   - always: T stations, campuses, and a bundled index of Boston/Cambridge streets, parks and landmarks (data/search-places.json)
 //   - online: Photon geocoder (OpenStreetMap data, free, no key), biased to Boston
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { Map as MlMap } from "maplibre-gl";
@@ -303,7 +304,7 @@ export default function SearchBox({
               onClick={textSearch}
               className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left ${active === -1 ? "bg-slate-100" : ""}`}
             >
-              <span className="text-xs">🔎</span>
+              <Search size={14} className="text-slate-500" aria-hidden />
               <span className="truncate text-slate-900">
                 Search for <b>{q.trim()}</b> nearby
               </span>

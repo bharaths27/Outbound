@@ -10,12 +10,25 @@ import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
 import { TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
 import { loadBaseStyle, groundLayerIds, registerFontProtocol } from "./style";
-import { CityBuildingsLayer, fetchBpdaManifest, inBpda } from "./buildings3d";
+import { CityBuildingsLayer, fetchBpdaManifest, fetchRegionManifest, inBpda, inRegion } from "./buildings3d";
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
 import SearchBox, { pointInRing } from "./SearchBox";
 import Explorer, { type ExplorerHandle } from "./Explorer";
-import { FlyControls, type FlyAction } from "./flyControls";
 import { addWaves } from "./waves";
+import { fetchWeather, type Weather } from "./weather";
+import WeatherFx from "./WeatherFx";
+import { BookOpen, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Landmark, LocateFixed, Moon, Soup, Star, Sun, Sunset, Trophy, Waves } from "lucide-react";
+import { createElement, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN } from "lucide";
+
+const QUEST_ICONS = { Landmark, Waves, Soup, BookOpen, Sunset, Trophy };
+const QUEST_NODES = { Landmark: LandmarkN, Waves: WavesN, Soup: SoupN, BookOpen: BookOpenN, Sunset: SunsetN, Trophy: TrophyN };
+const svgOf = (node: (typeof QUEST_NODES)[keyof typeof QUEST_NODES], size: number) => {
+  const el = createElement(node);
+  el.setAttribute("width", String(size));
+  el.setAttribute("height", String(size));
+  el.setAttribute("stroke-width", "2.2");
+  return el.outerHTML;
+};
 import {
   LIVE_INTERVAL_MS, ReplayFrame, DemoFeed, fetchLive, fetchReplay, fetchLateness, fetchArrivals,
   sampleArrivals, destinationOf, LATENESS_HEX,
@@ -23,6 +36,20 @@ import {
 import { CAMPUSES, SAMPLE_FRIEND_VISITS, SAMPLE_QUESTS, initials, type FriendVisit, type Quest } from "./places";
 
 type FeedMode = "live" | "replay" | "demo";
+interface CrStation {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  routes: string[];
+  town: string;
+}
+const CR_NAMES: Record<string, string> = {
+  "CR-Fairmount": "Fairmount", "CR-NewBedford": "Fall River/New Bedford", "CR-Fitchburg": "Fitchburg", "CR-Worcester": "Framingham/Worcester",
+  "CR-Franklin": "Franklin/Foxboro", "CR-Greenbush": "Greenbush", "CR-Haverhill": "Haverhill", "CR-Kingston": "Kingston", "CR-Lowell": "Lowell",
+  "CR-Needham": "Needham", "CR-Newburyport": "Newburyport/Rockport", "CR-Providence": "Providence/Stoughton",
+};
+
 interface StationData extends Pick<Station, "id" | "name" | "lat" | "lon"> {
   lines: string[];
   branches: string[];
@@ -46,13 +73,14 @@ const lineColorExpr = (colors: Record<string, string>) =>
 export default function TransitMap() {
   const box = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
-  const flyRef = useRef<FlyControls | null>(null);
   const animRef = useRef<TrainAnimator | null>(null);
   const layerRef = useRef<Trains3DLayer | null>(null);
   const cityRef = useRef<CityBuildingsLayer | null>(null);
   const [friend, setFriend] = useState<FriendVisit | null>(null);
   const [quest, setQuest] = useState<Quest | null>(null);
-  const [timeMode, setTimeMode] = useState<"auto" | "day" | "night">("auto");
+  const [crStation, setCrStation] = useState<CrStation | null>(null);
+  const [weather, setWeather] = useState<Weather | null>(null);
+  const [isNight, setIsNight] = useState(false);
   const googleRef = useRef<GoogleTilesLayer | null>(null);
   const setRealisticRef = useRef<(on: boolean) => void>(() => {});
   const stationsRef = useRef<StationData[]>([]);
@@ -89,12 +117,13 @@ export default function TransitMap() {
     let stopWaves = () => {};
     let map: MlMap | null = null;
     (async () => {
-      const manifest = await fetchBpdaManifest();
-      const [{ style, offline }, linesGeo, stations, cambridgeOutline] = await Promise.all([
+      const [manifest, region] = await Promise.all([fetchBpdaManifest(), fetchRegionManifest()]);
+      const [{ style, offline }, linesGeo, stations, cambridgeOutline, crStations] = await Promise.all([
         loadBaseStyle(manifest),
         fetch("data/mbta-lines.geojson").then((r) => r.json()),
         fetch("data/mbta-stations.json").then((r) => r.json()) as Promise<StationData[]>,
         fetch("data/cambridge/outline.geojson").then((r) => r.json()).catch(() => null),
+        fetch("data/cr-stations.json").then((r) => r.json()).catch(() => []) as Promise<CrStation[]>,
       ]);
       if (disposed || !box.current) return;
       setOfflineBasemap(offline);
@@ -119,8 +148,6 @@ export default function TransitMap() {
         canvasContextAttributes: { antialias: true },
       });
       mapRef.current = map;
-      flyRef.current = new FlyControls(map);
-      if (process.env.NODE_ENV !== "production") (window as unknown as { __obFly: FlyControls }).__obFly = flyRef.current; // for tests
       if (process.env.NODE_ENV !== "production") (window as unknown as { __obMap: MlMap }).__obMap = map; // for tests
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
       map.on("error", (e) => console.warn("[map]", e.error?.message ?? e)); // e.g. a tile or font that failed to load
@@ -148,6 +175,22 @@ export default function TransitMap() {
         const lastExt = styleLayers.map((l) => l.type).lastIndexOf("fill-extrusion");
         const labelsStart = styleLayers.slice(lastExt + 1).find((l) => l.type === "symbol")?.id ?? firstSymbol;
 
+        // Commuter Rail (purple, thinner, under the subway lines) out to Brandeis, Salem, Worcester, Providence...
+        m.addSource("cr-lines", { type: "geojson", data: "data/cr-lines.geojson" });
+        m.addLayer({
+          id: "cr-casing",
+          type: "line",
+          source: "cr-lines",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1.2, 13, 2.4, 17, 4.5], "line-opacity": 0.85 },
+        }, beforeLines);
+        m.addLayer({
+          id: "cr-lines",
+          type: "line",
+          source: "cr-lines",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#80276C", "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 13, 1.3, 17, 2.6], "line-dasharray": [3, 1.2] },
+        }, beforeLines);
         m.addSource("mbta-lines", { type: "geojson", data: linesGeo });
         m.addLayer({
           id: "lines-delay-glow",
@@ -178,12 +221,15 @@ export default function TransitMap() {
         m.addLayer({ id: "campus-line", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 16, 2.4], "line-dasharray": [3, 2] } }, beforeLines);
 
         // game-style 3D city: Boston's own building models (BPDA), Cambridge footprints + heights, trees
-        const city = new CityBuildingsLayer(manifest);
+        const city = new CityBuildingsLayer(manifest, region);
         cityRef.current = city;
         m.addLayer(city, labelsStart);
         // night: a blue wash over the ground (under the T lines, campuses and buildings), matching the 3D city's light
-        m.addLayer({ id: "night-tint", type: "background", paint: { "background-color": "#1c2448", "background-opacity": 0 } }, "lines-delay-glow");
-        city.onNight = (n) => m.getLayer("night-tint") && m.setPaintProperty("night-tint", "background-opacity", n * 0.42);
+        m.addLayer({ id: "night-tint", type: "background", paint: { "background-color": "#1c2448", "background-opacity": 0 } }, "cr-casing");
+        city.onNight = (n) => {
+          if (m.getLayer("night-tint")) m.setPaintProperty("night-tint", "background-opacity", n * 0.42);
+          setIsNight(n > 0.5);
+        };
         city.updateSun();
         // moving water on the river, harbor and ponds
         const styleIds = m.getStyle().layers.map((l) => l.id);
@@ -223,8 +269,8 @@ export default function TransitMap() {
         const osmBuildings = m.getStyle().layers.filter((l) => l.type === "fill-extrusion" && (l as { source?: string }).source === "openmaptiles").map((l) => l.id);
         const pickBuildings = () => {
           const c = m.getCenter();
-          const real = (manifest && inBpda(c.lng, c.lat)) || (cambRing && pointInRing([c.lng, c.lat], cambRing));
-          // (the 3D city layer draws Cambridge and central Boston itself; Google's 3D draws everything)
+          const real = (manifest && inBpda(c.lng, c.lat)) || (region && inRegion(c.lng, c.lat)) || (cambRing && pointInRing([c.lng, c.lat], cambRing));
+          // (the 3D city layer draws the whole T area itself; Google's 3D draws everything)
           for (const id of osmBuildings) m.setFilter(id, real || google ? ["==", ["get", "render_height"], -1] : null);
         };
         pickBuildings();
@@ -276,6 +322,52 @@ export default function TransitMap() {
           },
           paint: { "text-color": "#1f2937", "text-halo-color": "#ffffff", "text-halo-width": 1.4 },
         });
+
+        // Commuter Rail stations
+        m.addSource("cr-stations", {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: crStations.map((s) => ({ type: "Feature", properties: { id: s.id, name: s.name, town: s.town }, geometry: { type: "Point", coordinates: [s.lon, s.lat] } })),
+          },
+        });
+        m.addLayer({
+          id: "cr-stations",
+          type: "circle",
+          source: "cr-stations",
+          minzoom: 8.5,
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 1.4, 13, 3, 17, 5],
+            "circle-color": "#ffffff",
+            "circle-stroke-color": "#80276C",
+            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 9, 0.8, 14, 1.6],
+            "circle-pitch-alignment": "map",
+          },
+        });
+        m.addLayer({
+          id: "cr-station-labels",
+          type: "symbol",
+          source: "cr-stations",
+          minzoom: 12,
+          layout: {
+            "text-field": ["get", "name"],
+            "text-font": ["Noto Sans Regular"],
+            "text-size": ["interpolate", ["linear"], ["zoom"], 12, 9.5, 17, 12],
+            "text-offset": [0, 1.0],
+            "text-anchor": "top",
+            "text-optional": true,
+          },
+          paint: { "text-color": "#5b1d4e", "text-halo-color": "#ffffff", "text-halo-width": 1.4 },
+        });
+        m.on("click", "cr-stations", (e) => {
+          const f = e.features?.[0];
+          if (!f) return;
+          setStation(null);
+          setTrain(null);
+          setCrStation(crStations.find((x) => x.id === f.properties?.id) ?? null);
+        });
+        m.on("mouseenter", "cr-stations", () => (m.getCanvas().style.cursor = "pointer"));
+        m.on("mouseleave", "cr-stations", () => (m.getCanvas().style.cursor = ""));
 
         // 2D train dots (also the click target for 3D trains)
         m.addSource("trains-2d", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
@@ -331,7 +423,6 @@ export default function TransitMap() {
     return () => {
       disposed = true;
       stopWaves();
-      flyRef.current?.dispose();
       map?.remove();
       mapRef.current = null;
     };
@@ -370,7 +461,7 @@ export default function TransitMap() {
       const el = document.createElement("div");
       el.className = "ob-quest";
       el.title = q.title;
-      el.innerHTML = `<span class="ob-quest-icon">${q.emoji}</span><span class="ob-quest-pts">+${q.points}</span>`;
+      el.innerHTML = `<span class="ob-quest-icon">${svgOf(QUEST_NODES[q.icon], 15)}</span><span class="ob-quest-pts">+${q.points}</span>`;
       el.onclick = (ev) => {
         ev.stopPropagation();
         setFriend(null);
@@ -411,10 +502,8 @@ export default function TransitMap() {
     const map = mapRef.current;
     if (!ready || !map) return;
     if (layerRef.current) layerRef.current.visible = is3D && show.trains;
-    if (cityRef.current) cityRef.current.visible = is3D;
-    if (googleRef.current) googleRef.current.visible = is3D;
-    for (const l of map.getStyle().layers)
-      if (l.type === "fill-extrusion") map.setLayoutProperty(l.id, "visibility", is3D ? "visible" : "none");
+    // 2D is the same city seen straight from above (roofs), with tilting locked
+    map.setMaxPitch(is3D ? 85 : 0);
     map.setPaintProperty(
       "trains-2d",
       "circle-opacity",
@@ -425,9 +514,27 @@ export default function TransitMap() {
       "circle-stroke-opacity",
       !show.trains ? 0 : is3D ? ["interpolate", ["linear"], ["zoom"], TRAIN_3D_MIN_ZOOM - 0.3, 1, TRAIN_3D_MIN_ZOOM, 0] : 1,
     );
-    if (map.getZoom() > 5) map.easeTo({ pitch: is3D ? 58 : 0, bearing: is3D ? map.getBearing() : 0, duration: 900 });
+    if (map.getZoom() > 5 && is3D) map.easeTo({ pitch: 58, duration: 900 });
     map.triggerRepaint();
   }, [ready, is3D, show.trains]);
+
+  // ---------- weather outside (light, clouds, rain/snow), refreshed every 15 min ----------
+  useEffect(() => {
+    if (!ready) return;
+    let alive = true;
+    const load = async () => {
+      const w = await fetchWeather();
+      if (!alive) return;
+      setWeather(w);
+      cityRef.current?.setWeather(w);
+    };
+    load();
+    const t = setInterval(load, 15 * 60_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [ready]);
 
   // ---------- your location (blue dot), like a normal map ----------
   useEffect(() => {
@@ -673,6 +780,7 @@ export default function TransitMap() {
   return (
     <div className="fixed inset-0 bg-[#dfe9f3]">
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
+      <WeatherFx weather={weather} active={loaded && is3D} />
       {/* one loading screen, then straight into the 3D city */}
       <div
         className={`pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-[#ece6da] transition-opacity duration-700 ${loaded ? "opacity-0" : "opacity-100"}`}
@@ -694,10 +802,11 @@ export default function TransitMap() {
               className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white ${feedMode === "live" && lastUpdate ? "bg-emerald-600" : feedMode === "replay" ? "bg-sky-600" : "bg-amber-500"}`}
               title={feedMode === "live" ? "Real MBTA positions" : "Not real-time: MBTA feed unreachable"}
             >
-              {feedMode === "live" && lastUpdate ? "● LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
+              {feedMode === "live" && lastUpdate ? "LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
             </span>
             {statusText}
           </span>
+          {weather && <WeatherChip w={weather} night={isNight} />}
         </div>
         <SearchBox
           map={ready ? mapRef.current : null}
@@ -716,18 +825,6 @@ export default function TransitMap() {
         {autoFallback && feedMode !== "live" && (
           <div className="ob-panel px-3 py-1.5 text-xs text-amber-800">Live feed is down. Showing {feedMode === "replay" ? "saved trains" : "demo trains"}; retrying every 30 s.</div>
         )}
-        {show.delays && lateness && (
-          <div className="flex flex-wrap gap-1.5">
-            {lateness.lines.map((l) => (
-              <span key={l.line} className="ob-panel flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-800" title={`${l.method}, ${l.samples} samples`}>
-                <span className="h-2 w-2 rounded-full" style={{ background: LINE_COLORS[l.line] }} />
-                {l.badge}
-                <span className="h-2 w-2 rounded-full" style={{ background: LATENESS_HEX[l.color] }} />
-              </span>
-            ))}
-            {lateness.sample && <span className="ob-panel px-2 py-1 text-[10px] uppercase tracking-wide text-slate-500">sample</span>}
-          </div>
-        )}
         {notice && (
           <button className="ob-panel px-3 py-1.5 text-left text-xs text-amber-800" onClick={() => setNotice(null)}>
             {notice}
@@ -739,14 +836,6 @@ export default function TransitMap() {
       <div className="ob-panel absolute right-3 top-3 flex w-[176px] flex-col gap-2 p-2.5 text-xs sm:right-4 sm:top-4">
         <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
         {(GOOGLE_KEY || !offlineBasemap) && <Seg options={[["Illustrated", false], ["Realistic", true]]} value={realistic} onChange={setRealistic} />}
-        <Seg
-          options={[["Live", "auto"], ["☀ Day", "day"], ["☾ Night", "night"]] as [string, "auto" | "day" | "night"][]}
-          value={timeMode}
-          onChange={(m) => {
-            setTimeMode(m);
-            cityRef.current?.setTimeMode(m);
-          }}
-        />
         <div className="mt-1 flex flex-col gap-1">
           <Toggle label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
           <Toggle label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />
@@ -770,7 +859,8 @@ export default function TransitMap() {
           </button>
         ))}
         <button onClick={locateMe} className="rounded-lg px-2.5 py-1.5 font-medium text-sky-700 hover:bg-slate-100" title="Go to my location">
-          ◎ Me
+          <LocateFixed size={13} strokeWidth={2.2} className="mr-1 inline -translate-y-px" aria-hidden />
+          Me
         </button>
         {nearest && (
           <button
@@ -901,11 +991,37 @@ export default function TransitMap() {
         </Card>
       )}
 
+      {/* commuter rail station card */}
+      {crStation && (
+        <Card onClose={() => setCrStation(null)}>
+          <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-white" style={{ background: "#80276C" }}>
+            Commuter Rail
+          </span>
+          <h2 className="mt-1 text-lg font-semibold text-slate-900">{crStation.name}</h2>
+          <p className="text-slate-600">{crStation.town}</p>
+          <p className="mt-1 text-[13px] text-slate-700">{crStation.routes.map((r) => CR_NAMES[r] ?? r).join(" · ")} Line</p>
+          <button
+            onClick={() => {
+              explorer.current?.show({ id: `cr-${crStation.id}`, name: `${crStation.name} station`, address: `Commuter Rail, ${crStation.town}`, lng: crStation.lon, lat: crStation.lat, types: [], category: "", rating: null, ratings: 0, price: null, openNow: null, url: null });
+              setCrStation(null);
+            }}
+            className="mt-3 w-full rounded-lg bg-[#6b1d3a] px-3 py-2 text-sm font-medium text-white hover:bg-[#5a1731]"
+          >
+            Directions
+          </button>
+        </Card>
+      )}
+
       {/* quest card */}
       {quest && (
         <Card onClose={() => setQuest(null)}>
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-2xl">{quest.emoji}</span>
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              {(() => {
+                const I = QUEST_ICONS[quest.icon];
+                return <I size={22} strokeWidth={2} aria-hidden />;
+              })()}
+            </span>
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600">Passport quest · +{quest.points} pts</p>
               <h2 className="truncate text-base font-semibold text-slate-900">{quest.title}</h2>
@@ -954,53 +1070,12 @@ export default function TransitMap() {
         </Card>
       )}
 
-      {/* free camera pad (keys: W A S D move, Q E turn, R F tilt, Space/Shift up/down) */}
-      <FlyPad fly={flyRef} />
-
       {/* app nav */}
       <nav className="ob-panel absolute bottom-8 right-14 hidden gap-1 p-1 text-xs sm:flex">
         {[["Passport", "/passport"], ["Leaderboard", "/leaderboard"], ["Login", "/login"]].map(([l, h]) => (
           <Link key={h} href={h} className="rounded-lg px-2.5 py-1.5 font-medium text-slate-700 hover:bg-slate-100">{l}</Link>
         ))}
       </nav>
-    </div>
-  );
-}
-
-const PAD: [FlyAction, string, string][] = [
-  ["turnL", "⟲", "Turn left (Q)"], ["fwd", "▲", "Forward (W)"], ["turnR", "⟳", "Turn right (E)"],
-  ["left", "◀", "Left (A)"], ["back", "▼", "Back (S)"], ["right", "▶", "Right (D)"],
-  ["tiltUp", "⤒", "Tilt up (R)"], ["up", "＋", "Rise (Space)"], ["tiltDown", "⤓", "Tilt down (F)"],
-];
-function FlyPad({ fly }: { fly: React.RefObject<FlyControls | null> }) {
-  const [open, setOpen] = useState(false);
-  const hold = (a: FlyAction) => ({
-    onPointerDown: (e: React.PointerEvent) => {
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      fly.current?.press(a);
-    },
-    onPointerUp: () => fly.current?.release(a),
-    onPointerCancel: () => fly.current?.release(a),
-    onLostPointerCapture: () => fly.current?.release(a),
-  });
-  return (
-    <div className="absolute bottom-[132px] right-3 z-10 flex flex-col items-end gap-1.5">
-      {open && (
-        <div className="ob-panel grid select-none grid-cols-3 gap-1 p-1.5 touch-none">
-          {PAD.map(([a, icon, label]) => (
-            <button key={a} {...hold(a)} title={label} aria-label={label} className="h-9 w-9 rounded-lg bg-slate-100 text-sm text-slate-700 active:bg-slate-300">
-              {icon}
-            </button>
-          ))}
-          <button {...hold("down")} title="Sink (Shift)" aria-label="Sink (Shift)" className="col-span-3 h-7 rounded-lg bg-slate-100 text-xs text-slate-700 active:bg-slate-300">
-            － lower
-          </button>
-          <p className="col-span-3 hidden max-w-[120px] text-[9px] leading-tight text-slate-500 sm:block">Keys: WASD move, Q/E turn, R/F tilt, Space/Shift up/down. Right-drag to orbit.</p>
-        </div>
-      )}
-      <button onClick={() => setOpen((o) => !o)} className="ob-panel px-2.5 py-1.5 text-xs font-medium text-slate-700" aria-expanded={open}>
-        🎮 {open ? "Hide" : "Fly"}
-      </button>
     </div>
   );
 }
@@ -1030,11 +1105,22 @@ function Toggle({ label, on, set, small }: { label: string; on: boolean; set: (v
   );
 }
 
+function WeatherChip({ w, night }: { w: Weather; night: boolean }) {
+  const Icon = { clear: night ? Moon : Sun, cloudy: w.cloud > 0.75 ? Cloud : CloudSun, fog: CloudFog, rain: CloudRain, snow: CloudSnow, storm: CloudLightning }[w.kind];
+  const label = { clear: "Clear", cloudy: w.cloud > 0.75 ? "Cloudy" : "Partly cloudy", fog: "Fog", rain: "Rain", snow: "Snow", storm: "Storm" }[w.kind];
+  return (
+    <span className="ml-auto flex items-center gap-1 text-xs text-slate-600" title={`${label} in Boston now. The 3D light follows the time and weather outside.`}>
+      <Icon size={15} strokeWidth={2} className="text-slate-500" aria-hidden />
+      {w.tempF}°
+    </span>
+  );
+}
+
 function Stars({ value, small }: { value: number; small?: boolean }) {
   return (
     <span className={`inline-flex items-center gap-0.5 ${small ? "text-[11px]" : "mt-0.5 text-sm"}`} aria-label={`${value} out of 5`}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <span key={i} className={value >= i ? "text-amber-500" : value >= i - 0.5 ? "text-amber-300" : "text-slate-300"}>★</span>
+        <Star key={i} size={small ? 11 : 14} strokeWidth={1.5} className={value >= i ? "fill-amber-400 text-amber-500" : value >= i - 0.5 ? "fill-amber-200 text-amber-400" : "fill-slate-200 text-slate-300"} aria-hidden />
       ))}
       <span className="ml-1 text-slate-500">{value.toFixed(1)}</span>
     </span>
