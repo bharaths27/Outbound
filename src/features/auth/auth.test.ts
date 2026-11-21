@@ -35,5 +35,9 @@ describe("auth helpers", () => {
     expect(safeNext("/%0a/evil.example")).toBe("/%0a/evil.example"); // encoded stays a path
     expect(safeNext("/leaderboard?tab=squads#top")).toBe("/leaderboard?tab=squads#top");
     expect(safeNext("javascript:alert(1)")).toBe("/");
+    expect(safeNext("/.//evil.example")).toBe("/"); // dot segments normalize to "//evil.example"
+    expect(safeNext("/a/..//evil.example")).toBe("/");
+    expect(safeNext("/%2e//evil.example")).toBe("/");
+    expect(safeNext("/a/../passport")).toBe("/passport");
   });
 });
