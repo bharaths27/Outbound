@@ -30,5 +30,10 @@ describe("auth helpers", () => {
     expect(safeNext("//evil.example")).toBe("/");
     expect(safeNext("/\\evil.example")).toBe("/");
     expect(safeNext(null, "/passport")).toBe("/passport");
+    expect(safeNext("/\t/evil.example")).toBe("/"); // tab stripped by the browser -> "//evil.example"
+    expect(safeNext("/\n/evil.example")).toBe("/");
+    expect(safeNext("/%0a/evil.example")).toBe("/%0a/evil.example"); // encoded stays a path
+    expect(safeNext("/leaderboard?tab=squads#top")).toBe("/leaderboard?tab=squads#top");
+    expect(safeNext("javascript:alert(1)")).toBe("/");
   });
 });

@@ -19,8 +19,19 @@ export function schoolForEmail(email: string, schools: School[]): School | null 
   );
 }
 
-/** Only same-site paths, so ?next= can't send people to another website. */
+/**
+ * Only same-site paths, so ?next= can't send people to another website. Browsers strip
+ * tabs and newlines and treat "\\" like "/" when parsing URLs ("/\t/evil.com" becomes
+ * "//evil.com"), so reject those characters, then parse and compare origins.
+ */
 export function safeNext(next: string | null | undefined, fallback = "/"): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return fallback;
-  return next;
+  if (!next || !next.startsWith("/") || next.startsWith("//") || /[\u0000-\u001F\u007F\\]/.test(next)) return fallback;
+  const base = "https://outbound.invalid";
+  try {
+    const url = new URL(next, base);
+    if (url.origin !== base) return fallback;
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return fallback;
+  }
 }
