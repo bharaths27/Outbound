@@ -39,6 +39,10 @@ frontend-derived shapes.
   codes? The frontend can take a typed code without adding a scanner library.
 - [ ] **Vercel env var.** Set `NEXT_PUBLIC_DATA_SOURCE` in the Vercel project (`mock`
   until integration).
+- [ ] **Squad score.** The plan's squad cards show a score, but there's no squad score in
+  the schema (no view or column). The Squads tab shows members and a cross-school badge
+  for now. Want a `squad_weekly` view (sum of `visits.xp_awarded` with that `squad_id` this
+  week), or skip squad scores?
 - [ ] **Leaderboard wording.** Unless you want different wording, the Schools tab will
   say: "Total XP earned this week. Schools need 5 active players to rank. Resets Monday."
 - [ ] **One craving per search** (low priority). `Filters.craving` holds one value, so

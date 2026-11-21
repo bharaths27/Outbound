@@ -1,4 +1,9 @@
-// Owner: Angie. Placeholder so routing works from day one.
-export default function LeaderboardPage() {
-  return <main className="p-8"><h1 className="text-2xl font-bold">Leaderboard</h1></main>;
+// Compete: weekly school leaderboard and squads. Owner: Angie.
+import type { Metadata } from "next";
+import { CompetePage } from "@/features/compete/compete-page";
+
+export const metadata: Metadata = { title: "Compete" };
+
+export default function Page() {
+  return <CompetePage />;
 }
