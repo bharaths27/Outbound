@@ -13,3 +13,7 @@ Sources (download them first, then edit the input paths at the top of each scrip
 | `bpda_tiles.py` | `bpda/*.bin.gz` building meshes, `*.jpg` aerial photos, `manifest.json` |
 | `campus_cam.py` | `campuses.geojson` and the Cambridge layers |
 | `search_index.py` | `search-places.json` ([name, kind, lng, lat]) |
+| `street_labels.py` | `street-labels.geojson` (offline street names: Boston street samples + Cambridge `Trans/Street_Centerlines`) |
+
+`public/data/fonts/*.json` are Noto Sans glyphs (Latin, 0-255) from github.com/maplibre/demotiles (SIL Open Font License),
+base64-wrapped so the offline map can draw labels where only text/data files are served.

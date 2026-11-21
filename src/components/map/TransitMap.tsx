@@ -15,11 +15,12 @@ import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
 import SearchBox, { pointInRing } from "./SearchBox";
 import Explorer, { type ExplorerHandle } from "./Explorer";
 import { FlyControls, type FlyAction } from "./flyControls";
+import { addWaves } from "./waves";
 import {
   LIVE_INTERVAL_MS, ReplayFrame, DemoFeed, fetchLive, fetchReplay, fetchLateness, fetchArrivals,
   sampleArrivals, destinationOf, LATENESS_HEX,
 } from "./feed";
-import { CAMPUSES, SAMPLE_FRIEND_VISITS, initials, type FriendVisit } from "./places";
+import { CAMPUSES, SAMPLE_FRIEND_VISITS, SAMPLE_QUESTS, initials, type FriendVisit, type Quest } from "./places";
 
 type FeedMode = "live" | "replay" | "demo";
 interface StationData extends Pick<Station, "id" | "name" | "lat" | "lon"> {
@@ -50,11 +51,12 @@ export default function TransitMap() {
   const layerRef = useRef<Trains3DLayer | null>(null);
   const cityRef = useRef<CityBuildingsLayer | null>(null);
   const [friend, setFriend] = useState<FriendVisit | null>(null);
+  const [quest, setQuest] = useState<Quest | null>(null);
   const [timeMode, setTimeMode] = useState<"auto" | "day" | "night">("auto");
   const googleRef = useRef<GoogleTilesLayer | null>(null);
   const setRealisticRef = useRef<(on: boolean) => void>(() => {});
   const stationsRef = useRef<StationData[]>([]);
-  const markersRef = useRef<{ campus: maplibregl.Marker[]; friends: maplibregl.Marker[] }>({ campus: [], friends: [] });
+  const markersRef = useRef<{ campus: maplibregl.Marker[]; friends: maplibregl.Marker[]; quests: maplibregl.Marker[] }>({ campus: [], friends: [], quests: [] });
   const groundRef = useRef<string[]>([]);
 
   const [ready, setReady] = useState(false);
@@ -84,6 +86,7 @@ export default function TransitMap() {
   // ---------- map setup ----------
   useEffect(() => {
     let disposed = false;
+    let stopWaves = () => {};
     let map: MlMap | null = null;
     (async () => {
       const manifest = await fetchBpdaManifest();
@@ -182,6 +185,17 @@ export default function TransitMap() {
         m.addLayer({ id: "night-tint", type: "background", paint: { "background-color": "#1c2448", "background-opacity": 0 } }, "lines-delay-glow");
         city.onNight = (n) => m.getLayer("night-tint") && m.setPaintProperty("night-tint", "background-opacity", n * 0.42);
         city.updateSun();
+        // moving water on the river, harbor and ponds
+        const styleIds = m.getStyle().layers.map((l) => l.id);
+        stopWaves = addWaves(m, styleIds.filter((id) => id === "water" || id === "cam-water"));
+        // near street level, flat street names would float over the buildings in front: hide them there
+        const streetLabels = styleIds.filter((id) => id.startsWith("street-names") || /^highway[-_]name/.test(id));
+        const syncLabels = () => {
+          const v = m.getPitch() > 72 && m.getZoom() > 17 ? "none" : "visible";
+          for (const id of streetLabels) if (m.getLayoutProperty(id, "visibility") !== v) m.setLayoutProperty(id, "visibility", v);
+        };
+        m.on("pitchend", syncLabels);
+        m.on("zoomend", syncLabels);
         // "Realistic" view: Google's photo-textured 3D (added only when switched on, so the default loads fast)
         let google: GoogleTilesLayer | null = null;
         setRealisticRef.current = (on: boolean) => {
@@ -316,6 +330,7 @@ export default function TransitMap() {
     })();
     return () => {
       disposed = true;
+      stopWaves();
       flyRef.current?.dispose();
       map?.remove();
       mapRef.current = null;
@@ -345,15 +360,30 @@ export default function TransitMap() {
       el.innerHTML = `<span class="ob-friend-avatar">${initials(f.name)}</span>`;
       el.onclick = (ev) => {
         ev.stopPropagation();
+        setQuest(null);
         setFriend(f);
         map.easeTo({ center: [f.lng, f.lat], zoom: Math.max(map.getZoom(), 15.4), duration: 1400 });
       };
       return new maplibregl.Marker({ element: el }).setLngLat([f.lng, f.lat]).addTo(map);
     });
+    markersRef.current.quests = SAMPLE_QUESTS.map((q) => {
+      const el = document.createElement("div");
+      el.className = "ob-quest";
+      el.title = q.title;
+      el.innerHTML = `<span class="ob-quest-icon">${q.emoji}</span><span class="ob-quest-pts">+${q.points}</span>`;
+      el.onclick = (ev) => {
+        ev.stopPropagation();
+        setFriend(null);
+        setQuest(q);
+        map.easeTo({ center: [q.lng, q.lat], zoom: Math.max(map.getZoom(), 15.6), duration: 1400 });
+      };
+      return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([q.lng, q.lat]).addTo(map);
+    });
     const markers = markersRef.current;
     return () => {
       markers.campus.forEach((m) => m.remove());
       markers.friends.forEach((m) => m.remove());
+      markers.quests.forEach((m) => m.remove());
     };
   }, [ready]);
 
@@ -365,6 +395,7 @@ export default function TransitMap() {
       const z = map.getZoom();
       markersRef.current.campus.forEach((m) => (m.getElement().style.display = show.campuses && z >= 11 ? "" : "none"));
       markersRef.current.friends.forEach((m) => (m.getElement().style.display = show.friends && z >= 11.5 ? "" : "none"));
+      markersRef.current.quests.forEach((m) => (m.getElement().style.display = show.friends && z >= 12.5 ? "" : "none"));
     };
     update();
     map.on("zoom", update);
@@ -617,6 +648,17 @@ export default function TransitMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
+  // nearest T station to you (walking ~80 m a minute, a bit more than straight-line distance)
+  const nearest = useMemo(() => {
+    if (!userLoc || !ready) return null;
+    let best: { s: StationData; d: number } | null = null;
+    for (const st of stationsRef.current) {
+      const d = Math.hypot((st.lon - userLoc[0]) * 82_000, (st.lat - userLoc[1]) * 111_000);
+      if (!best || d < best.d) best = { s: st, d };
+    }
+    return best && best.d < 3000 ? { s: best.s, min: Math.max(1, Math.round((best.d * 1.25) / 80)) } : null;
+  }, [userLoc, ready]);
+
   const fly = (v: keyof typeof VIEWS) => mapRef.current?.flyTo({ ...VIEWS[v], pitch: is3D ? VIEWS[v].pitch : 0, duration: 3500 });
 
   // ---------- UI ----------
@@ -730,6 +772,24 @@ export default function TransitMap() {
         <button onClick={locateMe} className="rounded-lg px-2.5 py-1.5 font-medium text-sky-700 hover:bg-slate-100" title="Go to my location">
           ◎ Me
         </button>
+        {nearest && (
+          <button
+            onClick={() => {
+              setTrain(null);
+              setStation(nearest.s);
+              mapRef.current?.flyTo({ center: [nearest.s.lon, nearest.s.lat], zoom: Math.max(mapRef.current.getZoom(), 15.5), duration: 1800 });
+            }}
+            className="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-medium text-slate-700 hover:bg-slate-100 sm:flex"
+            title="Nearest T station to you"
+          >
+            <span className="flex gap-0.5">
+              {nearest.s.lines.slice(0, 3).map((l) => (
+                <span key={l} className="h-2 w-2 rounded-full" style={{ background: LINE_COLORS[l as keyof typeof LINE_COLORS] }} />
+              ))}
+            </span>
+            {nearest.s.name} · {nearest.min} min walk
+          </button>
+        )}
       </div>
 
       {/* replay bar */}
@@ -838,6 +898,37 @@ export default function TransitMap() {
             Directions to {friend.place}
           </button>
           <p className="mt-1.5 text-[10px] uppercase tracking-wide text-slate-400">sample friends until the friends feed is live</p>
+        </Card>
+      )}
+
+      {/* quest card */}
+      {quest && (
+        <Card onClose={() => setQuest(null)}>
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-2xl">{quest.emoji}</span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600">Passport quest · +{quest.points} pts</p>
+              <h2 className="truncate text-base font-semibold text-slate-900">{quest.title}</h2>
+            </div>
+          </div>
+          <p className="mt-2 text-[13px] text-slate-700">
+            Go to <b>{quest.place}</b>. {quest.hint}.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => {
+                explorer.current?.show({ id: `quest-${quest.id}`, name: quest.place, address: `Quest: ${quest.title}`, lng: quest.lng, lat: quest.lat, types: [], category: "", rating: null, ratings: 0, price: null, openNow: null, url: null });
+                setQuest(null);
+              }}
+              className="flex-1 rounded-lg bg-[#6b1d3a] px-3 py-2 text-sm font-medium text-white hover:bg-[#5a1731]"
+            >
+              Directions
+            </button>
+            <Link href="/passport" className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200">
+              Passport
+            </Link>
+          </div>
+          <p className="mt-1.5 text-[10px] uppercase tracking-wide text-slate-400">sample quests</p>
         </Card>
       )}
 

@@ -10,6 +10,7 @@ import type { CustomLayerInterface, CustomRenderMethodInput, Map as MlMap } from
 import { modelMatrix } from "./trains3d";
 import { brightenPalette, makeFacadeMaterial, FACADE_NIGHT } from "./facade";
 import { sunLight } from "./sun";
+import { makeLandmarks } from "./landmarks";
 import { buildCityMesh, makeTreeMesh, TREE_TIME, type Footprint } from "./procBuildings";
 
 export interface BpdaTile {
@@ -189,6 +190,14 @@ export class CityBuildingsLayer implements CustomLayerInterface {
         const mat = makeFacadeMaterial(1, 3.7);
         mat.side = THREE.DoubleSide; // generated walls: don't depend on winding
         this.add(new THREE.Mesh(buildCityMesh(feats, CAMBRIDGE_CENTER), mat), CAMBRIDGE_CENTER, 1);
+      },
+    });
+    jobs.push({
+      at: [-71.063, 42.362],
+      r: 0.01,
+      minZoom: this.minZoom,
+      run: async () => {
+        for (const l of makeLandmarks()) this.add(l.obj, l.center, 1);
       },
     });
     jobs.push({

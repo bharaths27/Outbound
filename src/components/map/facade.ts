@@ -58,9 +58,19 @@ const FRAG_COLOR = /* glsl */ `
       float shop = obBox(f.x, 0.08, 0.92, wx) * obBox(f.y, 0.08, 0.72, wy);
       float awn = obBox(f.y, 0.74, 0.86, wy);
       vec3 awnCol = obHash(vec2(floor(u / 9.0), 7.0)) > 0.5 ? vec3(0.72, 0.18, 0.16) : vec3(0.16, 0.38, 0.30);
-      c = mix(base * 0.88, vec3(0.25, 0.32, 0.38), shop);
-      c = mix(c, awnCol, awn * step(0.45, obHash(vec2(floor(u / 9.0), 3.0))));
-      obWin = vec3(1.0, 0.82, 0.5) * mix(0.18, 0.9, uNight) * shop * step(mix(0.55, 0.2, uNight), obHash(id));
+      // some bays are doors (wood with a light frame and a glowing transom) instead of shop windows
+      float isDoor = step(obHash(id + vec2(5.0, 1.0)), 0.3);
+      float frame = obBox(f.x, 0.3, 0.7, wx) * obBox(f.y, -0.1, 0.8, wy);
+      float door = obBox(f.x, 0.34, 0.66, wx) * obBox(f.y, -0.1, 0.62, wy);
+      float transom = obBox(f.x, 0.34, 0.66, wx) * obBox(f.y, 0.65, 0.76, wy);
+      vec3 doorCol = obHash(id + vec2(2.0, 9.0)) > 0.5 ? vec3(0.42, 0.26, 0.22) : vec3(0.2, 0.32, 0.3);
+      vec3 shopC = mix(base * 0.88, vec3(0.25, 0.32, 0.38), shop);
+      shopC = mix(shopC, awnCol, awn * step(0.45, obHash(vec2(floor(u / 9.0), 3.0))));
+      vec3 doorC = mix(base * 0.9, vec3(0.95, 0.93, 0.88), frame);
+      doorC = mix(doorC, doorCol, door);
+      doorC = mix(doorC, vec3(0.55, 0.62, 0.7), transom);
+      c = mix(shopC, doorC, isDoor);
+      obWin = vec3(1.0, 0.82, 0.5) * mix(0.18, 0.9, uNight) * mix(shop * step(mix(0.55, 0.2, uNight), obHash(id)), transom * uNight, isDoor);
     } else {
       // punched windows with light trim, a sill, and a band at each floor
       float trim = obBox(f.x, 0.16, 0.84, wx) * obBox(f.y, 0.2, 0.88, wy);
@@ -75,6 +85,16 @@ const FRAG_COLOR = /* glsl */ `
       c = mix(c, trimCol, trim);
       c = mix(c, trimCol * 1.05, sill);
       c = mix(c, glass, win);
+      // balconies on some columns of windows: a slab with a shadow under it and a railing in front of the window
+      if (obHash(vec2(id.x, 17.0)) > 0.74 && id.y > 1.5) {
+        float slab = obBox(f.x, 0.08, 0.92, wx) * obBox(f.y, 0.07, 0.13, wy);
+        float under = obBox(f.x, 0.08, 0.92, wx) * obBox(f.y, 0.0, 0.07, wy);
+        float rail = obBox(f.x, 0.08, 0.92, wx) * obBox(f.y, 0.13, 0.36, wy);
+        float bars = rail * (0.35 + 0.65 * max(obBox(f.y, 0.33, 0.36, wy), smoothstep(0.4, 0.6, abs(fract(f.x * 9.0) - 0.5) * 2.0)));
+        c = mix(c, base * 0.6, under);
+        c = mix(c, trimCol * 0.92, slab);
+        c = mix(c, vec3(0.22, 0.22, 0.26), bars * 0.85);
+      }
       obWin = vec3(1.0, 0.8, 0.45) * mix(0.2, 0.9, uNight) * win * lit;
     }
     c *= mix(0.72, 1.0, smoothstep(0.0, 2.5, h));   // soft contact shadow at the base
