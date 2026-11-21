@@ -25,7 +25,9 @@ const CHECK_IN_DELAY_MS = 600;
 const STORAGE_KEY = "outbound.mockUserId";
 const DEMO_IDS = new Set<string>(seed.DEMO_ACCOUNTS.map((a) => a.userId));
 
-const wait = (ms = DELAY_MS) => new Promise((r) => setTimeout(r, ms));
+// Simulated network latency, so loading states get built. Skipped under test.
+const wait = (ms = DELAY_MS) =>
+  process.env.NODE_ENV === "test" ? Promise.resolve() : new Promise((r) => setTimeout(r, ms));
 const clone = <T>(v: T): T => structuredClone(v);
 
 // ---------- clock (Monday 00:00 America/New_York, like date_trunc('week', ...)) ----------
