@@ -5,6 +5,35 @@ import type { BpdaManifest } from "./buildings3d";
 
 const LIBERTY = "https://tiles.openfreemap.org/styles/liberty";
 
+/** Detailed street-level ground for the whole T area (Overture Maps / OpenStreetMap): parks, woods, water, every road,
+ *  path and sidewalk, with center lines on big roads. "ov-minor" starts empty and is filled near the view (TransitMap). */
+export function detailGround(url: (f: string) => string): { sources: StyleSpecification["sources"]; layers: LayerSpecification[] } {
+  const W = (z: number[], w: number[]): ExpressionSpecification => ["interpolate", ["exponential", 2], ["zoom"], ...z.flatMap((zz, i) => [zz, w[i]])];
+  const majorW = (k: number): ExpressionSpecification => ["interpolate", ["exponential", 2], ["zoom"],
+    10, ["*", k, ["+", 0.5, ["*", 0.3, ["get", "r"]]]], 16, ["*", k, ["+", 7, ["*", 2.2, ["get", "r"]]]], 19, ["*", k, ["+", 56, ["*", 18, ["get", "r"]]]]];
+  const sources: StyleSpecification["sources"] = {
+    "ov-green": { type: "geojson", data: url("ground/green.json"), maxzoom: 15 },
+    "ov-water": { type: "geojson", data: url("ground/water.json"), maxzoom: 15 },
+    "ov-major": { type: "geojson", data: url("ground/major.json"), maxzoom: 16 },
+    "ov-minor": { type: "geojson", data: { type: "FeatureCollection", features: [] }, maxzoom: 16 },
+  };
+  const GREEN: Record<string, string> = { park: PALETTE.park, grass: "#c2e2a2", pitch: "#a9d68e", wood: PALETTE.wood, wetland: "#b7d9c4", beach: "#f3e6c2", cemetery: "#c3dcaa", school: "#ebe6d8" };
+  const layers: LayerSpecification[] = [
+    { id: "ov-green", type: "fill", source: "ov-green", minzoom: 10, paint: { "fill-color": ["match", ["get", "k"], ...Object.entries(GREEN).flat(), PALETTE.park] as unknown as ExpressionSpecification, "fill-opacity": ["interpolate", ["linear"], ["zoom"], 10, 0, 11, 1] } },
+    { id: "ov-water", type: "fill", source: "ov-water", filter: ["!=", ["geometry-type"], "LineString"], paint: { "fill-color": ["match", ["get", "k"], "pool", "#9fd8ef", PALETTE.water] } },
+    { id: "ov-streams", type: "line", source: "ov-water", minzoom: 12, filter: ["==", ["geometry-type"], "LineString"], paint: { "line-color": PALETTE.water, "line-width": W([12, 18], [0.8, 5]) } },
+    // sidewalks and paths (dashed), then service roads and streets with a soft casing
+    { id: "ov-paths", type: "line", source: "ov-minor", minzoom: 15, filter: ["==", ["get", "k"], "path"], layout: { "line-cap": "round" }, paint: { "line-color": "#f7f3ea", "line-width": W([15, 19], [1, 6]), "line-dasharray": [2, 1.2] } },
+    { id: "ov-minor-casing", type: "line", source: "ov-minor", minzoom: 13, filter: ["!=", ["get", "k"], "path"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": PALETTE.casing, "line-width": W([13, 16, 19], [1.2, 7, 44]) } },
+    { id: "ov-minor", type: "line", source: "ov-minor", minzoom: 13, filter: ["!=", ["get", "k"], "path"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["match", ["get", "k"], "service", "#faf8f3", "#ffffff"], "line-width": W([13, 16, 19], [0.6, 5.5, 38]) } },
+    { id: "ov-major-casing", type: "line", source: "ov-major", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["match", ["get", "r"], 5, "#d9b46a", 4, "#dcbc78", "#d3c7b2"], "line-width": majorW(1.25) } },
+    { id: "ov-major", type: "line", source: "ov-major", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["match", ["get", "r"], 5, "#fbe1a0", 4, "#fce9b8", "#ffffff"], "line-width": majorW(1) } },
+    // painted center lines on big roads, like a real street
+    { id: "ov-centerline", type: "line", source: "ov-major", minzoom: 15.5, filter: [">=", ["get", "r"], 2], paint: { "line-color": "#eec25a", "line-width": W([15.5, 19], [0.8, 3]), "line-dasharray": [5, 4] } },
+  ];
+  return { sources, layers };
+}
+
 // Offline basemap, from files bundled in public/data (no internet needed, e.g. bad venue wifi or the artifact):
 //   - US states, Boston water and neighborhoods (base/)
 //   - Cambridge streets, water, parks and buildings with real heights (City of Cambridge GIS, cambridge/)
@@ -52,6 +81,10 @@ function fallbackStyle(manifest: BpdaManifest | null): StyleSpecification {
     })),
   ];
   layers.splice(layers.findIndex((l) => l.id === "water"), 0, ...groundLayers(manifest, sources, url)); // water and parks draw over it
+  // real streets, sidewalks, parks and water everywhere the T goes (over the illustrated ground, under labels)
+  const detail = detailGround(url);
+  Object.assign(sources, detail.sources);
+  layers.splice(layers.findIndex((l) => l.id === "earth"), 0, ...detail.layers);
   return { version: 8, glyphs: "obfont://{fontstack}/{range}", sources, layers };
 }
 
@@ -150,6 +183,21 @@ function restyle(style: StyleSpecification, manifest: BpdaManifest | null): Styl
     if (layer.type === "fill" && GREEN[layer.id]) layer.paint = { ...layer.paint, "fill-color": GREEN[layer.id] };
     if (layer.id === "landuse_residential") layer.paint = { ...layer.paint, "fill-color": "rgba(232, 227, 216, 0.55)" };
     if (layer.type === "fill" && sl === "water") layer.paint = { ...layer.paint, "fill-color": PALETTE.water };
+    // painted center lines on big roads (added once, right after the main road layer)
+    const CENTER: Record<string, string[]> = { road_motorway: ["motorway"], road_trunk_primary: ["trunk", "primary"], road_secondary_tertiary: ["secondary"] };
+    if (CENTER[layer.id] && (layer as { "source-layer"?: string })["source-layer"] === "transportation") {
+      layers.push(layer);
+      layers.push({
+        id: `${layer.id}-centerline`,
+        type: "line",
+        source: "openmaptiles",
+        "source-layer": "transportation",
+        minzoom: 15.5,
+        filter: ["match", ["get", "class"], CENTER[layer.id], true, false],
+        paint: { "line-color": "#eec25a", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15.5, 0.8, 19, 3], "line-dasharray": [5, 4] },
+      });
+      continue;
+    }
     // fewer POI icons: they compete with stations and campuses
     if (layer.type === "symbol" && sl === "poi") layer.minzoom = Math.max(layer.minzoom ?? 0, 16);
     layers.push(layer);

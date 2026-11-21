@@ -170,8 +170,12 @@ export class CityBuildingsLayer implements CustomLayerInterface {
     this.weather = w;
     this.updateSun();
   }
-  /** Light the city like the real sun over Boston now (or at `date`): warm at sunset, blue with lit windows at night. */
+  /** Light the city: a fixed bright afternoon sun, softened by the current weather. */
   updateSun(date = new Date()) {
+    // always a bright early afternoon, whatever the time; the weather still changes the light
+    date = new Date(date);
+    date.setUTCMonth(5, 21); // a June sun, high and white
+    date.setUTCHours(17, 30, 0, 0); // 1:30 PM in Boston
     const { dir, night, golden } = sunLight(date);
     this.sun.position.set(dir[0] * 100, dir[1] * 100, dir[2] * 100);
     const day = new THREE.Color(0xfff0d8), gold = new THREE.Color(0xffb070), moon = new THREE.Color(0xa8b8e8);
@@ -239,7 +243,7 @@ export class CityBuildingsLayer implements CustomLayerInterface {
         }
         const mat = makeFacadeMaterial(1, 3.7);
         mat.side = THREE.DoubleSide; // generated walls: don't depend on winding
-        this.add(new THREE.Mesh(buildCityMesh(feats, CAMBRIDGE_CENTER), mat), CAMBRIDGE_CENTER, 1);
+        await this.buildChunked(feats, CAMBRIDGE_CENTER, mat);
       },
     });
     // the rest of the T area, as illustrated houses and blocks; far-away tiles are dropped again to save memory
@@ -253,7 +257,7 @@ export class CityBuildingsLayer implements CustomLayerInterface {
         unloadable: true,
         run: async () => {
           const feats = await loadRegionTile(dataUrl(`region/${t.file}`), t.center);
-          this.add(new THREE.Mesh(buildCityMesh(feats, t.center), regionMat), t.center, 1, job);
+          await this.buildChunked(feats, t.center, regionMat, job);
         },
       };
       jobs.push(job);
@@ -294,14 +298,26 @@ export class CityBuildingsLayer implements CustomLayerInterface {
   }
 
   /** Load only what is near the view (nearest first, 3 at a time); more loads as you move around. */
+  /** Build footprints into meshes a few hundred at a time, yielding between, so dragging the map stays smooth. */
+  private async buildChunked(feats: Footprint[], center: [number, number], mat: THREE.Material, job?: Job) {
+    const N = 300;
+    for (let i = 0; i < feats.length; i += N) {
+      // wait while the map is being dragged or animated
+      while (this.map.isMoving()) await new Promise((r) => setTimeout(r, 120));
+      if (job && this.jobs?.includes(job)) return; // dropped (far away) while building
+      this.add(new THREE.Mesh(buildCityMesh(feats.slice(i, i + N), center), mat), center, 1, job);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+
   private loadNear(zoom: number) {
     this.jobs ??= this.makeJobs();
-    if (!this.jobs.length || this.running >= 3) return;
+    if (!this.jobs.length || this.running >= 2 || this.map.isMoving()) return;
     const c = this.map.getCenter();
     const reach = Math.min(0.05, 0.012 * Math.pow(2, 16 - zoom));
     const dist = (j: { at: [number, number]; r: number }) => Math.hypot(j.at[0] - c.lng, (j.at[1] - c.lat) * 1.35) - j.r;
     const ready = this.jobs.filter((j) => zoom >= j.minZoom && dist(j) < reach).sort((a, b) => dist(a) - dist(b));
-    for (const j of ready.slice(0, 3 - this.running)) {
+    for (const j of ready.slice(0, 2 - this.running)) {
       this.jobs.splice(this.jobs.indexOf(j), 1);
       this.running++;
       j.run()
@@ -315,7 +331,8 @@ export class CityBuildingsLayer implements CustomLayerInterface {
 
   /** Drop region tiles that are far from the view (they load again when you come back). */
   private unloadFar(lng: number, lat: number, zoom: number) {
-    const keep = Math.max(0.06, Math.min(0.12, 0.016 * Math.pow(2, 16 - zoom)));
+    // keep well past the load radius (load reach + tile size + margin) so tiles at the edge don't reload over and over
+    const keep = Math.min(0.05, 0.012 * Math.pow(2, 16 - zoom)) + 0.011 + 0.03;
     for (let i = this.parts.length - 1; i >= 0; i--) {
       const p = this.parts[i];
       if (!p.job?.unloadable) continue;
@@ -323,7 +340,7 @@ export class CityBuildingsLayer implements CustomLayerInterface {
       this.scene.remove(p.obj);
       (p.obj as THREE.Mesh).geometry?.dispose();
       this.parts.splice(i, 1);
-      this.jobs?.push(p.job);
+      if (this.jobs && !this.jobs.includes(p.job)) this.jobs.push(p.job);
     }
   }
 

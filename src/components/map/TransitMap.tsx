@@ -231,6 +231,23 @@ export default function TransitMap() {
           setIsNight(n > 0.5);
         };
         city.updateSun();
+        // detailed streets and sidewalks near the view (offline ground: one file per ~6 km cell)
+        if (m.getSource("ov-minor")) {
+          const cache = new Map<string, GeoJSON.Feature[]>();
+          let cells: { file: string; bbox: [number, number, number, number] }[] = [];
+          fetch("data/ground/manifest.json").then((r) => r.json()).then((j) => ((cells = j.minor), loadMinor())).catch(() => {});
+          const loadMinor = async () => {
+            if (m.getZoom() < 13) return;
+            const b = m.getBounds();
+            const want = cells.filter((c) => c.bbox[0] < b.getEast() + 0.02 && c.bbox[2] > b.getWest() - 0.02 && c.bbox[1] < b.getNorth() + 0.02 && c.bbox[3] > b.getSouth() - 0.02).slice(0, 12);
+            const missing = want.filter((c) => !cache.has(c.file));
+            if (!missing.length) return;
+            await Promise.all(missing.map(async (c) => cache.set(c.file, (await (await fetch(`data/ground/${c.file}`)).json()).features)));
+            for (const k of [...cache.keys()]) if (!want.some((c) => c.file === k)) cache.delete(k); // keep memory small
+            (m.getSource("ov-minor") as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [...cache.values()].flat() });
+          };
+          m.on("moveend", loadMinor);
+        }
         // moving water on the river, harbor and ponds
         const styleIds = m.getStyle().layers.map((l) => l.id);
         stopWaves = addWaves(m, styleIds.filter((id) => id === "water" || id === "cam-water"));
@@ -501,18 +518,18 @@ export default function TransitMap() {
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    if (layerRef.current) layerRef.current.visible = is3D && show.trains;
+    if (layerRef.current) layerRef.current.visible = show.trains; // 2D shows the same train models from above
     // 2D is the same city seen straight from above (roofs), with tilting locked
     map.setMaxPitch(is3D ? 85 : 0);
     map.setPaintProperty(
       "trains-2d",
       "circle-opacity",
-      !show.trains ? 0 : is3D ? ["interpolate", ["linear"], ["zoom"], TRAIN_3D_MIN_ZOOM - 0.3, 1, TRAIN_3D_MIN_ZOOM, 0] : 1,
+      !show.trains ? 0 : ["interpolate", ["linear"], ["zoom"], TRAIN_3D_MIN_ZOOM - 0.3, 1, TRAIN_3D_MIN_ZOOM, 0],
     );
     map.setPaintProperty(
       "trains-2d",
       "circle-stroke-opacity",
-      !show.trains ? 0 : is3D ? ["interpolate", ["linear"], ["zoom"], TRAIN_3D_MIN_ZOOM - 0.3, 1, TRAIN_3D_MIN_ZOOM, 0] : 1,
+      !show.trains ? 0 : ["interpolate", ["linear"], ["zoom"], TRAIN_3D_MIN_ZOOM - 0.3, 1, TRAIN_3D_MIN_ZOOM, 0],
     );
     if (map.getZoom() > 5 && is3D) map.easeTo({ pitch: 58, duration: 900 });
     map.triggerRepaint();

@@ -19,3 +19,5 @@ Sources (download them first, then edit the input paths at the top of each scrip
 base64-wrapped so the offline map can draw labels where only text/data files are served.
 | `overture_buildings.py` | `region/` buildings for the rest of the T area (Overture Maps, read from its public S3 bucket; ODbL) |
 | `commuter_rail.py` | `cr-lines.geojson`, `cr-stations.json` (MBTA GTFS copy at github.com/OkuraKenG/Trains `gtfs_data/mbta`) |
+| `trees_off_water.py` | removes trees on water from `trees.json` (run after `trees.py`) |
+| `overture_ground.py` | `ground/` streets, paths, sidewalks, parks, water for the T area (Overture Maps; ODbL) |
