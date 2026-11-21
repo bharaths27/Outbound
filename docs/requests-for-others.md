@@ -85,13 +85,8 @@ in `content/README.md`; `npm test` checks every row.
 - [ ] **Paul Revere House** hours are seasonal. We used the winter hours (10:00–16:15) and
   added the summer closing time to the description. Confirm that's right for the demo date.
 - [x] **XP.** Lowered to 50–80 per quest.
-- [ ] **Neighborhood names must match Bharath's stations.** The passport groups by the
-  station's `neighborhood`, so spelling decides which quests share a tier. Fixed: your CSV
-  had `Fenway–Kenmore` (en dash) but the other 6 Fenway stations use `Fenway-Kenmore`
-  (hyphen); the CSV now uses the hyphen. Please confirm two choices that differ from
-  Bharath's seed: Park Street is `Downtown` (his says `Beacon Hill`), which groups it with
-  Government Center (6 quests, Gold reachable); Haymarket is `North End / Downtown` (his
-  says `Downtown`), its own 3-quest neighborhood.
+- [x] **Neighborhood names.** Fenway-Kenmore uses the hyphen; Suki confirmed Park Street
+  as `Downtown` and Haymarket as `North End / Downtown`.
 - [ ] **Quests per neighborhood.** Gold takes 5 different quests in a neighborhood, but
   only Fenway–Kenmore and Downtown have 5+. Chinatown, Harvard Square, Central Square,
   Back Bay, and North End / Downtown have 3 each, so players there top out at Silver. The
@@ -100,11 +95,7 @@ in `content/README.md`; `npm test` checks every row.
 - [ ] **Sample deals.** None in the CSV. The mock has three made-up sample deals (Pavement,
   Winsor Dim Sum, Thinking Cup Newbury). Keep `is_sample = true` and the `SAMPLE:` prefix
   on any real ones.
-- [ ] **Into Supabase.** `content/seed.sql` is ready (`npm run content` regenerates it).
-  Whoever has Supabase access (Suki or Bharath): paste it into the SQL Editor and run it.
-  It upserts Suki's 27 quests and 9 station stories and keeps the starter quests and their
-  visits. Tested on a local Postgres with the real tables: 17 starter + 27 = 43 quests,
-  and re-running changes nothing.
+- [x] **Into Supabase.** Suki ran `content/seed.sql` (2026-11-21); verified in the app.
 - [ ] **Tags for search.** Gemini search (`/api/search`, by Bharath) only picks tags from
   a fixed list. Keep the tag set small and consistent so search can match it.
 

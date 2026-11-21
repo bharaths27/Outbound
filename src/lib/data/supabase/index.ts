@@ -3,10 +3,14 @@
 // user sees: an empty result can mean "not allowed", not an error.
 //
 // createSupabaseService takes the client as a function so integration tests can pass a
-// plain supabase-js client; the app uses the browser client (src/lib/supabase/client.ts).
+// plain supabase-js client. In the browser the app uses @supabase/ssr's cookie-based
+// client (same as src/lib/supabase/client.ts); on the server (e.g. /q/[questId]'s
+// metadata and not-found check) it uses a session-less client, which is enough for public
+// content. src/lib/supabase/client.ts is a "use client" module, so it can't be imported
+// here: the server would get a client reference instead of the function.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserClient } from "@supabase/ssr";
+import { createClient as createPlainClient, type SupabaseClient } from "@supabase/supabase-js";
 import { matchesFilters } from "@/lib/search/matchFilters";
 import { parseQuery } from "@/lib/search/fallbackParser";
 import { parseCheckInError } from "../checkInErrors";
@@ -303,6 +307,17 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
 }
 
 let browserClient: SupabaseClient | null = null;
+let serverClient: SupabaseClient | null = null;
 
-/** The app's service: one browser client, created on first use (never during build). */
-export const supabaseService: DataService = createSupabaseService(() => (browserClient ??= createClient()));
+function appClient(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!;
+  if (typeof window === "undefined") {
+    // Server: public content only, no user session.
+    return (serverClient ??= createPlainClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }));
+  }
+  return (browserClient ??= createBrowserClient(url, key));
+}
+
+/** The app's service: clients are created on first use (never during build). */
+export const supabaseService: DataService = createSupabaseService(appClient);
