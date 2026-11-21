@@ -58,12 +58,10 @@ in `content/README.md`; `npm test` checks every row.
   caveats into descriptions ("Best in daylight.", "Vendors keep their own hours."). Please
   check the conversions and use that format from now on.
 - [ ] **Type.** The CSV used `scenery`; the schema only allows `scenic`. Converted.
-- [ ] **Harvard Square Pastry Pick** (`harvard-tatte-pastry`) has no hours ("check the
-  café's posted hours"). Hours would let "Open now" work for it.
+- [x] **Harvard Square Pastry Pick** hours added.
 - [ ] **Paul Revere House** hours are seasonal. We used the winter hours (10:00–16:15) and
   added the summer closing time to the description. Confirm that's right for the demo date.
-- [ ] **XP.** Quests are worth 100–140 XP, about double the schema default of 50, so
-  levels (250 XP each) come quickly. Confirm that's intended.
+- [x] **XP.** Lowered to 50–80 per quest.
 - [ ] **Sample deals.** None in the CSV. The mock has three made-up sample deals (Pavement,
   Winsor Dim Sum, Thinking Cup Newbury). Keep `is_sample = true` and the `SAMPLE:` prefix
   on any real ones.
