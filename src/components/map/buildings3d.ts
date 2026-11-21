@@ -116,18 +116,32 @@ export class CityBuildingsLayer implements CustomLayerInterface {
   private sky = new THREE.HemisphereLight(0xfff6e8, 0x7a7468, 1.7);
   private sun = new THREE.DirectionalLight(0xffe2b8, 2.6);
   private sunTimer = 0;
-  /** Light the city like the real sun over Boston now (or at `date`): warm at sunset, dark with lit windows at night. */
+  /** "auto" follows the real sun over Boston; "day"/"night" pin it (the day/night toggle). */
+  timeMode: "auto" | "day" | "night" = "auto";
+  /** called with 0 (day) .. 1 (night) whenever the light changes, to darken the basemap too */
+  onNight: (night: number) => void = () => {};
+  setTimeMode(m: "auto" | "day" | "night") {
+    this.timeMode = m;
+    this.updateSun();
+  }
+  /** Light the city like the real sun over Boston now (or at `date`): warm at sunset, blue with lit windows at night. */
   updateSun(date = new Date()) {
+    if (this.timeMode !== "auto") {
+      // a fixed afternoon (day) or late evening (night), today
+      date = new Date(date);
+      date.setUTCHours(this.timeMode === "day" ? 18 : 2, 30, 0, 0); // 1:30 PM / 9:30 PM Boston (EST)
+    }
     const { dir, night, golden } = sunLight(date);
     this.sun.position.set(dir[0] * 100, dir[1] * 100, dir[2] * 100);
-    const day = new THREE.Color(0xfff0d8), gold = new THREE.Color(0xffb070), moon = new THREE.Color(0x8fa6d8);
-    // keep the pastel colors readable: only a hint of golden hour, soft bright sky light
+    const day = new THREE.Color(0xfff0d8), gold = new THREE.Color(0xffb070), moon = new THREE.Color(0xa8b8e8);
+    // keep the pastel colors readable: only a hint of golden hour, and a bright blue "game night" instead of black
     this.sun.color.copy(day).lerp(gold, golden * 0.35).lerp(moon, night);
-    this.sun.intensity = 1.9 * (1 - night) + 0.5 * night;
-    this.sky.color.set(0xffffff).lerp(new THREE.Color(0x4a5a8a), night);
-    this.sky.groundColor.set(0xb8b0c0);
-    this.sky.intensity = 2.3 * (1 - night) + 0.6 * night;
+    this.sun.intensity = 1.9 * (1 - night) + 0.9 * night;
+    this.sky.color.set(0xffffff).lerp(new THREE.Color(0x9aa6d4), night);
+    this.sky.groundColor.set(0xb8b0c0).lerp(new THREE.Color(0x6a6488), night);
+    this.sky.intensity = 2.3 * (1 - night) + 1.7 * night;
     FACADE_NIGHT.value = night;
+    this.onNight(night);
     this.map?.triggerRepaint();
   }
 

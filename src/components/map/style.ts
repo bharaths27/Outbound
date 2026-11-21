@@ -18,6 +18,7 @@ function fallbackStyle(manifest: BpdaManifest | null): StyleSpecification {
     "cam-water": { type: "geojson", data: url("cambridge/water.geojson") },
     "cam-parks": { type: "geojson", data: url("cambridge/parks.geojson") },
     "cam-roads": { type: "geojson", data: url("cambridge/roads.geojson") },
+    streets: { type: "geojson", data: url("street-labels.geojson") },
     earth: EARTH_SOURCE(url("base/earth.jpg")),
   };
   const layers: LayerSpecification[] = [
@@ -30,9 +31,46 @@ function fallbackStyle(manifest: BpdaManifest | null): StyleSpecification {
     { id: "cam-water", type: "fill", source: "cam-water", paint: { "fill-color": PALETTE.water } },
     { id: "cam-roads", type: "fill", source: "cam-roads", paint: { "fill-color": "#f7f5f0", "fill-opacity": 0.95 } },
     EARTH_LAYER,
+    // street names (Boston + Cambridge); the online basemap labels every street in MA
+    ...(["line", "point"] as const).map((place): LayerSpecification => ({
+      id: `street-names-${place}`,
+      type: "symbol",
+      source: "streets",
+      minzoom: 13.5,
+      filter: ["all", ["==", ["geometry-type"], place === "line" ? "LineString" : "Point"], [">=", ["zoom"], ["case", ["==", ["get", "m"], 1], 13.5, 15]]],
+      layout: {
+        "text-field": ["get", "n"],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 14, ["case", ["==", ["get", "m"], 1], 11.5, 10], 18, ["case", ["==", ["get", "m"], 1], 15, 13]],
+        "symbol-placement": place,
+        "symbol-spacing": 320,
+        "text-max-angle": 40,
+        "symbol-sort-key": ["-", 1, ["get", "m"]],
+        ...(place === "line" ? { "text-rotation-alignment": "map", "text-pitch-alignment": "viewport" } : {}),
+      },
+      paint: { "text-color": "#5b5560", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.6 },
+    })),
   ];
   layers.splice(layers.findIndex((l) => l.id === "water"), 0, ...groundLayers(manifest, sources, url)); // water and parks draw over it
-  return { version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", sources, layers };
+  return { version: 8, glyphs: "obfont://{fontstack}/{range}", sources, layers };
+}
+
+/** Offline fonts for labels: Noto Sans (Latin) bundled as base64 JSON, so it also works where only text/data files are served. */
+export function registerFontProtocol(ml: { addProtocol: (name: string, fn: (p: { url: string }) => Promise<{ data: ArrayBuffer }>) => void }) {
+  const cache = new Map<string, Promise<ArrayBuffer>>();
+  ml.addProtocol("obfont", ({ url }) => {
+    const [stack, range] = decodeURIComponent(url.slice("obfont://".length)).split("/");
+    const file = /bold/i.test(stack.split(",")[0]) ? "noto-sans-bold" : "noto-sans-regular";
+    if (!range?.startsWith("0-255")) return Promise.resolve({ data: new ArrayBuffer(0) }); // only Latin is bundled
+    if (!cache.has(file))
+      cache.set(
+        file,
+        fetch(new URL(`data/fonts/${file}-0-255.json`, document.baseURI).href)
+          .then((r) => r.json())
+          .then((j) => Uint8Array.from(atob(j.data), (c) => c.charCodeAt(0)).buffer),
+      );
+    return cache.get(file)!.then((b) => ({ data: b.slice(0) }));
+  });
 }
 
 // The whole Earth from space (NASA Blue Marble, public domain), reprojected to Web Mercator by
@@ -64,14 +102,15 @@ function groundLayers(manifest: BpdaManifest | null, sources: StyleSpecification
 // Illustrated palette (matches the Outbound mockup): warm paper land, soft blue water, fresh greens.
 export const PALETTE = { land: "#ece6da", water: "#8ec3e6", park: "#b2d895", wood: "#9ccc84", road: "#ffffff", casing: "#d9d2c5" };
 
+/** OpenStreetMap buildings (the rest of Massachusetts) in the same pastel palette as the Boston/Cambridge city:
+ *  each building gets a color from its id (stable, varied), towers get sky-blue glass. */
+const PASTELS = ["#e2acac", "#f0e0c6", "#f3ede3", "#d4c0e4", "#f2d8a2", "#b4d2c2", "#ecc8d6", "#faf6ee"];
 const BUILDING_COLOR: ExpressionSpecification = [
-  "interpolate",
-  ["linear"],
-  ["coalesce", ["get", "render_height"], 10],
-  0, "#efe9df",
-  25, "#e6dfd4",
-  60, "#d9d7d3",
-  150, "#c8d0da",
+  "case",
+  [">", ["coalesce", ["get", "render_height"], 0], 60],
+  ["match", ["%", ["floor", ["coalesce", ["to-number", ["id"]], ["get", "render_height"]]], 3], 0, "#a0bae0", 1, "#c6d8ee", "#b0c8ec"],
+  ["match", ["%", ["floor", ["+", ["coalesce", ["to-number", ["id"]], 0], ["*", ["coalesce", ["get", "render_height"], 10], 7]]], 8],
+    0, PASTELS[0], 1, PASTELS[1], 2, PASTELS[2], 3, PASTELS[3], 4, PASTELS[4], 5, PASTELS[5], 6, PASTELS[6], PASTELS[7]],
 ];
 
 export async function loadBaseStyle(manifest: BpdaManifest | null): Promise<{ style: StyleSpecification; offline: boolean }> {

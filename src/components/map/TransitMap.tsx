@@ -9,7 +9,7 @@ import type { Arrival, LineLateness, Station, Train } from "@/lib/types";
 import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
 import { TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
-import { loadBaseStyle, groundLayerIds } from "./style";
+import { loadBaseStyle, groundLayerIds, registerFontProtocol } from "./style";
 import { CityBuildingsLayer, fetchBpdaManifest, inBpda } from "./buildings3d";
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
 import SearchBox, { pointInRing } from "./SearchBox";
@@ -19,7 +19,7 @@ import {
   LIVE_INTERVAL_MS, ReplayFrame, DemoFeed, fetchLive, fetchReplay, fetchLateness, fetchArrivals,
   sampleArrivals, destinationOf, LATENESS_HEX,
 } from "./feed";
-import { CAMPUSES, SAMPLE_FRIEND_VISITS, initials } from "./places";
+import { CAMPUSES, SAMPLE_FRIEND_VISITS, initials, type FriendVisit } from "./places";
 
 type FeedMode = "live" | "replay" | "demo";
 interface StationData extends Pick<Station, "id" | "name" | "lat" | "lon"> {
@@ -49,6 +49,8 @@ export default function TransitMap() {
   const animRef = useRef<TrainAnimator | null>(null);
   const layerRef = useRef<Trains3DLayer | null>(null);
   const cityRef = useRef<CityBuildingsLayer | null>(null);
+  const [friend, setFriend] = useState<FriendVisit | null>(null);
+  const [timeMode, setTimeMode] = useState<"auto" | "day" | "night">("auto");
   const googleRef = useRef<GoogleTilesLayer | null>(null);
   const setRealisticRef = useRef<(on: boolean) => void>(() => {});
   const stationsRef = useRef<StationData[]>([]);
@@ -100,6 +102,7 @@ export default function TransitMap() {
       animRef.current = animator;
       if (process.env.NODE_ENV !== "production") (window as unknown as { __obAnim: TrainAnimator }).__obAnim = animator; // for tests
 
+      registerFontProtocol(maplibregl);
       maplibregl.setWorkerUrl(`${new URL("maplibre-gl-worker.mjs", document.baseURI).href}?v=${maplibregl.getVersion()}`); // copied by scripts/copy-maplibre-worker.mjs
       map = new maplibregl.Map({
         container: box.current,
@@ -175,6 +178,10 @@ export default function TransitMap() {
         const city = new CityBuildingsLayer(manifest);
         cityRef.current = city;
         m.addLayer(city, labelsStart);
+        // night: a blue wash over the ground (under the T lines, campuses and buildings), matching the 3D city's light
+        m.addLayer({ id: "night-tint", type: "background", paint: { "background-color": "#1c2448", "background-opacity": 0 } }, "lines-delay-glow");
+        city.onNight = (n) => m.getLayer("night-tint") && m.setPaintProperty("night-tint", "background-opacity", n * 0.42);
+        city.updateSun();
         // "Realistic" view: Google's photo-textured 3D (added only when switched on, so the default loads fast)
         let google: GoogleTilesLayer | null = null;
         setRealisticRef.current = (on: boolean) => {
@@ -336,10 +343,12 @@ export default function TransitMap() {
       el.className = "ob-friend";
       el.style.setProperty("--c", f.color);
       el.innerHTML = `<span class="ob-friend-avatar">${initials(f.name)}</span>`;
-      const popup = new maplibregl.Popup({ offset: 22, closeButton: false, className: "ob-popup" }).setHTML(
-        `<b>${f.name}</b> <span style="color:#6b7280">· ${f.school}</span><br/>Visited <b>${f.place}</b><br/><span style="color:#6b7280">${f.when}</span>`,
-      );
-      return new maplibregl.Marker({ element: el }).setLngLat([f.lng, f.lat]).setPopup(popup).addTo(map);
+      el.onclick = (ev) => {
+        ev.stopPropagation();
+        setFriend(f);
+        map.easeTo({ center: [f.lng, f.lat], zoom: Math.max(map.getZoom(), 15.4), duration: 1400 });
+      };
+      return new maplibregl.Marker({ element: el }).setLngLat([f.lng, f.lat]).addTo(map);
     });
     const markers = markersRef.current;
     return () => {
@@ -688,6 +697,14 @@ export default function TransitMap() {
       <div className="ob-panel absolute right-3 top-3 flex w-[176px] flex-col gap-2 p-2.5 text-xs sm:right-4 sm:top-4">
         <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
         {(GOOGLE_KEY || !offlineBasemap) && <Seg options={[["Illustrated", false], ["Realistic", true]]} value={realistic} onChange={setRealistic} />}
+        <Seg
+          options={[["Live", "auto"], ["☀ Day", "day"], ["☾ Night", "night"]] as [string, "auto" | "day" | "night"][]}
+          value={timeMode}
+          onChange={(m) => {
+            setTimeMode(m);
+            cityRef.current?.setTimeMode(m);
+          }}
+        />
         <div className="mt-1 flex flex-col gap-1">
           <Toggle label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
           <Toggle label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />
@@ -773,6 +790,54 @@ export default function TransitMap() {
           <Link href={`/station/${station.id}`} className="mt-3 block rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-medium text-white hover:bg-slate-700">
             Open station hub
           </Link>
+        </Card>
+      )}
+
+      {/* friend profile: who, where, their rating and note */}
+      {friend && (
+        <Card onClose={() => setFriend(null)}>
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ring-2 ring-white" style={{ background: friend.color, boxShadow: `0 0 0 3px ${friend.color}55` }}>
+              {initials(friend.name)}
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-semibold text-slate-900">{friend.name}</h2>
+              <p className="text-xs text-slate-500">
+                {friend.school}
+                {friend.year ? ` · ${friend.year}` : ""}
+                {friend.visits ? ` · ${friend.visits} places` : ""}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 rounded-xl bg-slate-50 p-2.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-semibold text-slate-900">{friend.place}</span>
+              <span className="shrink-0 text-xs text-slate-500">{friend.when}</span>
+            </div>
+            <Stars value={friend.rating} />
+            <p className="mt-1 text-[13px] italic text-slate-700">“{friend.note}”</p>
+          </div>
+          {!!friend.recent?.length && (
+            <div className="mt-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Also went to</p>
+              {friend.recent.map((r) => (
+                <div key={r.place} className="flex items-center justify-between py-0.5 text-[13px]">
+                  <span className="text-slate-700">{r.place}</span>
+                  <Stars value={r.rating} small />
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => {
+              explorer.current?.show({ id: `friend-${friend.id}`, name: friend.place, address: `${friend.name} went here ${friend.when}`, lng: friend.lng, lat: friend.lat, types: [], category: "", rating: null, ratings: 0, price: null, openNow: null, url: null });
+              setFriend(null);
+            }}
+            className="mt-3 w-full rounded-lg bg-[#6b1d3a] px-3 py-2 text-sm font-medium text-white hover:bg-[#5a1731]"
+          >
+            Directions to {friend.place}
+          </button>
+          <p className="mt-1.5 text-[10px] uppercase tracking-wide text-slate-400">sample friends until the friends feed is live</p>
         </Card>
       )}
 
@@ -871,6 +936,17 @@ function Toggle({ label, on, set, small }: { label: string; on: boolean; set: (v
       {label}
       <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} className="accent-slate-900" />
     </label>
+  );
+}
+
+function Stars({ value, small }: { value: number; small?: boolean }) {
+  return (
+    <span className={`inline-flex items-center gap-0.5 ${small ? "text-[11px]" : "mt-0.5 text-sm"}`} aria-label={`${value} out of 5`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span key={i} className={value >= i ? "text-amber-500" : value >= i - 0.5 ? "text-amber-300" : "text-slate-300"}>★</span>
+      ))}
+      <span className="ml-1 text-slate-500">{value.toFixed(1)}</span>
+    </span>
   );
 }
 

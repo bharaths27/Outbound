@@ -38,18 +38,26 @@ export interface FriendVisit {
   lat: number;
   when: string;
   stationId: string;
+  /** their rating of the place, 1-5 */
+  rating: number;
+  note: string;
+  year?: string;
+  /** places they have checked in to (for the profile) */
+  visits?: number;
+  /** a few other recent spots */
+  recent?: { place: string; rating: number }[];
 }
 
 // SAMPLE DATA: replace with the friends/visits endpoint once Person 3 ships it (same shape).
 export const SAMPLE_FRIEND_VISITS: FriendVisit[] = [
-  { id: "f1", name: "Maya Chen", school: "BU", color: "#CC0000", place: "Pavement Coffeehouse", lng: -71.1006, lat: 42.3494, when: "20 min ago", stationId: "place-bucen" },
-  { id: "f2", name: "Jordan Lee", school: "MIT", color: "#A31F34", place: "Kendall Square Roof Garden", lng: -71.0868, lat: 42.3628, when: "1 h ago", stationId: "place-kencl" },
-  { id: "f3", name: "Priya Patel", school: "Northeastern", color: "#C8102E", place: "Museum of Fine Arts", lng: -71.0942, lat: 42.3394, when: "2 h ago", stationId: "place-mfa" },
-  { id: "f4", name: "Sam Rivera", school: "Harvard", color: "#A51C30", place: "Harvard Square", lng: -71.1189, lat: 42.3732, when: "3 h ago", stationId: "place-harsq" },
-  { id: "f5", name: "Alex Kim", school: "Tufts", color: "#3E8EDE", place: "Davis Square", lng: -71.1222, lat: 42.3967, when: "yesterday", stationId: "place-davis" },
-  { id: "f6", name: "Nia Brooks", school: "Emerson", color: "#6C2C91", place: "Boston Common", lng: -71.0655, lat: 42.355, when: "yesterday", stationId: "place-pktrm" },
-  { id: "f7", name: "Leo Garcia", school: "BC", color: "#8A100B", place: "Chinatown Gate", lng: -71.0607, lat: 42.3512, when: "2 days ago", stationId: "place-chncl" },
-  { id: "f8", name: "Ava Thompson", school: "Suffolk", color: "#1F3A70", place: "Faneuil Hall", lng: -71.0562, lat: 42.36, when: "3 days ago", stationId: "place-gover" },
+  { id: "f1", name: "Maya Chen", school: "BU", color: "#CC0000", place: "Pavement Coffeehouse", lng: -71.1006, lat: 42.3494, when: "20 min ago", stationId: "place-bucen", rating: 4.5, note: "best oat latte near campus, gets packed after 10", year: "Junior", visits: 27, recent: [{ place: "Time Out Market", rating: 4 }, { place: "Fenway Park", rating: 5 }] },
+  { id: "f2", name: "Jordan Lee", school: "MIT", color: "#A31F34", place: "Kendall Square Roof Garden", lng: -71.0868, lat: 42.3628, when: "1 h ago", stationId: "place-kencl", rating: 4, note: "quiet spot to study with a view of the Charles", year: "Senior", visits: 41, recent: [{ place: "MIT Museum", rating: 5 }, { place: "Tatte Kendall", rating: 4 }] },
+  { id: "f3", name: "Priya Patel", school: "Northeastern", color: "#C8102E", place: "Museum of Fine Arts", lng: -71.0942, lat: 42.3394, when: "2 h ago", stationId: "place-mfa", rating: 5, note: "free on Wednesday nights after 4. go see the Monet room", year: "Sophomore", visits: 18, recent: [{ place: "Isabella Stewart Gardner", rating: 5 }] },
+  { id: "f4", name: "Sam Rivera", school: "Harvard", color: "#A51C30", place: "Harvard Square", lng: -71.1189, lat: 42.3732, when: "3 h ago", stationId: "place-harsq", rating: 4, note: "street musicians every weekend, grab Pinkberry after", year: "Junior", visits: 33, recent: [{ place: "Harvard Book Store", rating: 5 }, { place: "Felipe's", rating: 4 }] },
+  { id: "f5", name: "Alex Kim", school: "Tufts", color: "#3E8EDE", place: "Davis Square", lng: -71.1222, lat: 42.3967, when: "yesterday", stationId: "place-davis", rating: 4, note: "good thrift + Diesel Cafe, take the Red Line", year: "Freshman", visits: 12, recent: [{ place: "Diesel Cafe", rating: 5 }] },
+  { id: "f6", name: "Nia Brooks", school: "Emerson", color: "#6C2C91", place: "Boston Common", lng: -71.0655, lat: 42.355, when: "yesterday", stationId: "place-pktrm", rating: 4.5, note: "frog pond skating opens in Nov", year: "Senior", visits: 52, recent: [{ place: "Public Garden", rating: 5 }, { place: "Tatte Charles St", rating: 4 }] },
+  { id: "f7", name: "Leo Garcia", school: "BC", color: "#8A100B", place: "Chinatown Gate", lng: -71.0607, lat: 42.3512, when: "2 days ago", stationId: "place-chncl", rating: 5, note: "dumplings at Gourmet Dumpling House are a must", year: "Junior", visits: 24, recent: [{ place: "Gourmet Dumpling House", rating: 5 }] },
+  { id: "f8", name: "Ava Thompson", school: "Suffolk", color: "#1F3A70", place: "Faneuil Hall", lng: -71.0562, lat: 42.36, when: "3 days ago", stationId: "place-gover", rating: 3.5, note: "touristy, but the Quincy Market chowder is solid", year: "Sophomore", visits: 15, recent: [{ place: "North End", rating: 5 }] },
 ];
 
 export const initials = (name: string) =>

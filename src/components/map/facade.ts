@@ -79,7 +79,7 @@ const FRAG_COLOR = /* glsl */ `
     }
     c *= mix(0.72, 1.0, smoothstep(0.0, 2.5, h));   // soft contact shadow at the base
     diffuseColor.rgb = mix(base * mix(0.72, 1.0, smoothstep(0.0, 2.5, h)) * (glassy ? 0.95 : 0.93), c, detail);
-    obWin *= detail;
+    obWin *= max(detail, uNight * 0.7 * (1.0 - smoothstep(0.3, 1.2, px)));   // at night lit windows read from further away, like city lights
   } else if (up < 0.97) {
     // ---- sloped roof: colored shingles in rows ----
     float pick = fract(dot(base, vec3(13.1, 7.7, 3.3)) * 9.0);
@@ -133,6 +133,7 @@ const REMAP: [number[], number[]][] = [
   [[169, 184, 200], [160, 186, 224]], // tower glass
   [[159, 176, 194], [138, 164, 208]],
   [[201, 210, 219], [198, 216, 238]],
+  [[185, 198, 211], [176, 200, 236]], // gray glass -> sky blue
 ];
 export function brightenPalette(col: Uint8Array) {
   const lut = new Map(REMAP.map(([a, b]) => [(a[0] << 16) | (a[1] << 8) | a[2], b]));
