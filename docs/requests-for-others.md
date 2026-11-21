@@ -35,6 +35,14 @@ Ordered by demo impact.
 - [ ] **Next-tier progress.** The passport shows "2 more for Silver." The tier thresholds
   (3 and 5) live only in SQL. Could the `passport` view add `next_tier` and
   `quests_to_next_tier`, so the UI doesn't copy the thresholds?
+- [ ] **Level.** `profiles` has `xp` but no level, and the level formula should live
+  with the XP rules. Could `profiles` (or a view) return `level` and `xp_to_next_level`?
+  If levels aren't planned, we'll show XP only and drop "level" from the profile.
+- [ ] **XP breakdown.** The check-in celebration lists why you earned XP. `check_in()`
+  returns flags (`first_visit`, `new_neighborhood`, `cross_school`) but not per-reason
+  amounts, so the UI will show the labels with the total `xp_awarded` rather than
+  copying the +25 and x2 rules. If you want amounts per line, add an `xp_breakdown`
+  array to the result.
 - [ ] **Check-in error messages.** The frontend sorts `check_in()` exception text into
   error screens (`src/lib/data/checkInErrors.ts`). Please keep these messages stable, or
   tell us when they change: `too far: N m away (need within N m)`,
