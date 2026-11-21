@@ -1,33 +1,40 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Archivo } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
+import { AppShell } from "@/features/shell/app-shell";
+import { ThemeProvider } from "@/features/shell/theme-provider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Archivo variable font with the width axis (DESIGN.md: wide, heavy station-sign titles).
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  axes: ["wdth"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Outbound",
+  title: { default: "Outbound", template: "%s · Outbound" },
   description: "Explore Boston on the T",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  viewportFit: "cover", // lets the tab bar and drawer use safe-area insets
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" }, // --background (light)
+    { media: "(prefers-color-scheme: dark)", color: "#1c1f30" }, // --background (dark)
+  ],
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+    // The font variable goes on <html>, where the font family is applied (globals.css).
+    <html lang="en" className={archivo.variable} suppressHydrationWarning>
+      <body>
+        <ThemeProvider>
+          <AppShell>{children}</AppShell>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
