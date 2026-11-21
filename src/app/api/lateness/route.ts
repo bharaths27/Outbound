@@ -12,13 +12,33 @@
 // Needs: npm i pg   (and npm i -D @types/pg)
 // Env:   TIGER_DATA_URL (server-only; do NOT prefix with NEXT_PUBLIC_)
 import { Pool } from "pg";
+import { TIGER_CA } from "@/lib/tiger-ca";
 
 export const dynamic = "force-dynamic";
+
+// Tiger Data signs its servers with its own root CA (CN=ca.timescale.com), which Node
+// doesn't trust by default. We pass that CA so the certificate is fully VERIFIED.
+// "sslmode" is removed from the URL because node-postgres would otherwise replace our
+// ssl settings with its own.
+function tigerUrl() {
+  const raw = process.env.TIGER_DATA_URL ?? "";
+  try {
+    const u = new URL(raw);
+    u.searchParams.delete("sslmode");
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
 
 const g = globalThis as unknown as { tigerPool?: Pool };
 const pool =
   g.tigerPool ??
-  new Pool({ connectionString: process.env.TIGER_DATA_URL, max: 3, ssl: { rejectUnauthorized: false } });
+  new Pool({
+    connectionString: tigerUrl(),
+    max: 3,
+    ssl: TIGER_CA ? { ca: TIGER_CA, rejectUnauthorized: true } : { rejectUnauthorized: true },
+  });
 g.tigerPool = pool;
 
 const LINES = ["Red", "Orange", "Green"] as const;
