@@ -83,7 +83,7 @@ const FRAG_COLOR = /* glsl */ `
   } else if (up < 0.97) {
     // ---- sloped roof: colored shingles in rows ----
     float pick = fract(dot(base, vec3(13.1, 7.7, 3.3)) * 9.0);
-    vec3 roof = pick < 0.34 ? vec3(0.33, 0.37, 0.45) : pick < 0.67 ? vec3(0.27, 0.45, 0.36) : vec3(0.58, 0.25, 0.2);
+    vec3 roof = pick < 0.34 ? vec3(0.44, 0.38, 0.52) : pick < 0.67 ? vec3(0.32, 0.52, 0.56) : vec3(0.74, 0.44, 0.38);
     float row = fract(h / 0.45);
     float px = fwidth(h / 0.45);
     float lines = mix(1.0, 0.82 + 0.18 * smoothstep(0.0, 0.25, row), 1.0 - smoothstep(0.3, 0.7, px));
@@ -91,7 +91,7 @@ const FRAG_COLOR = /* glsl */ `
   } else {
     // ---- flat roof: light gravel with a darker parapet look near edges is left to the walls ----
     float n = obHash(floor(vLocal.xz * 1.5));
-    diffuseColor.rgb = mix(vec3(0.34, 0.36, 0.4), base * 0.5, 0.2) * (0.93 + 0.07 * n);
+    diffuseColor.rgb = mix(vec3(0.8, 0.78, 0.84), base, 0.35) * (0.95 + 0.05 * n);
   }
 }
 `;
@@ -120,19 +120,19 @@ export function makeFacadeMaterial(unit: number, seed = 0) {
   return m;
 }
 
-/** Brighter, game-like versions of the building palette used in the BPDA tiles. */
+/** Pastel, illustrated versions of the building palette used in the BPDA tiles (matches the Outbound mockup). */
 const REMAP: [number[], number[]][] = [
-  [[185, 143, 118], [198, 118, 84]],  // brick
-  [[191, 174, 154], [226, 196, 146]], // sand
-  [[200, 196, 189], [238, 228, 206]], // limestone
-  [[227, 221, 211], [247, 241, 229]], // white
-  [[217, 207, 194], [222, 170, 136]], // peach
-  [[214, 195, 168], [236, 204, 122]], // mustard
-  [[169, 112, 90], [170, 72, 56]],    // red brick
-  [[205, 191, 174], [158, 182, 146]], // sage
-  [[169, 184, 200], [118, 160, 204]], // tower glass
-  [[159, 176, 194], [98, 140, 188]],
-  [[201, 210, 219], [168, 200, 228]],
+  [[185, 143, 118], [226, 172, 172]], // brick -> dusty pink
+  [[191, 174, 154], [240, 224, 198]], // sand -> cream
+  [[200, 196, 189], [243, 237, 227]], // limestone
+  [[227, 221, 211], [250, 246, 238]], // white
+  [[217, 207, 194], [212, 192, 228]], // peach -> lavender
+  [[214, 195, 168], [242, 216, 162]], // mustard -> soft yellow
+  [[169, 112, 90], [204, 124, 132]],  // red brick -> rose
+  [[205, 191, 174], [180, 210, 194]], // sage -> mint
+  [[169, 184, 200], [160, 186, 224]], // tower glass
+  [[159, 176, 194], [138, 164, 208]],
+  [[201, 210, 219], [198, 216, 238]],
 ];
 export function brightenPalette(col: Uint8Array) {
   const lut = new Map(REMAP.map(([a, b]) => [(a[0] << 16) | (a[1] << 8) | a[2], b]));

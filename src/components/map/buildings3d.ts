@@ -121,10 +121,12 @@ export class CityBuildingsLayer implements CustomLayerInterface {
     const { dir, night, golden } = sunLight(date);
     this.sun.position.set(dir[0] * 100, dir[1] * 100, dir[2] * 100);
     const day = new THREE.Color(0xfff0d8), gold = new THREE.Color(0xffb070), moon = new THREE.Color(0x8fa6d8);
-    this.sun.color.copy(day).lerp(gold, golden).lerp(moon, night);
-    this.sun.intensity = 2.6 * (1 - night) + 0.5 * night;
-    this.sky.color.set(0xfff6e8).lerp(new THREE.Color(0x4a5a8a), night);
-    this.sky.intensity = 1.7 * (1 - night) + 0.55 * night;
+    // keep the pastel colors readable: only a hint of golden hour, soft bright sky light
+    this.sun.color.copy(day).lerp(gold, golden * 0.35).lerp(moon, night);
+    this.sun.intensity = 1.9 * (1 - night) + 0.5 * night;
+    this.sky.color.set(0xffffff).lerp(new THREE.Color(0x4a5a8a), night);
+    this.sky.groundColor.set(0xb8b0c0);
+    this.sky.intensity = 2.3 * (1 - night) + 0.6 * night;
     FACADE_NIGHT.value = night;
     this.map?.triggerRepaint();
   }
@@ -191,12 +193,23 @@ export class CityBuildingsLayer implements CustomLayerInterface {
     return jobs;
   }
 
+  /** True once everything near the current view has loaded (used to hold the loading screen). */
+  settled() {
+    if (!this.map) return false;
+    if (!this.jobs) return false;
+    const zoom = this.map.getZoom();
+    const c = this.map.getCenter();
+    const reach = Math.min(0.05, 0.012 * Math.pow(2, 16 - zoom));
+    const waiting = this.jobs.some((j) => zoom >= j.minZoom && Math.hypot(j.at[0] - c.lng, (j.at[1] - c.lat) * 1.35) - j.r < reach);
+    return !waiting && this.running === 0;
+  }
+
   /** Load only what is near the view (nearest first, 3 at a time); more loads as you move around. */
   private loadNear(zoom: number) {
     this.jobs ??= this.makeJobs();
     if (!this.jobs.length || this.running >= 3) return;
     const c = this.map.getCenter();
-    const reach = Math.min(0.12, 0.012 * Math.pow(2, 16 - zoom));
+    const reach = Math.min(0.05, 0.012 * Math.pow(2, 16 - zoom));
     const dist = (j: { at: [number, number]; r: number }) => Math.hypot(j.at[0] - c.lng, (j.at[1] - c.lat) * 1.35) - j.r;
     const ready = this.jobs.filter((j) => zoom >= j.minZoom && dist(j) < reach).sort((a, b) => dist(a) - dist(b));
     for (const j of ready.slice(0, 3 - this.running)) {

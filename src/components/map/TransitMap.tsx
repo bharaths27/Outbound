@@ -45,6 +45,7 @@ export default function TransitMap() {
   const layerRef = useRef<Trains3DLayer | null>(null);
   const cityRef = useRef<CityBuildingsLayer | null>(null);
   const googleRef = useRef<GoogleTilesLayer | null>(null);
+  const setRealisticRef = useRef<(on: boolean) => void>(() => {});
   const stationsRef = useRef<StationData[]>([]);
   const markersRef = useRef<{ campus: maplibregl.Marker[]; friends: maplibregl.Marker[] }>({ campus: [], friends: [] });
   const groundRef = useRef<string[]>([]);
@@ -53,6 +54,9 @@ export default function TransitMap() {
   const [offlineBasemap, setOfflineBasemap] = useState(false);
   const [is3D, setIs3D] = useState(true);
   const [satellite, setSatellite] = useState(false);
+  const [realistic, setRealistic] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [show, setShow] = useState({ trains: true, campuses: true, friends: true, delays: true });
   const [delayColors, setDelayColors] = useState(false);
   const [feedMode, setFeedMode] = useState<FeedMode>("live");
@@ -91,9 +95,10 @@ export default function TransitMap() {
       map = new maplibregl.Map({
         container: box.current,
         style,
-        center: VIEWS.mass.center,
-        zoom: VIEWS.mass.zoom,
-        pitch: VIEWS.mass.pitch,
+        center: VIEWS.boston.center,
+        zoom: VIEWS.boston.zoom - 0.6,
+        pitch: 50,
+        bearing: VIEWS.boston.bearing + 25,
         maxPitch: 78,
         attributionControl: { compact: true },
         canvasContextAttributes: { antialias: true },
@@ -159,23 +164,28 @@ export default function TransitMap() {
         const city = new CityBuildingsLayer(manifest);
         cityRef.current = city;
         m.addLayer(city, labelsStart);
-        // real photo-textured 3D (Google) when a key is set: replaces the game-style city and OSM boxes
+        // "Realistic" view: Google's photo-textured 3D (added only when switched on, so the default loads fast)
         let google: GoogleTilesLayer | null = null;
-        if (GOOGLE_KEY) {
-          google = new GoogleTilesLayer();
-          google.onError = (msg) => {
-            console.warn(msg);
-            if (google && m.getLayer(google.id)) m.removeLayer(google.id);
+        setRealisticRef.current = (on: boolean) => {
+          if (on && GOOGLE_KEY && !google) {
+            google = new GoogleTilesLayer();
+            google.onError = (msg) => {
+              console.warn(msg);
+              setNotice("Realistic 3D couldn't load from Google, so you're seeing the illustrated map.");
+              setRealistic(false);
+            };
+            googleRef.current = google;
+            if (process.env.NODE_ENV !== "production") (window as unknown as { __obGoogle: GoogleTilesLayer }).__obGoogle = google; // for tests
+            m.addLayer(google, beforeLines);
+          } else if (!on && google) {
+            if (m.getLayer(google.id)) m.removeLayer(google.id);
             google = null;
             googleRef.current = null;
-            city.hidden = false;
-            pickBuildings();
-          };
-          googleRef.current = google;
-          if (process.env.NODE_ENV !== "production") (window as unknown as { __obGoogle: GoogleTilesLayer }).__obGoogle = google; // for tests
-          city.hidden = true;
-          m.addLayer(google, beforeLines);
-        }
+          }
+          city.hidden = !!google;
+          pickBuildings();
+          m.triggerRepaint();
+        };
         // OpenStreetMap's boxy buildings only where the real city models don't cover the view
         const cambRing = cambridgeOutline?.geometry?.coordinates?.[0] as [number, number][] | undefined;
         const osmBuildings = m.getStyle().layers.filter((l) => l.type === "fill-extrusion" && (l as { source?: string }).source === "openmaptiles").map((l) => l.id);
@@ -272,8 +282,15 @@ export default function TransitMap() {
           m.on("mouseleave", id, () => (m.getCanvas().style.cursor = ""));
         }
         setReady(true);
-        // open on Massachusetts, then glide into Boston
-        setTimeout(() => m.flyTo({ ...VIEWS.boston, duration: 4500, curve: 1.2, essential: true }), 600);
+        // keep the loading screen up until the buildings around Boston are in, then glide in (no half-drawn stages)
+        const t0 = performance.now();
+        const reveal = () => {
+          if (disposed) return;
+          if (!city.settled() && performance.now() - t0 < 12_000) return void setTimeout(reveal, 250);
+          setLoaded(true);
+          m.easeTo({ ...VIEWS.boston, duration: 2600, essential: true });
+        };
+        reveal();
       });
     })();
     return () => {
@@ -356,6 +373,13 @@ export default function TransitMap() {
     if (map.getZoom() > 5) map.easeTo({ pitch: is3D ? 58 : 0, bearing: is3D ? map.getBearing() : 0, duration: 900 });
     map.triggerRepaint();
   }, [ready, is3D, show.trains]);
+
+  // ---------- illustrated / realistic ----------
+  useEffect(() => {
+    if (!ready) return;
+    if (GOOGLE_KEY) setRealisticRef.current(realistic);
+    else if (!offlineBasemap) setSatellite(realistic); // no Google key: real satellite photos under the 3D city
+  }, [ready, realistic, offlineBasemap]);
 
   // ---------- satellite ----------
   useEffect(() => {
@@ -552,6 +576,17 @@ export default function TransitMap() {
   return (
     <div className="fixed inset-0 bg-[#dfe9f3]">
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
+      {/* one loading screen, then straight into the 3D city */}
+      <div
+        className={`pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-[#ece6da] transition-opacity duration-700 ${loaded ? "opacity-0" : "opacity-100"}`}
+        aria-hidden={loaded}
+      >
+        <div className="text-3xl font-semibold tracking-tight text-[#6b1d3a]">Outbound</div>
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <span className="inline-block h-2 w-2 animate-ping rounded-full bg-[#6b1d3a]" />
+          Building Boston in 3D…
+        </div>
+      </div>
 
       {/* top-left: brand, feed status, Tiger Data badges */}
       <div className="absolute left-3 top-3 flex max-w-[calc(100vw-212px)] sm:max-w-[calc(100vw-24px)] flex-col gap-2 sm:left-4 sm:top-4">
@@ -588,13 +623,17 @@ export default function TransitMap() {
             {lateness.sample && <span className="ob-panel px-2 py-1 text-[10px] uppercase tracking-wide text-slate-500">sample</span>}
           </div>
         )}
-        {offlineBasemap && <div className="ob-panel px-3 py-1.5 text-xs text-slate-600">Street map unavailable: showing the offline map.</div>}
+        {notice && (
+          <button className="ob-panel px-3 py-1.5 text-left text-xs text-amber-800" onClick={() => setNotice(null)}>
+            {notice}
+          </button>
+        )}
       </div>
 
       {/* top-right: controls */}
       <div className="ob-panel absolute right-3 top-3 flex w-[176px] flex-col gap-2 p-2.5 text-xs sm:right-4 sm:top-4">
         <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
-        {!offlineBasemap && <Seg options={[["Map", false], ["Satellite", true]]} value={satellite} onChange={setSatellite} />}
+        {(GOOGLE_KEY || !offlineBasemap) && <Seg options={[["Illustrated", false], ["Realistic", true]]} value={realistic} onChange={setRealistic} />}
         <div className="mt-1 flex flex-col gap-1">
           <Toggle label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
           <Toggle label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />

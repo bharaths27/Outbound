@@ -13,11 +13,11 @@ const mLng = (lat: number) => 111_320 * Math.cos((lat * Math.PI) / 180);
 
 // Cambridge triple-deckers and row houses come in many colors; bigger buildings are brick, stone or glass.
 const HOUSE_COLORS = [
-  [236, 204, 122], [158, 182, 146], [168, 196, 222], [226, 150, 120], [247, 241, 229],
-  [198, 118, 84], [214, 176, 210], [238, 228, 206], [140, 170, 190], [230, 190, 150],
+  [242, 216, 162], [180, 210, 194], [176, 200, 232], [232, 180, 186], [250, 246, 238],
+  [212, 192, 228], [226, 172, 172], [240, 224, 198], [160, 186, 224], [236, 200, 214],
 ];
-const BIG_COLORS = [[198, 118, 84], [170, 72, 56], [238, 228, 206], [226, 196, 146], [222, 170, 136], [247, 241, 229]];
-const TOWER_COLORS = [[118, 160, 204], [98, 140, 188], [168, 200, 228]];
+const BIG_COLORS = [[226, 172, 172], [204, 124, 132], [243, 237, 227], [240, 224, 198], [212, 192, 228], [250, 246, 238]];
+const TOWER_COLORS = [[160, 186, 224], [138, 164, 208], [198, 216, 238]];
 
 function hash(n: number) {
   const x = Math.sin(n * 12.9898) * 43758.5453;
@@ -100,7 +100,7 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
       // ---- house: walls to the eaves, gable roof along the long side, chimney ----
       const rgb = HOUSE_COLORS[Math.floor(r * HOUSE_COLORS.length)];
       const eave = Math.max(2.8, H - Math.min(box.hu, box.hv) * 0.75);
-      const roofCol = [[84, 92, 112], [70, 115, 92], [150, 64, 52], [96, 84, 80]][Math.floor(hash(i + 7) * 4)];
+      const roofCol = [[112, 96, 132], [82, 132, 142], [188, 112, 96], [96, 88, 120]][Math.floor(hash(i + 7) * 4)];
       const long = box.hu >= box.hv;
       const c = Math.cos(box.ang), s = Math.sin(box.ang);
       const P = (u: number, v: number, y: number) => [box.cx + u * c - v * s, y, box.cz + u * s + v * c];
@@ -199,7 +199,8 @@ export function makeTreeMesh(points: { x: number; z: number; s: number }[]) {
     mesh.setMatrixAt(i, m);
     // a little color variety, some autumn trees like a game map
     const k = hash(i + 0.9);
-    tint.setRGB(...(k > 0.93 ? [1.5, 1.1, 0.5] : k > 0.86 ? [1.35, 0.8, 0.5] : [0.85 + k * 0.3, 0.95 + k * 0.15, 0.85]) as [number, number, number]);
+    // fall colors like the mockup: mostly green, plenty of gold, orange and red
+    tint.setRGB(...(k > 0.85 ? [1.6, 1.25, 0.45] : k > 0.72 ? [1.55, 0.85, 0.45] : k > 0.64 ? [1.45, 0.6, 0.5] : [0.85 + k * 0.3, 0.98 + k * 0.15, 0.85]) as [number, number, number]);
     mesh.setColorAt(i, tint);
   });
   mesh.frustumCulled = false;
