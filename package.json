@@ -9,8 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@solana/spl-token": "^0.4.14",
+    "@solana/spl-token-metadata": "^0.1.6",
+    "@solana/web3.js": "^1.98.4",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
+    "bs58": "^6.0.0",
     "maplibre-gl": "^6.19.0",
     "next": "^15.5.29",
     "pg": "^8.16.3",
