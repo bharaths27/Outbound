@@ -3,7 +3,6 @@ import { DM_Sans, Fraunces } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { StationHubHost } from "@/features/hub";
 import { AppShell } from "@/features/shell/app-shell";
-import { ThemeProvider } from "@/features/shell/theme-provider";
 import "./globals.css";
 
 // Fraunces for display headings, DM Sans for UI (DESIGN.md §3 Type).
@@ -28,23 +27,19 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   viewportFit: "cover", // lets the tab bar and drawer use safe-area insets
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#6b1f33" }, // maroon header (light only for now)
-    { media: "(prefers-color-scheme: dark)", color: "#6b1f33" },
-  ],
+  themeColor: "#6b1f33", // maroon header
+  colorScheme: "light", // light only; there is no dark theme
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     // Font variables go on <html>, where the font family is applied (globals.css).
-    <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`}>
       <body>
-        <ThemeProvider>
-          <AppShell>{children}</AppShell>
-          {/* The station hub opens over any page from ?station=<id> (src/features/hub). */}
-          <StationHubHost />
-          <Toaster />
-        </ThemeProvider>
+        <AppShell>{children}</AppShell>
+        {/* The station hub opens over any page from ?station=<id> (src/features/hub). */}
+        <StationHubHost />
+        <Toaster />
       </body>
     </html>
   );

@@ -15,7 +15,6 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Stamp } from "@/features/passport/stamp";
-import { ThemeToggle } from "@/features/shell/theme-toggle";
 import { data } from "@/lib/data";
 import { LINE_COLORS } from "@/lib/lines";
 
@@ -68,7 +67,6 @@ export default async function ThemePage() {
           <h1 className="type-title">Outbound theme</h1>
           <p className="text-muted-foreground">Tokens and components from DESIGN.md.</p>
         </div>
-        <ThemeToggle />
       </header>
 
       <Section title="Color tokens">

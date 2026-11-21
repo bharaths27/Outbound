@@ -32,6 +32,6 @@ They're exports from the design canvas, not runnable pages. Read them as annotat
 >
 > Map every value in `tokens.css` into our theme or shadcn config instead of hard-coding hex values. Use the files in `docs/design/reference/` for exact layout, copy and art.
 >
-> Keep all existing data, states and behavior unless DESIGN.md says otherwise. Follow the build order in §13, starting with the tokens and shell, then the Stamp component, then the Station hub, Quest detail and the check-in celebration. Light mode only for now.
+> Keep all existing data, states and behavior unless DESIGN.md says otherwise. Follow the build order in §13, starting with the tokens and shell, then the Stamp component, then the Station hub, Quest detail and the check-in celebration. Light mode only: remove dark mode and its toggle entirely.
 >
 > Before writing code, list the files you'll change and anything in the spec that conflicts with the current implementation, and wait for my OK.

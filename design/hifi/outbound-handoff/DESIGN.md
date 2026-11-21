@@ -9,7 +9,7 @@ This spec restyles the app that already exists. **The layout and visual design h
 - **Exact layout, copy, icons and illustrations:** `reference/` (how to read those files: `README.md`)
 - **Logo:** `assets/outbound-wordmark.svg`
 
-**Approach:** build mobile-first at a 390 px design width; switch to the desktop layout at ≥ 1024 px. **Light mode only for now.** Dark mode isn't designed yet (§12), so keep the existing dark-mode plumbing but don't ship a dark theme until it is.
+**Approach:** build mobile-first at a 390 px design width; switch to the desktop layout at ≥ 1024 px. **Light mode only. There is no dark mode:** remove the existing dark theme and its toggle, and don't follow the system dark setting (set `color-scheme: light`).
 
 ---
 
@@ -292,7 +292,6 @@ Each step appears only when it applies, matching the current logic.
 
 ## 12. Not designed yet
 
-- Dark mode.
 - The Events page.
 - The share card.
 - Friends.

@@ -1,4 +1,4 @@
-/* Outbound design tokens (v1 · Maroon). Source of truth: DESIGN.md §3. Light mode only for now. */
+/* Outbound design tokens (v1 · Maroon). Source of truth: DESIGN.md §3. Light mode only (no dark mode). */
 :root {
   /* Brand */
   --color-maroon-700: #6B1F33;   /* primary: headers, nav, active pills, primary buttons, map pins */

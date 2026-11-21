@@ -1,14 +1,12 @@
 /* Outbound theme (v1 · Maroon). Every value comes from DESIGN.md §3 and
    design/hifi/outbound-handoff/tokens.css: change those first, then this file.
    shadcn's role variables point at the maroon/gold palette so existing components follow it;
-   the extra Outbound tokens are below. Light mode only for now (DESIGN.md §12).
+   the extra Outbound tokens are below. Light mode only: there is no dark theme.
    Owner: Angie. The whole team imports it; ask before editing. */
 
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-
-@custom-variant dark (&:is(.dark *));
 
 /* Desktop layout starts at 1024 px (DESIGN.md §2.5); 768–1023 uses the mobile shell.
    A breakpoint (not a custom variant) so both desk: and max-desk: exist. */
@@ -186,12 +184,6 @@
   --overlay: rgb(43 26 31 / 0.55); /* scrim behind dialogs and sheets */
 }
 
-/* Dark mode isn't designed yet (DESIGN.md §12). The theme provider forces light; this
-   block stays so the plumbing is ready. */
-.dark {
-  --background: var(--page);
-}
-
 /* Type styles. Use these instead of ad-hoc sizes. */
 @utility type-hero {
   font-family: var(--font-display);
@@ -261,6 +253,8 @@
   }
   html {
     @apply font-sans;
+    /* Light only: don't follow the system dark setting (DESIGN.md "Approach"). */
+    color-scheme: light;
   }
   body {
     @apply bg-background text-foreground type-body antialiased;

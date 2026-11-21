@@ -1,17 +1,15 @@
 "use client"
 
-import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 // Toasts are a dark ink pill at the bottom center, above the mobile tab bar
 // (DESIGN.md §4 Toasts), 3 s by default.
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "light" } = useTheme()
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme="light"
       className="toaster group"
       position="bottom-center"
       duration={3000}
