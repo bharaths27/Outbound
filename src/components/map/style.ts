@@ -18,40 +18,22 @@ function fallbackStyle(manifest: BpdaManifest | null): StyleSpecification {
     "cam-water": { type: "geojson", data: url("cambridge/water.geojson") },
     "cam-parks": { type: "geojson", data: url("cambridge/parks.geojson") },
     "cam-roads": { type: "geojson", data: url("cambridge/roads.geojson") },
-    "cam-buildings": { type: "geojson", data: url("cambridge/buildings.geojson") },
   };
   const layers: LayerSpecification[] = [
     { id: "background", type: "background", paint: { "background-color": "#b7d5ec" } },
     { id: "land", type: "fill", source: "states", paint: { "fill-color": "#eef0e8" } },
     { id: "state-lines", type: "line", source: "states", paint: { "line-color": "#c9c3b6", "line-width": 0.8 } },
     { id: "hoods", type: "fill", source: "hoods", paint: { "fill-color": "#e8e6dc", "fill-outline-color": "#d6d0c2" } },
-    { id: "water", type: "fill", source: "water", paint: { "fill-color": "#a5cde8" } },
-    { id: "cam-parks", type: "fill", source: "cam-parks", paint: { "fill-color": "#cfe3bf" } },
-    { id: "cam-water", type: "fill", source: "cam-water", paint: { "fill-color": "#a5cde8" } },
+    { id: "water", type: "fill", source: "water", paint: { "fill-color": "#86c8e8" } },
+    { id: "cam-parks", type: "fill", source: "cam-parks", paint: { "fill-color": "#bfe0a8" } },
+    { id: "cam-water", type: "fill", source: "cam-water", paint: { "fill-color": "#86c8e8" } },
     { id: "cam-roads", type: "fill", source: "cam-roads", paint: { "fill-color": "#ffffff", "fill-opacity": 0.9 } },
   ];
   for (const t of manifest?.tiles ?? []) {
     sources[`aerial-${t.name}`] = { type: "image", url: url(`bpda/${t.photo}`), coordinates: t.photoCorners as [[number, number], [number, number], [number, number], [number, number]] };
     layers.push({ id: `aerial-${t.name}`, type: "raster", source: `aerial-${t.name}`, minzoom: 11, paint: { "raster-fade-duration": 0, "raster-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0, 12.5, 1] } });
   }
-  layers.push(cambridgeBuildingsLayer());
   return { version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", sources, layers };
-}
-
-/** Cambridge buildings: real footprints, height = TOP_GL (feet above ground) from the City of Cambridge. */
-export function cambridgeBuildingsLayer(): LayerSpecification {
-  return {
-    id: "cam-buildings-3d",
-    type: "fill-extrusion",
-    source: "cam-buildings",
-    minzoom: 12.5,
-    paint: {
-      "fill-extrusion-height": ["*", ["get", "h"], 0.3048],
-      "fill-extrusion-color": ["interpolate", ["linear"], ["get", "h"], 0, "#e3d9cb", 40, "#d6cbbd", 120, "#c4ccd6"],
-      "fill-extrusion-opacity": 0.96,
-      "fill-extrusion-vertical-gradient": true,
-    },
-  };
 }
 
 const BUILDING_COLOR: ExpressionSpecification = [
@@ -96,7 +78,7 @@ function restyle(style: StyleSpecification): StyleSpecification {
     // our own MBTA lines and stations replace OpenStreetMap's subway lines and station icons
     if (layer.id.includes("transit_rail") || layer.id === "poi_transit") layer.layout = { ...layer.layout, visibility: "none" };
     if (layer.type === "background") layer.paint = { ...layer.paint, "background-color": "#eef0ea" };
-    if (layer.type === "fill" && sl === "water") layer.paint = { ...layer.paint, "fill-color": "#a5cde8" };
+    if (layer.type === "fill" && sl === "water") layer.paint = { ...layer.paint, "fill-color": "#86c8e8" };
     // fewer POI icons: they compete with stations and campuses
     if (layer.type === "symbol" && sl === "poi") layer.minzoom = Math.max(layer.minzoom ?? 0, 16);
     layers.push(layer);

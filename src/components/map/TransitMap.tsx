@@ -9,7 +9,7 @@ import type { Arrival, LineLateness, Station, Train } from "@/lib/types";
 import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
 import { TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
-import { loadBaseStyle, groundLayerIds, cambridgeBuildingsLayer } from "./style";
+import { loadBaseStyle, groundLayerIds } from "./style";
 import { CityBuildingsLayer, fetchBpdaManifest, inBpda } from "./buildings3d";
 import SearchBox, { pointInRing } from "./SearchBox";
 import {
@@ -42,6 +42,7 @@ export default function TransitMap() {
   const mapRef = useRef<MlMap | null>(null);
   const animRef = useRef<TrainAnimator | null>(null);
   const layerRef = useRef<Trains3DLayer | null>(null);
+  const cityRef = useRef<CityBuildingsLayer | null>(null);
   const stationsRef = useRef<StationData[]>([]);
   const markersRef = useRef<{ campus: maplibregl.Marker[]; friends: maplibregl.Marker[] }>({ campus: [], friends: [] });
   const groundRef = useRef<string[]>([]);
@@ -152,18 +153,17 @@ export default function TransitMap() {
         m.addLayer({ id: "campus-halo", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.5, 16, 5], "line-opacity": 0.85 } }, beforeLines);
         m.addLayer({ id: "campus-line", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 16, 2.4], "line-dasharray": [3, 2] } }, beforeLines);
 
-        // real buildings: City of Cambridge footprints + heights, and Boston's own 3D models (BPDA)
-        if (!m.getSource("cam-buildings")) {
-          m.addSource("cam-buildings", { type: "geojson", data: new URL("data/cambridge/buildings.geojson", document.baseURI).href });
-          m.addLayer(cambridgeBuildingsLayer(), labelsStart);
-        }
-        if (manifest) m.addLayer(new CityBuildingsLayer(manifest), labelsStart);
+        // game-style 3D city: Boston's own building models (BPDA), Cambridge footprints + heights, trees
+        const city = new CityBuildingsLayer(manifest);
+        cityRef.current = city;
+        m.addLayer(city, labelsStart);
         // OpenStreetMap's boxy buildings only where the real city models don't cover the view
         const cambRing = cambridgeOutline?.geometry?.coordinates?.[0] as [number, number][] | undefined;
         const osmBuildings = m.getStyle().layers.filter((l) => l.type === "fill-extrusion" && (l as { source?: string }).source === "openmaptiles").map((l) => l.id);
         const pickBuildings = () => {
           const c = m.getCenter();
           const real = (manifest && inBpda(c.lng, c.lat)) || (cambRing && pointInRing([c.lng, c.lat], cambRing));
+          // (the 3D city layer draws Cambridge and central Boston itself)
           for (const id of osmBuildings) m.setFilter(id, real ? ["==", ["get", "render_height"], -1] : null);
         };
         pickBuildings();
@@ -322,6 +322,7 @@ export default function TransitMap() {
     const map = mapRef.current;
     if (!ready || !map) return;
     if (layerRef.current) layerRef.current.visible = is3D && show.trains;
+    if (cityRef.current) cityRef.current.visible = is3D;
     for (const l of map.getStyle().layers)
       if (l.type === "fill-extrusion") map.setLayoutProperty(l.id, "visibility", is3D ? "visible" : "none");
     map.setPaintProperty(
