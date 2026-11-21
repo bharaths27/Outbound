@@ -57,13 +57,10 @@ Ordered by demo impact.
 - [ ] **Rename in the sign-up error.** `handle_new_user()` still says "T Quest is only
   open to…". It should say Outbound. The frontend shows this message on the login
   screen.
-- [ ] **Data-source switch.** The frontend picks mock or real data with
-  `NEXT_PUBLIC_DATA_SOURCE=mock|supabase` (default `mock`). Please add it to
-  `.env.example` and the Vercel project.
-- [ ] **`npm run start` crashes after `npm run build`.** `next start` exits with
-  `TypeError: routesManifest.dataRoutes is not iterable` (Next 15.5.29, with
-  `build --turbopack`). Vercel doesn't use `next start`, so deploys may be fine, but
-  running a production build locally doesn't work. `npm run dev` works.
+- [x] **Data-source switch.** `NEXT_PUBLIC_DATA_SOURCE` added to `.env.example` on `main`
+  (8ab6ea5). Still needs setting in Vercel (`mock` until integration).
+- [x] **`npm run start` crashes after `npm run build`.** Fixed on `main` (8ab6ea5): `build` no
+  longer uses `--turbopack`.
 - [ ] **Tournaments.** The schema has no tournament tables. The frontend plan had
   restaurant-hosted tournaments with prizes. Are they in scope? If not, we'll drop them
   for the hackathon.
