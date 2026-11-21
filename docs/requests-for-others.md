@@ -32,17 +32,28 @@ frontend-derived shapes.
 
 ### Suki (content)
 
-- [ ] **Vibe tags.** Please use lowercase, hyphenated tags (`late-night`, `study-spot`).
-  Avoid budget or time words as tags (`cheap`, `free`, `quick`): `price_tier` covers
-  those, and the search parser ignores those words as cravings.
-- [ ] **Walk and visit times.** Fill `walk_min` and `duration_min` for real quests. The
-  defaults (5 and 30) make every quest look the same to the time filter.
-- [ ] **Sample deals.** Keep `deals.is_sample = true` and the `SAMPLE:` prefix. The UI
-  shows a visible "Sample" label as well.
-- [ ] **Mock content.** The mock uses 7 real stations (Kenmore, Park Street, Harvard,
-  Central, Chinatown, Haymarket, Copley) with placeholder quests in
-  `src/lib/data/mock/seed.ts`. If your real content starts with the same stations, the
-  demo transfers cleanly.
+Suki's CSVs (9 stations, 27 quests) are in `content/` and drive the mock. Format rules are
+in `content/README.md`; `npm test` checks every row.
+
+- [x] **Vibe tags.** Lowercase and hyphenated, no budget or time words. All rows pass.
+- [x] **Walk and visit times.** Filled for every quest.
+- [x] **Mock content.** The mock now uses Suki's stations and quests.
+- [ ] **Hours format.** The CSV had free-text hours ("Mon–Thu 9 AM–8 PM; Fri–Sat …"). We
+  converted them to the format in `content/README.md` (`Mon-Thu 09:00-20:00; …`) and moved
+  caveats into descriptions ("Best in daylight.", "Vendors keep their own hours."). Please
+  check the conversions and use that format from now on.
+- [ ] **Type.** The CSV used `scenery`; the schema only allows `scenic`. Converted.
+- [ ] **Harvard Square Pastry Pick** (`harvard-tatte-pastry`) has no hours ("check the
+  café's posted hours"). Hours would let "Open now" work for it.
+- [ ] **Paul Revere House** hours are seasonal. We used the winter hours (10:00–16:15) and
+  added the summer closing time to the description. Confirm that's right for the demo date.
+- [ ] **XP.** Quests are worth 100–140 XP, about double the schema default of 50, so
+  levels (250 XP each) come quickly. Confirm that's intended.
+- [ ] **Sample deals.** None in the CSV. The mock has three made-up sample deals (Pavement,
+  Winsor Dim Sum, Thinking Cup Newbury). Keep `is_sample = true` and the `SAMPLE:` prefix
+  on any real ones.
+- [ ] **Into Supabase.** Who loads `content/*.csv` into `public.quests` and the station
+  stories (Bharath's seed script or a CSV import)?
 
 ### Verna (map)
 

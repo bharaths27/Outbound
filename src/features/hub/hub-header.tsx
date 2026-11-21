@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Station } from "@/lib/data/types";
+import { cn } from "@/lib/utils";
 import { ArrivalSlot } from "./arrival-slot";
 import { LineBadges } from "./line-badge";
 
@@ -20,7 +21,11 @@ export function HubHeader({ station, onClose }: { station: Station; onClose: () 
   return (
     <header className="flex flex-col gap-2">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="type-display min-w-0 text-balance">{station.name}</h2>
+        {/* Long names ("Boston University Central") step down a size so the peek height
+            still shows the lines and next train. */}
+        <h2 className={cn("type-display min-w-0 text-balance", station.name.length > 18 && "text-[26px] leading-[30px]")}>
+          {station.name}
+        </h2>
         <CloseButton onClose={onClose} />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">

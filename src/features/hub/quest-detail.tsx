@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { data } from "@/lib/data";
 import type { CheckInError, Deal, Quest, Station } from "@/lib/data/types";
-import { formatHours } from "./hours";
+import { formatSchedule } from "./hours";
 import { QuestMeta, Reward, TagList } from "./quest-card";
 import { lastVisit, tierIn, type Player } from "./use-player";
 
@@ -67,7 +67,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   const [checkingIn, setCheckingIn] = useState(false);
   const visit = lastVisit(player, quest.id);
   const tier = tierIn(player, station.neighborhood);
-  const hours = formatHours(quest.hours);
+  const hours = formatSchedule(quest.hours);
 
   useEffect(() => {
     let cancelled = false;
@@ -140,9 +140,13 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
         {hours && (
           <>
             <dt className="text-muted-foreground">Hours</dt>
-            <dd className="inline-flex items-center gap-1 tabular-nums">
-              <Clock className="size-4" strokeWidth={1.75} aria-hidden />
-              {hours}
+            <dd className="flex items-start gap-1 tabular-nums">
+              <Clock className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+              <span className="flex flex-col">
+                {hours.map((line) => (
+                  <span key={line}>{line}</span>
+                ))}
+              </span>
             </dd>
           </>
         )}

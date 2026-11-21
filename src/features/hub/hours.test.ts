@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bostonMinutes, formatHours, isOpenAt, openState, parseHours } from "./hours";
+import { bostonMinutes, bostonTime, formatHours, formatSchedule, isOpenAt, openState, parseHours, parseSchedule } from "./hours";
 
 // Boston is UTC-5 in November (EST) and UTC-4 in July (EDT).
 const bostonNov = (hhmm: string) => new Date(`2026-11-21T${hhmm}:00-05:00`);
@@ -62,8 +62,63 @@ describe("labels", () => {
   it("formats a range", () => {
     expect(formatHours("11:00-02:00")).toBe("11 AM – 2 AM");
     expect(formatHours("00:00-06:00")).toBe("Midnight – 6 AM");
+    expect(formatHours("Daily 07:00-19:00")).toBe("7 AM – 7 PM");
     expect(formatHours("12:00-15:30")).toBe("Noon – 3:30 PM");
     expect(formatHours("always")).toBe("Open 24 hours");
     expect(formatHours(null)).toBeNull();
+  });
+});
+
+// 2026-11-21 is a Saturday; 11-22 Sunday; 11-23 Monday; 11-17 Tuesday.
+const at = (date: string, hhmm: string) => new Date(`2026-11-${date}T${hhmm}:00-05:00`);
+
+describe("weekday schedules", () => {
+  const library = "Mon,Fri 10:00-18:00; Tue-Thu 10:00-21:00; Sat 10:00-14:00";
+
+  it("knows the Boston weekday", () => {
+    expect(bostonTime(at("21", "12:00"))).toEqual({ day: 5, minutes: 720 });
+    expect(bostonTime(new Date("2026-11-23T03:00:00Z"))).toEqual({ day: 6, minutes: 22 * 60 }); // still Sunday in Boston
+  });
+
+  it("parses day lists, ranges, wrapping ranges, and Daily", () => {
+    expect(parseSchedule("Sun-Tue 08:00-18:00")).toEqual([
+      { day: 6, start: 480, end: 1080 },
+      { day: 0, start: 480, end: 1080 },
+      { day: 1, start: 480, end: 1080 },
+    ].sort((a, b) => a.day - b.day));
+    expect(parseSchedule("Daily 07:00-19:00")).toHaveLength(7);
+    expect(parseSchedule("Mon–Thu 09:00–20:00")).toHaveLength(4); // en dashes are fine
+    expect(parseSchedule("Funday 09:00-10:00")).toBeNull();
+    expect(parseSchedule("Mon-Tue-Wed 09:00-10:00")).toBeNull();
+    expect(parseSchedule("Mon 9 AM-5 PM")).toBeNull();
+    expect(parseHours("Mon-Fri 09:00-17:00")).toBeNull(); // not the same every day
+    expect(parseHours("Daily 09:00-17:00")).toEqual({ start: 540, end: 1020 });
+  });
+
+  it("is closed on days that aren't listed", () => {
+    expect(isOpenAt(library, at("22", "12:00"))).toBe(false); // Sunday
+    expect(isOpenAt(library, at("21", "13:59"))).toBe(true); // Saturday
+    expect(isOpenAt(library, at("21", "14:00"))).toBe(false);
+    expect(isOpenAt(library, at("17", "20:30"))).toBe(true); // Tuesday late hours
+  });
+
+  it("keeps after-midnight hours with the day they started", () => {
+    const bar = "Fri,Sat 18:00-02:00";
+    expect(isOpenAt(bar, at("22", "01:30"))).toBe(true); // Sunday 1:30 AM, from Saturday
+    expect(isOpenAt(bar, at("23", "01:30"))).toBe(false); // Monday 1:30 AM, Sunday is closed
+  });
+
+  it("says when a closed place opens next", () => {
+    expect(openState(library, at("22", "12:00"))).toEqual({ open: false, label: "Closed · opens tomorrow 10 AM" });
+    expect(openState(library, at("21", "15:00"))).toEqual({ open: false, label: "Closed · opens Mon 10 AM" });
+    expect(openState(library, at("17", "08:00"))).toEqual({ open: false, label: "Closed · opens 10 AM" });
+    expect(openState(library, at("17", "12:00"))).toEqual({ open: true, label: "Open until 9 PM" });
+  });
+
+  it("formats a week of hours", () => {
+    expect(formatSchedule(library)).toEqual(["Mon, Fri 10 AM – 6 PM", "Tue–Thu 10 AM – 9 PM", "Sat 10 AM – 2 PM"]);
+    expect(formatSchedule("Sat,Sun 08:00-16:00; Mon-Fri 07:00-15:00")).toEqual(["Mon–Fri 7 AM – 3 PM", "Sat, Sun 8 AM – 4 PM"]);
+    expect(formatSchedule("Mon-Sat 07:00-20:00; Sun 07:30-19:00")).toEqual(["Mon–Sat 7 AM – 8 PM", "Sun 7:30 AM – 7 PM"]);
+    expect(formatSchedule("Sun-Tue 08:00-18:00; Wed-Sat 08:00-20:00")).toEqual(["Sun–Tue 8 AM – 6 PM", "Wed–Sat 8 AM – 8 PM"]);
   });
 });
