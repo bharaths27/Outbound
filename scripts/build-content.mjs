@@ -91,7 +91,8 @@ const quests = read("quests.csv").map((q) => ({
   xp: num(q.xp, "xp", q.id),
   // Optional columns; schema defaults when the CSV leaves them out.
   checkin_radius_m: q.checkin_radius_m ? num(q.checkin_radius_m, "checkin_radius_m", q.id) : 75,
-  qr_code: q.qr_code || null,
+  // QR codes are secrets that only check_in() reads; content only says a quest needs one.
+  requires_qr: Boolean(q.qr_code),
   duration_min: num(q.duration_min, "duration_min", q.id),
   walk_min: num(q.walk_min, "walk_min", q.id),
 }));

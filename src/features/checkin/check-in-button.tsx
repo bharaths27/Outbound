@@ -58,7 +58,7 @@ function OptionsStep({
 }) {
   const [squad, setSquad] = useState(SOLO);
   const [code, setCode] = useState("");
-  const needsCode = quest.qr_code !== null;
+  const needsCode = quest.requires_qr;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -132,7 +132,7 @@ function OptionsStep({
 
 export function CheckInButton({ quest, profile, tier, now, onCheckedIn }: CheckInButtonProps) {
   const [squads, setSquads] = useState<SquadWithMembers[]>([]);
-  const needsOptions = squads.length > 0 || quest.qr_code !== null;
+  const needsOptions = squads.length > 0 || quest.requires_qr;
   const { state, start, confirm, submitOptions, retry, reset } = useCheckIn(quest, profile, needsOptions);
 
   useEffect(() => {

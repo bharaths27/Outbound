@@ -139,7 +139,7 @@ export const quests: Quest[] = [
     "photo_url": "https://upload.wikimedia.org/wikipedia/commons/5/52/Marsh_Chapel.jpg",
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 10,
     "walk_min": 2
   },
@@ -161,7 +161,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 15,
     "walk_min": 3
   },
@@ -182,7 +182,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 15,
     "walk_min": 2
   },
@@ -204,7 +204,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 10,
     "walk_min": 2
   },
@@ -226,7 +226,7 @@ export const quests: Quest[] = [
     "photo_url": "https://upload.wikimedia.org/wikipedia/commons/a/ad/Outside_Fenway_Park_in_Boston.jpg",
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 15,
     "walk_min": 5
   },
@@ -247,7 +247,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 20,
     "walk_min": 8
   },
@@ -269,7 +269,7 @@ export const quests: Quest[] = [
     "photo_url": "https://upload.wikimedia.org/wikipedia/commons/5/50/Boston_Public_Library_Courtyard.png",
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 25,
     "walk_min": 3
   },
@@ -291,7 +291,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 20,
     "walk_min": 6
   },
@@ -312,7 +312,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 20,
     "walk_min": 7
   },
@@ -334,7 +334,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 15,
     "walk_min": 5
   },
@@ -356,7 +356,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 20,
     "walk_min": 10
   },
@@ -377,7 +377,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 15,
     "walk_min": 4
   },
@@ -399,7 +399,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 10,
     "walk_min": 2
   },
@@ -421,7 +421,7 @@ export const quests: Quest[] = [
     "photo_url": "https://upload.wikimedia.org/wikipedia/commons/4/4b/Faneuil_Hall%2C_Boston%2C_exterior.jpg",
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 10,
     "walk_min": 5
   },
@@ -443,7 +443,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 25,
     "walk_min": 6
   },
@@ -465,7 +465,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 20,
     "walk_min": 3
   },
@@ -487,7 +487,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 15,
     "walk_min": 6
   },
@@ -509,7 +509,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 80,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 40,
     "walk_min": 8
   },
@@ -531,7 +531,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 10,
     "walk_min": 3
   },
@@ -553,7 +553,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 80,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 45,
     "walk_min": 7
   },
@@ -575,7 +575,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 20,
     "walk_min": 4
   },
@@ -597,7 +597,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 10,
     "walk_min": 4
   },
@@ -619,7 +619,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 80,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 20,
     "walk_min": 3
   },
@@ -641,7 +641,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 15,
     "walk_min": 4
   },
@@ -663,7 +663,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 10,
     "walk_min": 6
   },
@@ -685,7 +685,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 15,
     "walk_min": 7
   },
@@ -707,7 +707,7 @@ export const quests: Quest[] = [
     "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
-    "qr_code": null,
+    "requires_qr": false,
     "duration_min": 35,
     "walk_min": 4
   }

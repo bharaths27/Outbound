@@ -47,8 +47,34 @@ export function authError(message: string | undefined, hint?: string | null): Au
   return "failed";
 }
 
+/**
+ * Quest columns the app reads. Never qr_code: it's the secret check_in() compares against.
+ * Which quests need a code comes from qrQuestIds() as ids only.
+ */
+const QUEST_COLUMNS =
+  "id,station_id,type,title,description,lat,lon,price_tier,vibe_tags,hours,photo_url,xp,checkin_radius_m,duration_min,walk_min";
+
+type QuestRow = Omit<Quest, "requires_qr">;
+
 export function createSupabaseService(client: () => SupabaseClient): DataService {
   const db = () => client();
+
+  // Ids of quests checked in by code. Filters on qr_code without returning it. If the
+  // column's select grant is revoked (see docs/requests-for-others.md), this falls back to
+  // none until a has_qr column exists.
+  let qrIds: Promise<Set<string>> | null = null;
+  function qrQuestIds(): Promise<Set<string>> {
+    qrIds ??= (async () => {
+      const res = await db().from("quests").select("id").not("qr_code", "is", null);
+      return new Set(res.error ? [] : (res.data ?? []).map((r: { id: string }) => r.id));
+    })();
+    return qrIds;
+  }
+
+  async function withQr(rows: QuestRow[]): Promise<Quest[]> {
+    const ids = await qrQuestIds();
+    return rows.map((q) => ({ ...q, requires_qr: ids.has(q.id) }));
+  }
 
   async function myId(): Promise<string | null> {
     const { data } = await db().auth.getUser();
@@ -145,16 +171,17 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
     },
 
     async getQuests(stationId, filters) {
-      const quests = must(await db().from("quests").select("*").eq("station_id", stationId), "quests") as Quest[];
-      return quests.filter((q) => matchesFilters(q, filters));
+      const rows = must(await db().from("quests").select(QUEST_COLUMNS).eq("station_id", stationId), "quests") as QuestRow[];
+      return (await withQr(rows)).filter((q) => matchesFilters(q, filters));
     },
 
     async getQuest(id) {
-      return must(await db().from("quests").select("*").eq("id", id).maybeSingle(), "quest") as Quest | null;
+      const row = must(await db().from("quests").select(QUEST_COLUMNS).eq("id", id).maybeSingle(), "quest") as QuestRow | null;
+      return row ? (await withQr([row]))[0] : null;
     },
 
     async getAllQuests() {
-      return must(await db().from("quests").select("*"), "quests") as Quest[];
+      return withQr(must(await db().from("quests").select(QUEST_COLUMNS), "quests") as QuestRow[]);
     },
 
     async getDeals(questIds) {

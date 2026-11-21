@@ -37,7 +37,7 @@ export const schools: School[] = [
 // Real content from Suki, generated from content/*.csv (npm run content).
 
 // Mock only: Bharath's expo quest from seed_quests_starter.sql, so QR check-in can be
-// built and tested. Code "OUTBOUND-EXPO".
+// built and tested. Its code lives in QR_CODES, which only the mock check_in() reads.
 const EXPO_QUEST: Quest = {
   id: "bu-gsu-expo",
   station_id: "place-bucen",
@@ -52,12 +52,15 @@ const EXPO_QUEST: Quest = {
   photo_url: null,
   xp: 100,
   checkin_radius_m: 150,
-  qr_code: "OUTBOUND-EXPO",
+  requires_qr: true,
   duration_min: 10,
   walk_min: 2,
 };
 
 export const quests: Quest[] = [...contentQuests, EXPO_QUEST];
+
+/** quest id -> code, read only by the mock check_in() (like quests.qr_code in the DB). */
+export const QR_CODES: Record<string, string> = { "bu-gsu-expo": "OUTBOUND-EXPO" };
 export { stations };
 
 /** Mock only: checking in here always fails as too far, so the error screen can be built. */

@@ -61,7 +61,8 @@ describe.skipIf(!RUN)("Supabase DataService (live)", () => {
     expect(board.length).toBe(schools.length);
     const q = quests[0];
     expect(q).toHaveProperty("checkin_radius_m");
-    expect(q).toHaveProperty("qr_code");
+    expect(q).toHaveProperty("requires_qr");
+    expect(q).not.toHaveProperty("qr_code"); // the code itself never reaches the app
     expect(await service.getQuest(q.id)).toMatchObject({ id: q.id });
     expect((await service.getQuests(q.station_id)).some((x) => x.id === q.id)).toBe(true);
     expect(await service.getStation(q.station_id)).toMatchObject({ id: q.station_id });

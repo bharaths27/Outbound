@@ -263,7 +263,7 @@ export const mockService: DataService = {
       const hood = neighborhoodOf(q);
       // Same order as check_in(): a QR code replaces the location check.
       if (opts?.qr) {
-        if (q.qr_code !== opts.qr) throw new RpcError("QR code does not match this quest", "QR_MISMATCH");
+        if (seed.QR_CODES[q.id] !== opts.qr) throw new RpcError("QR code does not match this quest", "QR_MISMATCH");
       } else if (!user.is_demo) {
         if (!location) throw new RpcError("location required", "LOCATION_REQUIRED");
       }

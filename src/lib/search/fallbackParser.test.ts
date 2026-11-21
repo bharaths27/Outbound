@@ -32,7 +32,7 @@ describe("matchesFilters", () => {
   const quest = {
     id: "q", station_id: "s", type: "food", title: "t", description: null, lat: 0, lon: 0,
     price_tier: 1, vibe_tags: ["spicy", "late-night"], hours: null, photo_url: null, xp: 50,
-    walk_min: 5, duration_min: 30, checkin_radius_m: 75, qr_code: null,
+    walk_min: 5, duration_min: 30, checkin_radius_m: 75, requires_qr: false,
   } satisfies Quest;
 
   it("matches a quest type, a vibe tag, or any", () => {

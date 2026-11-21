@@ -23,10 +23,13 @@ frontend-derived shapes.
   ```
   `check_in()` runs as its owner, so XP and visits keep working.
 - [ ] **Security: QR codes are readable by everyone.** `quests.qr_code` is in the public
-  `select` grant, so `supabase.from("quests").select("qr_code")` reveals every code and
-  QR check-in proves nothing. Suggest revoking `select (qr_code)` and adding a
-  `has_qr boolean` (generated column or view) the app can read instead. Tell us when, since
-  the app selects `*` from quests today and would switch to explicit columns.
+  `select` grant, so anyone can run `supabase.from("quests").select("qr_code")` and read
+  every code, which makes QR check-in prove nothing. The app no longer fetches the column
+  (it selects explicit columns and learns which quests need a code from
+  `.select("id").not("qr_code", "is", null)`), but the grant still exposes it. Please
+  `revoke select (qr_code)` from `anon` and `authenticated` and add a `has_qr boolean`
+  (generated column) the app can read. Tell us when: the app's "which quests need a code"
+  query switches to `has_qr` then.
 - [ ] **QR codes: compare case-insensitively?** `check_in()` compares exactly. The app
   sends what the player types in capitals, which matches `OUTBOUND-EXPO`. Lowercase codes
   would never match unless `check_in()` uses `upper()` on both sides.

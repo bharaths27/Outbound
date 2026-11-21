@@ -61,7 +61,9 @@ export interface Quest {
   photo_url: string | null;
   xp: number;
   checkin_radius_m: number; // how close a check-in must be (default 75)
-  qr_code: string | null; // event quests checked in by QR code
+  // The DB column quests.qr_code is a secret only check_in() should read, so the app never
+  // fetches it. requires_qr says whether a quest is checked in by code (event quests).
+  requires_qr: boolean;
   duration_min: number; // time spent at the spot (migration 002)
   walk_min: number; // walk from the station, one way (migration 002)
 }
