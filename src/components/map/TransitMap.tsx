@@ -1,7 +1,8 @@
 "use client";
 // Live 3D map of the T. Owner: Person 1 (map frontend).
 import { useEffect, useMemo, useRef, useState } from "react";
-import maplibregl, { Map as MlMap, GeoJSONSource, StyleSpecification } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { Map as MlMap, GeoJSONSource, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
 import type { Arrival, LineLateness, Station, Train } from "@/lib/types";
@@ -79,6 +80,7 @@ export default function TransitMap() {
       animRef.current = animator;
       if (process.env.NODE_ENV !== "production") (window as unknown as { __obAnim: TrainAnimator }).__obAnim = animator; // for tests
 
+      maplibregl.setWorkerUrl(`/maplibre-gl-worker.mjs?v=${maplibregl.getVersion()}`); // copied by scripts/copy-maplibre-worker.mjs
       map = new maplibregl.Map({
         container: box.current,
         style,

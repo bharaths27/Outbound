@@ -1,5 +1,6 @@
 // Live train animation + three.js custom MapLibre layer that draws every car as a 3D model.
 import * as THREE from "three";
+import { MercatorCoordinate } from "maplibre-gl";
 import type { CustomLayerInterface, CustomRenderMethodInput, Map as MlMap } from "maplibre-gl";
 import type { Train } from "@/lib/types";
 import { TrackNetwork, TrackPos, LineName, toXY, toLngLat } from "./track";
@@ -167,6 +168,33 @@ export class TrainAnimator {
   }
 }
 
+const EARTH_RADIUS = 6371008.8; // meters, same sphere MapLibre uses for the globe
+const _a = new THREE.Matrix4();
+
+/**
+ * Matrix that places a model (meters, y-up, -z = north) at lng/lat, for MapLibre's custom-layer mainMatrix.
+ * Mercator: mainMatrix takes 0..1 mercator coords. Globe: mainMatrix takes a unit-sphere planet.
+ * (Same math as MapLibre 5's transform.getMatrixForModel, which MapLibre 6 no longer exposes.)
+ */
+function modelMatrix(out: THREE.Matrix4, lng: number, lat: number, globe: boolean) {
+  if (globe) {
+    const s = 1 / EARTH_RADIUS;
+    out.makeRotationY((lng * Math.PI) / 180);
+    out.multiply(_a.makeRotationX((-lat * Math.PI) / 180));
+    out.multiply(_a.makeTranslation(0, 0, 1));
+    out.multiply(_a.makeRotationX(Math.PI / 2));
+    out.multiply(_a.makeScale(s, s, s));
+  } else {
+    const mc = MercatorCoordinate.fromLngLat([lng, lat], 0);
+    const s = mc.meterInMercatorCoordinateUnits();
+    out.makeTranslation(mc.x, mc.y, mc.z);
+    out.multiply(_a.makeRotationZ(Math.PI));
+    out.multiply(_a.makeRotationX(Math.PI / 2));
+    out.multiply(_a.makeScale(-s, s, s));
+  }
+  return out;
+}
+
 function shadowTexture() {
   const c = document.createElement("canvas");
   c.width = 64;
@@ -242,9 +270,13 @@ export class Trains3DLayer implements CustomLayerInterface {
     const now = performance.now();
     const scale = this.scaleFor(zoom);
     const center = this.map.getCenter();
-    const origin = new THREE.Matrix4().fromArray(this.map.transform.getMatrixForModel(center, 0) as unknown as number[]);
+    // While the globe is drawn, MapLibre blends a globe position (mainMatrix) with a mercator one (fallbackMatrix)
+    // by projectionTransition. Pick whichever dominates; at train zooms the globe has mostly flattened out.
+    const pd = args.defaultProjectionData;
+    const globe = pd.fallbackMatrix !== pd.mainMatrix && pd.projectionTransition > 0.5;
+    const origin = modelMatrix(new THREE.Matrix4(), center.lng, center.lat, globe);
     this.originInv.copy(origin).invert();
-    const main = new THREE.Matrix4().fromArray(args.defaultProjectionData.mainMatrix as unknown as number[]);
+    const main = new THREE.Matrix4().fromArray((globe ? pd.mainMatrix : pd.fallbackMatrix) as unknown as number[]);
     this.camera.projectionMatrix = main.multiply(origin);
     this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
 
@@ -256,7 +288,7 @@ export class Trains3DLayer implements CustomLayerInterface {
       if (!mesh) continue;
       const i = counts[car.line] ?? 0;
       if (i >= mesh.instanceMatrix.count) continue;
-      this.tmp.fromArray(this.map.transform.getMatrixForModel([car.lng, car.lat], 0) as unknown as number[]);
+      modelMatrix(this.tmp, car.lng, car.lat, globe);
       this.tmp.premultiply(this.originInv);
       this.rot.makeRotationY(car.heading);
       this.scl.makeScale(scale, scale, scale);
