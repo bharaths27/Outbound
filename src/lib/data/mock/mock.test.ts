@@ -37,8 +37,14 @@ describe("mock service", () => {
   });
 
   it("gates sign-up by school email domain, including subdomains", async () => {
-    expect(await data.signInWithEmail("x@husky.northeastern.edu")).toEqual({ ok: true });
-    expect(await data.signInWithEmail("x@gmail.com")).toEqual({ ok: false, error: "unsupported_school" });
+    expect(await data.signUp("x@gmail.com", "secret123")).toEqual({ ok: false, error: "unsupported_school" });
+    expect(await data.signUp("x@husky.northeastern.edu", "short")).toEqual({ ok: false, error: "weak_password" });
+    const made = await data.signUp("X@husky.northeastern.edu", "secret123");
+    expect(made).toMatchObject({ ok: true, profile: { email: "x@husky.northeastern.edu", school_id: 2, display_name: null } });
+    expect(await data.signUp("x@husky.northeastern.edu", "secret123")).toEqual({ ok: false, error: "already_registered" });
+    expect(await data.signIn("nobody@bu.edu", "secret123")).toEqual({ ok: false, error: "invalid_credentials" });
+    expect(await data.signIn("x@husky.northeastern.edu", "anything")).toMatchObject({ ok: true });
+    expect((await data.getCurrentUser())?.email).toBe("x@husky.northeastern.edu");
   });
 
   it("ranks only schools with 5+ active players this week", async () => {
@@ -119,6 +125,12 @@ describe("mock service", () => {
     expect(created.code).toHaveLength(6);
     await data.signInDemo("demo-sam");
     expect((await data.joinSquad(created.code.toLowerCase())).members).toHaveLength(2);
+  });
+
+  it("checks event codes like check_in(): exact match, no location needed", async () => {
+    await data.signInDemo("demo-jordan");
+    expect(await data.checkIn("bu-gsu-expo", null, { qr: "WRONG" })).toMatchObject({ ok: false, error: { code: "QR_MISMATCH" } });
+    expect(await data.checkIn("bu-gsu-expo", null, { qr: "OUTBOUND-EXPO" })).toMatchObject({ ok: true });
   });
 
   it("searches within a station using the fallback parser", async () => {

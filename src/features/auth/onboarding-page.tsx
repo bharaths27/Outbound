@@ -1,7 +1,8 @@
 "use client";
 
-// First-run onboarding: what Outbound is, your school team, then your name and who sees
-// your visits. Every step can be skipped; nothing here is required to play.
+// First-run onboarding (new accounts land here from /login): what Outbound is, your school
+// team, then your name and who sees your visits. Every step can be skipped; nothing here is
+// required to play. Returns to ?next= when done.
 
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -13,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PrivacyChoice } from "@/features/settings/privacy-choice";
 import { data } from "@/lib/data";
+import { safeNext } from "./auth";
 import type { Privacy, Profile, School } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +46,9 @@ export function OnboardingPage() {
     };
   }, []);
 
+  // Where to go after onboarding: ?next= from the login screen, else the map.
+  const done = () => router.push(safeNext(new URLSearchParams(window.location.search).get("next")));
+
   async function finish() {
     if (load.status !== "ready") return;
     setSaving(true);
@@ -51,7 +56,7 @@ export function OnboardingPage() {
       const trimmed = name.trim();
       if (trimmed && trimmed !== load.profile.display_name) await data.updateDisplayName(trimmed);
       if (privacy !== load.profile.privacy) await data.updatePrivacy(privacy);
-      router.push("/");
+      done();
     } catch {
       toast.error("Couldn't save that. You can change it later in your profile.");
       setSaving(false);
@@ -59,8 +64,8 @@ export function OnboardingPage() {
   }
 
   const skip = (
-    <Button variant="ghost" asChild>
-      <Link href="/">Skip</Link>
+    <Button variant="ghost" onClick={done}>
+      Skip
     </Button>
   );
 

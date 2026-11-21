@@ -26,6 +26,8 @@ const quest = (id: string, station_id: string): Quest => ({
   xp: 50,
   duration_min: 10,
   walk_min: 2,
+  checkin_radius_m: 75,
+  qr_code: null,
 });
 
 const stations = [

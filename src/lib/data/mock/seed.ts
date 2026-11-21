@@ -5,13 +5,15 @@
 
 import type {
   Deal,
+  DemoAccount,
   Friendship,
   Profile,
+  Quest,
   School,
   Squad,
   Visit,
 } from "../types";
-import { quests, stations } from "./content";
+import { quests as contentQuests, stations } from "./content";
 
 // ---------- schools (same ids and order as the schema's starter inserts) ----------
 
@@ -34,7 +36,29 @@ export const schools: School[] = [
 // ---------- stations and quests ----------
 // Real content from Suki, generated from content/*.csv (npm run content).
 
-export { quests, stations };
+// Mock only: Bharath's expo quest from seed_quests_starter.sql, so QR check-in can be
+// built and tested. Code "OUTBOUND-EXPO".
+const EXPO_QUEST: Quest = {
+  id: "bu-gsu-expo",
+  station_id: "place-bucen",
+  type: "event",
+  title: "Find Outbound at the BostonHacks expo",
+  description: "Scan the QR code at our table in the GSU Metcalf Ballroom.",
+  lat: 42.3509,
+  lon: -71.1089,
+  price_tier: 0,
+  vibe_tags: ["hackathon", "campus"],
+  hours: "always",
+  photo_url: null,
+  xp: 100,
+  checkin_radius_m: 150,
+  qr_code: "OUTBOUND-EXPO",
+  duration_min: 10,
+  walk_min: 2,
+};
+
+export const quests: Quest[] = [...contentQuests, EXPO_QUEST];
+export { stations };
 
 /** Mock only: checking in here always fails as too far, so the error screen can be built. */
 export const TOO_FAR_QUEST_ID = "frog-pond-lookout";
@@ -47,11 +71,11 @@ export const deals: Deal[] = [
 
 // ---------- people ----------
 
-export const DEMO_ACCOUNTS = [
-  { userId: "demo-maya", label: "Maya, Northeastern", blurb: "Full passport with a Gold neighborhood" },
-  { userId: "demo-sam", label: "Sam, BU", blurb: "Brand new, nothing collected yet" },
-  { userId: "demo-jordan", label: "Jordan, MIT", blurb: "In a cross-school squad" },
-] as const;
+export const DEMO_ACCOUNTS: DemoAccount[] = [
+  { id: "demo-maya", label: "Maya, Northeastern", blurb: "Full passport with a Gold neighborhood" },
+  { id: "demo-sam", label: "Sam, BU", blurb: "Brand new, nothing collected yet" },
+  { id: "demo-jordan", label: "Jordan, MIT", blurb: "In a cross-school squad" },
+];
 
 const CREATED = "2026-09-02T14:00:00.000Z";
 

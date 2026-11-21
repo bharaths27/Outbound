@@ -27,7 +27,8 @@ import * as seed from "./seed";
 const DELAY_MS = 250;
 const CHECK_IN_DELAY_MS = 600;
 const STORAGE_KEY = "outbound.mockUserId";
-const DEMO_IDS = new Set<string>(seed.DEMO_ACCOUNTS.map((a) => a.userId)); // signInDemo only
+const DEMO_IDS = new Set<string>(seed.DEMO_ACCOUNTS.map((a) => a.id)); // signInDemo only
+const MIN_PASSWORD = 6; // Supabase Auth's default minimum
 
 // Simulated network latency, so loading states get built. Skipped under test.
 const wait = (ms = DELAY_MS) =>
@@ -155,9 +156,42 @@ export const mockService: DataService = {
     return user ? clone(user) : null;
   },
 
-  async signInWithEmail(email) {
+  // Mock auth: passwords aren't stored or checked (any password of 6+ characters works),
+  // so the real flow's screens and errors can be built without Supabase.
+  async signIn(email) {
     await wait();
-    return schoolForEmail(email) ? { ok: true } : { ok: false, error: "unsupported_school" };
+    const user = state.profiles.find((p) => p.email.toLowerCase() === email.trim().toLowerCase());
+    if (!user) return { ok: false, error: "invalid_credentials" };
+    state.currentUserId = user.id;
+    storeUser(user.id);
+    return { ok: true, profile: clone(user) };
+  },
+
+  async signUp(email, password) {
+    await wait();
+    const clean = email.trim().toLowerCase();
+    const school = schoolForEmail(clean);
+    if (!school) return { ok: false, error: "unsupported_school" };
+    if (password.length < MIN_PASSWORD) return { ok: false, error: "weak_password" };
+    if (state.profiles.some((p) => p.email.toLowerCase() === clean)) return { ok: false, error: "already_registered" };
+    // What handle_new_user() does: a profile at the email's school, no name yet.
+    const profile: Profile = {
+      id: `u-new-${Date.now().toString(36)}`,
+      email: clean,
+      school_id: school.id,
+      display_name: null,
+      avatar_url: null,
+      xp: 0,
+      level: 1,
+      xp_to_next_level: 250,
+      privacy: "friends",
+      is_demo: false,
+      created_at: new Date().toISOString(),
+    };
+    state.profiles.push(profile);
+    state.currentUserId = profile.id;
+    storeUser(profile.id);
+    return { ok: true, profile: clone(profile) };
   },
 
   async signInDemo(userId) {
@@ -227,7 +261,10 @@ export const mockService: DataService = {
       const q = questById(questId);
       if (!q) throw new RpcError("quest not found", "QUEST_NOT_FOUND");
       const hood = neighborhoodOf(q);
-      if (!opts?.qr && !user.is_demo) {
+      // Same order as check_in(): a QR code replaces the location check.
+      if (opts?.qr) {
+        if (q.qr_code !== opts.qr) throw new RpcError("QR code does not match this quest", "QR_MISMATCH");
+      } else if (!user.is_demo) {
         if (!location) throw new RpcError("location required", "LOCATION_REQUIRED");
       }
       // Mock only: this quest always fails as too far (even for demo accounts), so the

@@ -60,6 +60,8 @@ export interface Quest {
   hours: string | null;
   photo_url: string | null;
   xp: number;
+  checkin_radius_m: number; // how close a check-in must be (default 75)
+  qr_code: string | null; // event quests checked in by QR code
   duration_min: number; // time spent at the spot (migration 002)
   walk_min: number; // walk from the station, one way (migration 002)
 }

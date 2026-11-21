@@ -27,6 +27,8 @@ const quest = (over: Partial<Quest>): Quest => ({
   xp: 40,
   duration_min: 20,
   walk_min: 5,
+  checkin_radius_m: 75,
+  qr_code: null,
   ...over,
 });
 

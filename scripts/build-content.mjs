@@ -89,6 +89,9 @@ const quests = read("quests.csv").map((q) => ({
   hours: q.hours || null,
   photo_url: q.photo_url || null,
   xp: num(q.xp, "xp", q.id),
+  // Optional columns; schema defaults when the CSV leaves them out.
+  checkin_radius_m: q.checkin_radius_m ? num(q.checkin_radius_m, "checkin_radius_m", q.id) : 75,
+  qr_code: q.qr_code || null,
   duration_min: num(q.duration_min, "duration_min", q.id),
   walk_min: num(q.walk_min, "walk_min", q.id),
 }));

@@ -1,19 +1,33 @@
 "use client";
 
-// Sign in with a school email (magic link), or try a demo account. The email's school is
-// checked as you type so unsupported schools get a clear answer before anything is sent.
-// ?next=/some/path returns there after a demo sign-in.
+// Sign in or create an account with a school email and password (Supabase Auth), or try
+// a demo account with one tap. The email's school is checked as you type, so unsupported
+// schools get a clear answer before anything is sent. New accounts go to onboarding.
+// ?next=/some/path returns there afterward (same-site paths only).
 
-import { Loader2, Mail } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DEMO_ACCOUNTS, data } from "@/lib/data";
-import type { School } from "@/lib/data/types";
+import type { AuthError, School } from "@/lib/data/types";
 import { isEmail, safeNext, schoolForEmail } from "./auth";
+
+type Mode = "signin" | "signup";
+
+const MIN_PASSWORD = 6;
+
+const AUTH_COPY: Record<AuthError, string> = {
+  unsupported_school: "That school isn't on Outbound yet. Use a supported school email.",
+  invalid_credentials: "That email and password don't match. Check them, or create an account.",
+  already_registered: "There's already an account for that email. Sign in instead.",
+  weak_password: `Use a password with at least ${MIN_PASSWORD} characters.`,
+  failed: "Something went wrong. Try again in a moment.",
+};
 
 export function LoginPage() {
   return (
@@ -36,11 +50,13 @@ export function LoginPage() {
 function LoginForms() {
   const router = useRouter();
   const next = safeNext(useSearchParams().get("next"));
+  const [mode, setMode] = useState<Mode>("signin");
   const [schools, setSchools] = useState<School[]>([]);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [touched, setTouched] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [demoBusy, setDemoBusy] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,29 +73,37 @@ function LoginForms() {
       text: `Outbound is open to ${schools.map((s) => s.name).join(", ")}. Use your school email from one of those.`,
       error: true,
     };
-  } else if (school) hint = { text: `You'll play for ${school.name}.`, error: false };
+  } else if (school && mode === "signup") hint = { text: `You'll play for ${school.name}.`, error: false };
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setTouched(true);
+    setFormError(null);
     if (!valid || unsupported) return;
-    setSending(true);
+    if (mode === "signup" && password.length < MIN_PASSWORD) return setFormError(AUTH_COPY.weak_password);
+    if (!password) return setFormError("Enter your password.");
+    setBusy(true);
     try {
-      const res = await data.signInWithEmail(email.trim());
-      if (res.ok) setSentTo(email.trim());
-      else if (res.error === "unsupported_school") toast.error("That school isn't on Outbound yet. Use a supported school email.");
-      else toast.error("We couldn't send the sign-in link. Try again in a minute.");
+      const res = mode === "signin" ? await data.signIn(email, password) : await data.signUp(email, password);
+      if (!res.ok) {
+        setFormError(AUTH_COPY[res.error]);
+        if (res.error === "already_registered") setMode("signin");
+        return;
+      }
+      // New players (no name yet) get onboarding first.
+      const fresh = mode === "signup" || !res.profile.display_name;
+      router.push(fresh ? `/onboarding?next=${encodeURIComponent(next)}` : next);
     } catch {
-      toast.error("We couldn't send the sign-in link. Check your connection and try again.");
+      setFormError("We couldn't reach the server. Check your connection and try again.");
     } finally {
-      setSending(false);
+      setBusy(false);
     }
   }
 
-  async function demo(userId: string) {
-    setDemoBusy(userId);
+  async function demo(id: string) {
+    setDemoBusy(id);
     try {
-      await data.signInDemo(userId);
+      await data.signInDemo(id);
       router.push(next);
     } catch {
       toast.error("That demo account isn't available right now.");
@@ -89,21 +113,23 @@ function LoginForms() {
 
   return (
     <div className="flex flex-col gap-8">
-      {sentTo ? (
-        <div className="flex flex-col gap-2 rounded-xl bg-muted p-4" role="status">
-          <p className="type-heading">Check your inbox</p>
-          <p className="type-body text-muted-foreground">
-            We sent a sign-in link to <span className="font-medium text-foreground">{sentTo}</span>. Open it on this
-            device to continue.
-          </p>
-          <Button variant="ghost" className="self-start" onClick={() => setSentTo(null)}>
-            Use a different email
-          </Button>
-        </div>
-      ) : (
-        <form onSubmit={submit} className="flex flex-col gap-2" noValidate>
-          <label htmlFor="email" className="type-heading">
-            Sign in with your school email
+      <form onSubmit={submit} className="flex flex-col gap-3" noValidate>
+        <Tabs
+          value={mode}
+          onValueChange={(v) => {
+            setMode(v as Mode);
+            setFormError(null);
+          }}
+        >
+          <TabsList>
+            <TabsTrigger value="signin">Sign in</TabsTrigger>
+            <TabsTrigger value="signup">Create account</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="email" className="type-small font-medium">
+            School email
           </label>
           <Input
             id="email"
@@ -112,7 +138,10 @@ function LoginForms() {
             autoComplete="email"
             placeholder="you@school.edu"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setFormError(null);
+            }}
             onBlur={() => setTouched(true)}
             aria-invalid={hint?.error ? true : undefined}
             aria-describedby={hint ? "email-hint" : undefined}
@@ -123,31 +152,61 @@ function LoginForms() {
               {hint.text}
             </p>
           )}
-          <Button type="submit" disabled={sending} className="mt-1">
-            {sending ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden /> : <Mail aria-hidden />}
-            Send sign-in link
-          </Button>
-        </form>
-      )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="password" className="type-small font-medium">
+            Password
+          </label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete={mode === "signin" ? "current-password" : "new-password"}
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setFormError(null);
+            }}
+            aria-describedby={mode === "signup" ? "password-hint" : undefined}
+            className="h-11"
+          />
+          {mode === "signup" && (
+            <p id="password-hint" className="type-small text-muted-foreground">
+              At least {MIN_PASSWORD} characters.
+            </p>
+          )}
+        </div>
+
+        {formError && (
+          <p className="type-small text-destructive" role="alert">
+            {formError}
+          </p>
+        )}
+
+        <Button type="submit" disabled={busy} className="mt-1">
+          {busy && <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden />}
+          {mode === "signin" ? "Sign in" : "Create account"}
+        </Button>
+      </form>
 
       <section aria-labelledby="demo-heading" className="flex flex-col gap-3">
         <div className="flex flex-col gap-0.5">
           <h2 id="demo-heading" className="type-heading">
             Try a demo account
           </h2>
-          <p className="type-small text-muted-foreground">No email needed. Demo players can check in from anywhere.</p>
+          <p className="type-small text-muted-foreground">No password needed. Demo players can check in from anywhere.</p>
         </div>
         <ul className="flex flex-col gap-2">
           {DEMO_ACCOUNTS.map((a) => (
-            <li key={a.userId}>
+            <li key={a.id}>
               <Button
                 variant="outline"
-                onClick={() => demo(a.userId)}
+                onClick={() => demo(a.id)}
                 disabled={demoBusy !== null}
                 className="h-auto w-full flex-col items-start gap-0.5 py-3 text-left whitespace-normal"
               >
                 <span className="type-body font-medium">
-                  {demoBusy === a.userId && <Loader2 className="mr-1.5 inline size-4 animate-spin motion-reduce:animate-none" aria-hidden />}
+                  {demoBusy === a.id && <Loader2 className="mr-1.5 inline size-4 animate-spin motion-reduce:animate-none" aria-hidden />}
                   {a.label}
                 </span>
                 <span className="type-small text-muted-foreground">{a.blurb}</span>

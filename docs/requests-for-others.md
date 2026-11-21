@@ -11,12 +11,29 @@ frontend-derived shapes.
 
 ### Bharath (backend)
 
-- [ ] **Demo sign-in from the login screen.** PR #7 (`scripts/seed-demo.mjs`) answers
-  most of this: 4 team logins (`outbound-demo1@bu.edu` …) sharing `DEMO_PASSWORD`, marked
-  `is_demo`. Remaining question: the "Try a demo account" buttons can't hold
-  `DEMO_PASSWORD` in the browser. OK if the app adds a server route
-  (`POST /api/demo-login { email }`) that signs in with the password from the server env and
-  sets the session cookie? It would only accept the 4 `outbound-demo*` emails.
+- [ ] **Security: players can edit any column of their own profile and visits (high).**
+  `004_api_grants.sql` grants `update` on whole tables, and RLS only limits which *rows*.
+  From the browser console with the public key, a player can set their own `xp`, flip
+  `is_demo` (skips location checks), change `school_id`, or raise `visits.xp_awarded` to
+  win the leaderboard. Fix with column grants (the app only updates these):
+  ```sql
+  revoke update on public.profiles, public.visits from authenticated;
+  grant update (display_name, avatar_url, privacy) on public.profiles to authenticated;
+  grant update (hidden) on public.visits to authenticated;
+  ```
+  `check_in()` runs as its owner, so XP and visits keep working.
+- [ ] **Security: QR codes are readable by everyone.** `quests.qr_code` is in the public
+  `select` grant, so `supabase.from("quests").select("qr_code")` reveals every code and
+  QR check-in proves nothing. Suggest revoking `select (qr_code)` and adding a
+  `has_qr boolean` (generated column or view) the app can read instead. Tell us when, since
+  the app selects `*` from quests today and would switch to explicit columns.
+- [ ] **QR codes: compare case-insensitively?** `check_in()` compares exactly. The app
+  sends what the player types in capitals, which matches `OUTBOUND-EXPO`. Lowercase codes
+  would never match unless `check_in()` uses `upper()` on both sides.
+- [ ] **`DEMO_PASSWORD` in Vercel.** The login screen's one-tap demo buttons call
+  `POST /api/demo-login`, which signs in on the server with `DEMO_PASSWORD` and only
+  accepts the 4 `outbound-demo*` emails. Please add `DEMO_PASSWORD` to Vercel's env
+  (server-only, no `NEXT_PUBLIC_`).
 - [ ] **Starter quests vs Suki's content.** `seed_quests_starter.sql` (17 quests) and
   Suki's `content/quests.csv` (27 quests) cover the same places with different ids (Frog
   Pond, the BPL courtyard, Graffiti Alley, Chinatown Gate). `central-graffiti-alley` is in
@@ -122,6 +139,10 @@ From Bharath's answers and `backend/supabase/002_frontend_requests.sql`:
 - [x] **`npm run start`:** fixed; `build` no longer uses `--turbopack`.
 - [x] **Shared types:** schema-matching types moved into `src/lib/types.ts`.
 - [x] **Station IDs:** MBTA parent stop IDs (`place-kencl`).
+- [x] **Demo sign-in:** 4 team logins with `DEMO_PASSWORD` (PR #7); the app signs them in
+  through `/api/demo-login` so the password stays on the server.
+- [x] **Auth:** email + password (`signUp`, `signInWithPassword`), email confirmation off.
+- [x] **API grants:** migration 004.
 - [x] **Gemini search:** `POST /api/search { q }` returns `{ filters, tags, keywords,
   source }`, with a keyword fallback (PR #6).
 - [x] **Hub countdown data:** `GET /api/trains?stop=<id>` returns `arrivals`.

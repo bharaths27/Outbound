@@ -4,6 +4,7 @@
 // backend/supabase/schema.sql; the frontend never computes XP, tiers, or scores itself.
 
 import type {
+  AuthResult,
   CheckInOutcome,
   Deal,
   Filters,
@@ -19,10 +20,12 @@ import type {
 } from "./types";
 
 export interface DataService {
-  // auth (sign-up is gated by school email domain in handle_new_user())
+  // auth: email + password (Supabase Auth). Sign-up is gated by school email domain in
+  // handle_new_user(), which also creates the profile row.
   getCurrentUser(): Promise<Profile | null>;
-  signInWithEmail(email: string): Promise<{ ok: boolean; error?: "unsupported_school" | "send_failed" }>;
-  signInDemo(userId: string): Promise<Profile>; // preloaded demo accounts for judges
+  signIn(email: string, password: string): Promise<AuthResult>;
+  signUp(email: string, password: string): Promise<AuthResult>;
+  signInDemo(accountId: string): Promise<Profile>; // DemoAccount.id; one tap for judges
   signOut(): Promise<void>;
 
   // content

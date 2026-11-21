@@ -2,7 +2,7 @@
 // database lives in `src/lib/types.ts` and is re-exported here unchanged. This file adds
 // only frontend shapes derived from that data.
 
-import type { CheckInErrorHint, CheckInResult, SquadMemberProfile, Squad } from "@/lib/types";
+import type { CheckInErrorHint, CheckInResult, Profile, SquadMemberProfile, Squad } from "@/lib/types";
 
 export type {
   CheckInErrorHint,
@@ -40,6 +40,18 @@ export interface CheckInError {
   message: string; // the backend's message, for logs; UI copy is written per code
   distanceM?: number; // TOO_FAR only
   radiusM?: number; // TOO_FAR only
+}
+
+/** Why sign-in or sign-up failed, for the login screen's copy. */
+export type AuthError = "unsupported_school" | "invalid_credentials" | "already_registered" | "weak_password" | "failed";
+
+export type AuthResult = { ok: true; profile: Profile } | { ok: false; error: AuthError };
+
+/** A demo login shown on the login screen. `id` is a mock user id or a real demo email. */
+export interface DemoAccount {
+  id: string;
+  label: string;
+  blurb: string;
 }
 
 export type CheckInOutcome = { ok: true; result: CheckInResult } | { ok: false; error: CheckInError };
