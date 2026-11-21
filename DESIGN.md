@@ -156,6 +156,7 @@ Use `framer-motion` (or `motion`). Motion only responds to user actions, with on
 - **The check-in sequence (the one orchestrated moment):** button press → short loading state → the stamp drops in with a slight overshoot and lands at its rotation (about 400 ms) → XP counts up with the breakdown lines appearing one by one (about 800 ms) → if there's a tier upgrade, the neighborhood ring fills and changes color (about 500 ms). Total under about 2 seconds, tappable to skip.
 - **No** entrance animations on lists or cards, no hover lift on every card, no looping or decorative background motion.
 - **Reduced motion:** with `prefers-reduced-motion`, replace movement with a quick fade and show final values immediately.
+- **How it's built:** the check-in sequence is a pure timeline (`src/features/checkin/sequence.ts`) driven by a `requestAnimationFrame` clock, with no animation library. Skipping jumps the clock to the end, and reduced motion starts there.
 
 ## Copy
 
