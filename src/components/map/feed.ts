@@ -22,7 +22,7 @@ export async function fetchLive(): Promise<{ updatedAt: string; trains: Train[] 
 
 export async function fetchReplay(): Promise<ReplayFrame[] | null> {
   try {
-    const r = await fetch("/replay.json");
+    const r = await fetch("replay.json");
     if (!r.ok) return null;
     const j = await r.json();
     return Array.isArray(j.frames) && j.frames.length > 1 ? j.frames : null;

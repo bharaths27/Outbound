@@ -4,12 +4,27 @@ import type { StyleSpecification, LayerSpecification, ExpressionSpecification } 
 
 const LIBERTY = "https://tiles.openfreemap.org/styles/liberty";
 
-const FALLBACK: StyleSpecification = {
-  version: 8,
-  glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
-  sources: {},
-  layers: [{ id: "background", type: "background", paint: { "background-color": "#e9ece6" } }],
-};
+// Offline basemap (bundled files in public/data/base): US states, Boston water and neighborhoods.
+// Used when the tile server can't be reached, e.g. bad venue wifi.
+function fallbackStyle(): StyleSpecification {
+  const url = (f: string) => new URL(`data/base/${f}`, document.baseURI).href;
+  return {
+    version: 8,
+    glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+    sources: {
+      states: { type: "geojson", data: url("us-states.geojson") },
+      water: { type: "geojson", data: url("water.geojson") },
+      hoods: { type: "geojson", data: url("boston-neighborhoods.geojson") },
+    },
+    layers: [
+      { id: "background", type: "background", paint: { "background-color": "#b7d5ec" } },
+      { id: "land", type: "fill", source: "states", paint: { "fill-color": "#eef0e8" } },
+      { id: "state-lines", type: "line", source: "states", paint: { "line-color": "#c9c3b6", "line-width": 0.8 } },
+      { id: "hoods", type: "fill", source: "hoods", paint: { "fill-color": "#e8e6dc", "fill-outline-color": "#d6d0c2" } },
+      { id: "water", type: "fill", source: "water", paint: { "fill-color": "#a5cde8" } },
+    ],
+  };
+}
 
 const BUILDING_COLOR: ExpressionSpecification = [
   "interpolate",
@@ -28,7 +43,7 @@ export async function loadBaseStyle(): Promise<{ style: StyleSpecification; offl
     const style = (await r.json()) as StyleSpecification;
     return { style: restyle(style), offline: false };
   } catch {
-    return { style: FALLBACK, offline: true };
+    return { style: fallbackStyle(), offline: true };
   }
 }
 

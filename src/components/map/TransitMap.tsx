@@ -68,8 +68,8 @@ export default function TransitMap() {
     (async () => {
       const [{ style, offline }, linesGeo, stations] = await Promise.all([
         loadBaseStyle(),
-        fetch("/data/mbta-lines.geojson").then((r) => r.json()),
-        fetch("/data/mbta-stations.json").then((r) => r.json()) as Promise<StationData[]>,
+        fetch("data/mbta-lines.geojson").then((r) => r.json()),
+        fetch("data/mbta-stations.json").then((r) => r.json()) as Promise<StationData[]>,
       ]);
       if (disposed || !box.current) return;
       setOfflineBasemap(offline);
@@ -80,7 +80,7 @@ export default function TransitMap() {
       animRef.current = animator;
       if (process.env.NODE_ENV !== "production") (window as unknown as { __obAnim: TrainAnimator }).__obAnim = animator; // for tests
 
-      maplibregl.setWorkerUrl(`/maplibre-gl-worker.mjs?v=${maplibregl.getVersion()}`); // copied by scripts/copy-maplibre-worker.mjs
+      maplibregl.setWorkerUrl(`${new URL("maplibre-gl-worker.mjs", document.baseURI).href}?v=${maplibregl.getVersion()}`); // copied by scripts/copy-maplibre-worker.mjs
       map = new maplibregl.Map({
         container: box.current,
         style,
@@ -526,13 +526,13 @@ export default function TransitMap() {
             {lateness.sample && <span className="ob-panel px-2 py-1 text-[10px] uppercase tracking-wide text-slate-500">sample</span>}
           </div>
         )}
-        {offlineBasemap && <div className="ob-panel px-3 py-1.5 text-xs text-slate-600">Basemap offline: showing lines only.</div>}
+        {offlineBasemap && <div className="ob-panel px-3 py-1.5 text-xs text-slate-600">Street map unavailable: showing the offline map.</div>}
       </div>
 
       {/* top-right: controls */}
       <div className="ob-panel absolute right-3 top-3 flex w-[176px] flex-col gap-2 p-2.5 text-xs sm:right-4 sm:top-4">
         <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
-        <Seg options={[["Map", false], ["Satellite", true]]} value={satellite} onChange={setSatellite} />
+        {!offlineBasemap && <Seg options={[["Map", false], ["Satellite", true]]} value={satellite} onChange={setSatellite} />}
         <div className="mt-1 flex flex-col gap-1">
           <Toggle label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
           <Toggle label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />
