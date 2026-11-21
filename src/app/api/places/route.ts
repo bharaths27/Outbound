@@ -1,5 +1,6 @@
 // GET /api/places?q=fenway+park      -> place/address suggestions (Google Places Autocomplete, biased to Boston)
-// GET /api/places?id=<placeId>       -> { name, address, lng, lat, bbox } for the chosen suggestion
+// GET /api/places?id=<placeId>       -> { name, address, lng, lat, bbox, rating, ... } for the chosen suggestion
+// GET /api/places?text=local+eats&lat=42.35&lng=-71.06 -> places like Google Maps search: rating, price, open now
 //
 // Proxies Google Places API (New) so search works for any place or address, like Google Maps.
 // Env: GOOGLE_MAPS_KEY (server) or NEXT_PUBLIC_GOOGLE_MAPS_KEY. Without a key: { disabled: true } and the
@@ -9,28 +10,55 @@ export const dynamic = "force-dynamic";
 const KEY = process.env.GOOGLE_MAPS_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "";
 const BASE = "https://places.googleapis.com/v1";
 
+const FIELDS = ["id", "displayName", "formattedAddress", "location", "types", "rating", "userRatingCount", "priceLevel", "currentOpeningHours.openNow", "primaryTypeDisplayName", "googleMapsUri"];
+const PRICE: Record<string, number> = { PRICE_LEVEL_FREE: 0, PRICE_LEVEL_INEXPENSIVE: 1, PRICE_LEVEL_MODERATE: 2, PRICE_LEVEL_EXPENSIVE: 3, PRICE_LEVEL_VERY_EXPENSIVE: 4 };
+
+/** The place fields the map uses. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function shape(p: any) {
+  return {
+    id: p.id,
+    name: p.displayName?.text ?? "",
+    address: p.formattedAddress ?? "",
+    lng: p.location?.longitude,
+    lat: p.location?.latitude,
+    types: p.types ?? [],
+    category: p.primaryTypeDisplayName?.text ?? "",
+    rating: p.rating ?? null,
+    ratings: p.userRatingCount ?? 0,
+    price: p.priceLevel in PRICE ? PRICE[p.priceLevel] : null,
+    openNow: p.currentOpeningHours?.openNow ?? null,
+    url: p.googleMapsUri ?? null,
+  };
+}
+
 export async function GET(req: Request) {
   if (!KEY) return Response.json({ disabled: true });
   const url = new URL(req.url);
   const q = url.searchParams.get("q");
   const id = url.searchParams.get("id");
   const session = url.searchParams.get("session") ?? undefined;
+  const text = url.searchParams.get("text");
   try {
+    if (text) {
+      const lat = Number(url.searchParams.get("lat") ?? 42.36), lng = Number(url.searchParams.get("lng") ?? -71.06);
+      const r = await fetch(`${BASE}/places:searchText`, {
+        method: "POST",
+        headers: { "X-Goog-Api-Key": KEY, "content-type": "application/json", "X-Goog-FieldMask": FIELDS.map((f) => `places.${f}`).join(",") },
+        body: JSON.stringify({ textQuery: text, pageSize: 20, locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 8000 } } }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error?.message ?? `HTTP ${r.status}`);
+      return Response.json({ places: (j.places ?? []).map(shape) });
+    }
     if (id) {
       const r = await fetch(`${BASE}/places/${encodeURIComponent(id)}${session ? `?sessionToken=${session}` : ""}`, {
-        headers: { "X-Goog-Api-Key": KEY, "X-Goog-FieldMask": "displayName,formattedAddress,location,viewport,types" },
+        headers: { "X-Goog-Api-Key": KEY, "X-Goog-FieldMask": [...FIELDS, "viewport"].join(",") },
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error?.message ?? `HTTP ${r.status}`);
       const v = j.viewport;
-      return Response.json({
-        name: j.displayName?.text ?? "",
-        address: j.formattedAddress ?? "",
-        lng: j.location?.longitude,
-        lat: j.location?.latitude,
-        bbox: v ? [v.low.longitude, v.low.latitude, v.high.longitude, v.high.latitude] : null,
-        types: j.types ?? [],
-      });
+      return Response.json({ ...shape(j), bbox: v ? [v.low.longitude, v.low.latitude, v.high.longitude, v.high.latitude] : null });
     }
     if (!q || q.trim().length < 2) return Response.json({ results: [] });
     const r = await fetch(`${BASE}/places:autocomplete`, {

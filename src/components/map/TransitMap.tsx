@@ -13,6 +13,7 @@ import { loadBaseStyle, groundLayerIds } from "./style";
 import { CityBuildingsLayer, fetchBpdaManifest, inBpda } from "./buildings3d";
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
 import SearchBox, { pointInRing } from "./SearchBox";
+import Explorer, { type ExplorerHandle } from "./Explorer";
 import {
   LIVE_INTERVAL_MS, ReplayFrame, DemoFeed, fetchLive, fetchReplay, fetchLateness, fetchArrivals,
   sampleArrivals, destinationOf, LATENESS_HEX,
@@ -34,6 +35,8 @@ const VIEWS = {
 const TRAIN_3D_MIN_ZOOM = 12.3;
 const LOCAL_REPLAY_KEY = "outbound.replay.v1";
 const LOCAL_REPLAY_MAX = 60; // ~12 minutes of live frames saved in this browser
+
+const inMass = ([lng, lat]: [number, number]) => lng > -73.6 && lng < -69.8 && lat > 41.2 && lat < 42.95;
 
 const lineColorExpr = (colors: Record<string, string>) =>
   ["match", ["get", "line"], ...Object.entries(colors).flat(), "#888"] as unknown as maplibregl.ExpressionSpecification;
@@ -57,6 +60,10 @@ export default function TransitMap() {
   const [realistic, setRealistic] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [userLoc, setUserLoc] = useState<[number, number] | null>(null);
+  const userLocRef = useRef<[number, number] | null>(null);
+  const meMarker = useRef<maplibregl.Marker | null>(null);
+  const explorer = useRef<ExplorerHandle>(null);
   const [show, setShow] = useState({ trains: true, campuses: true, friends: true, delays: true });
   const [delayColors, setDelayColors] = useState(false);
   const [feedMode, setFeedMode] = useState<FeedMode>("live");
@@ -288,7 +295,10 @@ export default function TransitMap() {
           if (disposed) return;
           if (!city.settled() && performance.now() - t0 < 12_000) return void setTimeout(reveal, 250);
           setLoaded(true);
-          m.easeTo({ ...VIEWS.boston, duration: 2600, essential: true });
+          // open on you if you're in Massachusetts, otherwise on Boston
+          const me = userLocRef.current;
+          if (me && inMass(me)) m.easeTo({ center: me, zoom: 15.6, pitch: 60, bearing: -20, duration: 2600, essential: true });
+          else m.easeTo({ ...VIEWS.boston, duration: 2600, essential: true });
         };
         reveal();
       });
@@ -373,6 +383,37 @@ export default function TransitMap() {
     if (map.getZoom() > 5) map.easeTo({ pitch: is3D ? 58 : 0, bearing: is3D ? map.getBearing() : 0, duration: 900 });
     map.triggerRepaint();
   }, [ready, is3D, show.trains]);
+
+  // ---------- your location (blue dot), like a normal map ----------
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    const id = navigator.geolocation.watchPosition(
+      (p) => {
+        const loc: [number, number] = [p.coords.longitude, p.coords.latitude];
+        userLocRef.current = loc;
+        setUserLoc(loc);
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 15_000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !userLoc) return;
+    if (!meMarker.current) {
+      const el = document.createElement("div");
+      el.className = "ob-me";
+      el.title = "You are here";
+      meMarker.current = new maplibregl.Marker({ element: el }).setLngLat(userLoc).addTo(map);
+    } else meMarker.current.setLngLat(userLoc);
+  }, [ready, userLoc]);
+  const locateMe = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (userLoc) map.flyTo({ center: userLoc, zoom: Math.max(map.getZoom(), 15.6), pitch: map.getPitch(), duration: 1800 });
+    else setNotice("Turn on location for this site to see where you are.");
+  };
 
   // ---------- illustrated / realistic ----------
   useEffect(() => {
@@ -571,7 +612,7 @@ export default function TransitMap() {
       ? lastUpdate ? `Live · ${trainCount} trains · ${ago}s ago` : "Connecting to MBTA…"
       : feedMode === "replay"
         ? `Replay · ${replay?.source} · ${replay ? fmtTime(replay.frames[replay.i].t) : ""}`
-        : `Demo trains (MBTA unreachable, no saved replay)`;
+        : `Sample trains · MBTA feed unreachable`;
 
   return (
     <div className="fixed inset-0 bg-[#dfe9f3]">
@@ -593,7 +634,12 @@ export default function TransitMap() {
         <div className="ob-panel flex items-center gap-3 px-3 py-2">
           <span className="text-base font-semibold tracking-tight text-slate-900">Outbound</span>
           <span className="flex items-center gap-1.5 text-xs text-slate-600">
-            <span className={`inline-block h-2 w-2 rounded-full ${feedMode === "live" && lastUpdate ? "bg-emerald-500 ob-pulse" : feedMode === "replay" ? "bg-sky-500" : "bg-amber-500"}`} />
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white ${feedMode === "live" && lastUpdate ? "bg-emerald-600" : feedMode === "replay" ? "bg-sky-600" : "bg-amber-500"}`}
+              title={feedMode === "live" ? "Real MBTA positions" : "Not real-time: MBTA feed unreachable"}
+            >
+              {feedMode === "live" && lastUpdate ? "● LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
+            </span>
             {statusText}
           </span>
         </div>
@@ -607,7 +653,10 @@ export default function TransitMap() {
             setTrain(null);
             setStation(s);
           }}
+          onTextSearch={(q) => explorer.current?.search(q)}
+          onPlace={(p) => explorer.current?.show(p)}
         />
+        <Explorer ref={explorer} map={ready ? mapRef.current : null} userLoc={userLoc} />
         {autoFallback && feedMode !== "live" && (
           <div className="ob-panel px-3 py-1.5 text-xs text-amber-800">Live feed is down. Showing {feedMode === "replay" ? "saved trains" : "demo trains"}; retrying every 30 s.</div>
         )}
@@ -656,6 +705,9 @@ export default function TransitMap() {
             {v === "usa" ? "USA" : v === "mass" ? "Massachusetts" : "Boston"}
           </button>
         ))}
+        <button onClick={locateMe} className="rounded-lg px-2.5 py-1.5 font-medium text-sky-700 hover:bg-slate-100" title="Go to my location">
+          ◎ Me
+        </button>
       </div>
 
       {/* replay bar */}

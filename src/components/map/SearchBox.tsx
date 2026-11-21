@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { Map as MlMap } from "maplibre-gl";
 import { CAMPUSES } from "./places";
+import type { Place } from "./Explorer";
 
 export interface SearchStation {
   id: string;
@@ -61,15 +62,30 @@ export default function SearchBox({
   stations,
   online,
   onStation,
+  onTextSearch,
+  onPlace,
 }: {
   map: MlMap | null;
   stations: SearchStation[];
   online: boolean;
   onStation: (id: string) => void;
+  /** "local eats", "coffee near me": show many places like Google Maps */
+  onTextSearch?: (q: string) => void;
+  /** a Google place was picked: show its card (rating, directions) */
+  onPlace?: (p: Place) => void;
 }) {
   const [q, setQ] = useState("");
+  // our Google search route answers (a server with a key): search works even when the basemap tiles are offline
+  const [google, setGoogle] = useState(false);
+  useEffect(() => {
+    fetch("/api/places")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setGoogle(Array.isArray(j?.results)))
+      .catch(() => setGoogle(false));
+  }, []);
+  const live = online || google;
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(-1); // -1 = the "Search for …" row (Enter searches like Google Maps)
   const [places, setPlaces] = useState<[string, string, number, number][]>([]);
   const [remote, setRemote] = useState<Result[]>([]);
   const marker = useRef<maplibregl.Marker | null>(null);
@@ -114,7 +130,7 @@ export default function SearchBox({
   // online geocoder, debounced
   useEffect(() => {
     setRemote([]);
-    if (!online || q.trim().length < 3) return;
+    if (!live || q.trim().length < 3) return;
     const ctl = new AbortController();
     const t = setTimeout(async () => {
       // 1) Google Places (any place or address, like Google Maps), through our /api/places route
@@ -170,7 +186,7 @@ export default function SearchBox({
       clearTimeout(t);
       ctl.abort();
     };
-  }, [q, online]);
+  }, [q, live]);
 
   const results = useMemo(() => {
     // with Google: our stations/campuses first, then Google's places and addresses
@@ -180,7 +196,13 @@ export default function SearchBox({
     return [...mine, ...remote.filter((r) => !seen.has(expand(r.name)))].slice(0, 9);
   }, [local, remote]);
 
-  useEffect(() => setActive(0), [results.length]);
+  useEffect(() => setActive(-1), [results.length]);
+  const textSearch = () => {
+    if (!onTextSearch || q.trim().length < 2) return;
+    setOpen(false);
+    marker.current?.remove();
+    onTextSearch(q.trim());
+  };
 
   // close when clicking elsewhere
   useEffect(() => {
@@ -200,6 +222,12 @@ export default function SearchBox({
         const d = await (await fetch(`/api/places?id=${encodeURIComponent(r.placeId)}&session=${session.current}`)).json();
         session.current = Math.random().toString(36).slice(2);
         if (typeof d.lng !== "number") return;
+        // a business or landmark: open its card (rating, open now, directions)
+        if (onPlace && d.id && !(d.types ?? []).some((t: string) => ["route", "locality", "sublocality", "neighborhood", "administrative_area_level_1", "administrative_area_level_2", "postal_code", "country"].includes(t))) {
+          marker.current?.remove();
+          onPlace(d);
+          return;
+        }
         r = { ...r, lng: d.lng, lat: d.lat, bbox: d.bbox ?? undefined };
       } catch {
         return;
@@ -248,13 +276,17 @@ export default function SearchBox({
               setActive((a) => Math.min(a + 1, results.length - 1));
             } else if (e.key === "ArrowUp") {
               e.preventDefault();
-              setActive((a) => Math.max(a - 1, 0));
+              setActive((a) => Math.max(a - 1, -1));
             }
-            else if (e.key === "Enter" && results[active]) go(results[active]);
+            else if (e.key === "Enter") {
+              if (results[active]) go(results[active]);
+              else if (onTextSearch && live) textSearch();
+              else if (results[0]) go(results[0]);
+            }
             else if (e.key === "Escape") setOpen(false);
           }}
-          placeholder="Search places, streets, stations"
-          aria-label="Search places, streets, stations"
+          placeholder="Where to? Places, food, addresses"
+          aria-label="Search places, food, addresses"
           className="w-full min-w-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
         />
         {q && (
@@ -265,7 +297,19 @@ export default function SearchBox({
       </div>
       {open && query.length >= 2 && (
         <div className="ob-panel absolute left-0 right-0 top-full z-20 mt-1.5 max-h-[60vh] overflow-auto py-1 text-sm">
-          {results.length === 0 && <div className="px-3 py-2 text-xs text-slate-500">No matches{online ? "" : " in the offline index"}</div>}
+          {onTextSearch && live && (
+            <button
+              onMouseEnter={() => setActive(-1)}
+              onClick={textSearch}
+              className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left ${active === -1 ? "bg-slate-100" : ""}`}
+            >
+              <span className="text-xs">🔎</span>
+              <span className="truncate text-slate-900">
+                Search for <b>{q.trim()}</b> nearby
+              </span>
+            </button>
+          )}
+          {results.length === 0 && !(onTextSearch && live) && <div className="px-3 py-2 text-xs text-slate-500">No matches{live ? "" : " in the offline index"}</div>}
           {results.map((r, i) => (
             <button
               key={r.key}
