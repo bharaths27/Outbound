@@ -54,6 +54,7 @@ Custom tokens to add alongside shadcn's:
 | `--tier-silver` | `#9AA4BC` | `#AEB7CC` | Silver stamp ink and rings |
 | `--tier-gold` | `var(--gold)` | `var(--gold)` | Gold stamp ink and rings |
 | `--xp` | `#7A3E5B` | `#D69BB8` | XP numbers and gains |
+| `--overlay` | `rgb(56 61 87 / 0.35)` | `rgb(10 12 20 / 0.6)` | Scrim behind dialogs, sheets, and drawers |
 
 Tier colors are for stamp ink, rings, and progress fills only. Labels next to them use `--foreground`.
 
@@ -63,7 +64,7 @@ With white as both the page and card color in light mode, cards separate from th
 Navy on white 10.6:1, muted text on white 6.0:1, navy on periwinkle 5.3:1, navy on gold 6.7:1, white on plum 7.9:1, dark-mode text 14.4:1, dark muted text 6.3:1. All pass AA for body text. Keep these pairings; check any new pairing before using it.
 
 ### Colors from outside the palette
-- **MBTA line colors** appear only on the map and in small line badges: red `#DA291C`, orange `#ED8B00`, blue `#003DA5`, green `#00843D`, Mattapan/silver `#7C878E`. Never use them for UI chrome.
+- **MBTA line colors** appear only on the map and in small line badges: red `#DA291C`, orange `#ED8B00`, blue `#003DA5`, green `#00843D`, Mattapan/silver `#7C878E`. Never use them for UI chrome. They live in `src/lib/lines.ts` (shared with the map). Line badges are an outline badge with a small colored dot and foreground text, because white text on orange fails contrast.
 - **School colors** come from the database and appear only as small marks: an avatar ring, a dot on the leaderboard, a thin bar on a squad card. Never as backgrounds or buttons.
 
 ## Typography
@@ -86,6 +87,8 @@ One family: **Archivo** (Google Fonts, variable, with a width axis). Load it wit
 
 Rules: sentence case everywhere (no all-caps labels). Station names in title case as they appear on MBTA signs. Body line length under about 70 characters on desktop.
 
+In code, use the `type-display`, `type-title`, `type-heading`, `type-body`, `type-small`, and `type-tiny` utilities from `globals.css` (size, line height, weight, and width together) instead of ad-hoc text sizes. Add `tabular-nums` to numbers.
+
 ## Layout and spacing
 
 - **Mobile first at 390 px.** Desktop is a wider version, not a different app.
@@ -94,7 +97,7 @@ Rules: sentence case everywhere (no all-caps labels). Station names in title cas
 - **Navigation:** bottom tab bar on mobile (Map, Passport, Compete, Profile), left rail on desktop.
 - **Spacing scale:** 4 px base. Use 4, 8, 12, 16, 24, 32, 48. Screen padding 16 on mobile, 24 on desktop. Gaps between unrelated sections 24–32.
 - **Alignment:** left-aligned text throughout. Centered text only for empty states and the check-in celebration.
-- **Radius hierarchy (deliberately not one value for everything):** sheets and drawers 20 px top corners; cards 12 px; inputs and buttons 10 px; chips and badges full pill; stamps circular or with a serrated edge.
+- **Radius hierarchy (deliberately not one value for everything):** sheets and drawers 20 px top corners; cards 12 px; inputs and buttons 10 px; chips and badges full pill; stamps circular or with a serrated edge. In code: `rounded-lg` 10 px, `rounded-xl` 12 px, `rounded-t-sheet` 20 px, `rounded-md` 8 px (photos inside cards, menu items), `rounded-full` pills.
 - **Elevation:** surfaces separate by background color and a 1 px border, not stacked shadows. One soft shadow is allowed on floating elements over the map (drawer, map controls).
 - **Respect safe areas** on phones (`env(safe-area-inset-*)`) for the tab bar and drawer.
 
@@ -106,9 +109,9 @@ Use shadcn/ui for every interactive control. Check the current shadcn docs for t
 |---|---|
 | Station hub | `Drawer` (mobile), `Sheet` (desktop) |
 | Buttons, primary actions | `Button` (variants: default, secondary, outline, ghost, plus our own `gold` for "Check in") |
-| Craving chips, category | `ToggleGroup` (multiple) or `Badge` used as toggles |
-| Budget selector | `ToggleGroup` (single): Free, Under $10, $10–20, $20+ |
-| Time available | `ToggleGroup` (single): 30 min, 1 hr, 2 hr+ |
+| Craving chips, category | `ToggleGroup` (multiple) with `variant="chip"` |
+| Budget selector | `ToggleGroup` (single, `variant="chip"`): Free, Under $10, $10–20, $20+ |
+| Time available | `ToggleGroup` (single, `variant="chip"`): 30 min, 1 hr, 2 hr+ |
 | Open now | `Switch` |
 | Search bar | `Input` with an icon; parsed filters shown as removable `Badge`s |
 | Quest cards, tournament cards | `Card` (custom layout inside) |
@@ -126,6 +129,14 @@ Use shadcn/ui for every interactive control. Check the current shadcn docs for t
 
 Icons: **lucide-react** only, 20 px, stroke width 1.75, everywhere. No emoji in the interface. Stamp artwork is custom SVG, not icons.
 
+### How the components are set up
+
+- shadcn with the Radix base and the Nova preset (`components.json`). Components live in `src/components/ui/`, and we own their variants.
+- Changes made once in the component files: menu hover and focus use `muted` (not `accent`); overlays use `bg-overlay`; buttons have a `gold` variant; toggles have a `chip` variant (pill, periwinkle when selected); the active tab has no shadow; badges are full pills in the Tiny style.
+- Tap targets: buttons are 44 px tall by default (`size="icon"` is 44 px square). Chips are 36 px visible with an invisible 44 px tap area.
+- Light and dark follow the system setting by default (`next-themes`, `.dark` class on `<html>`).
+- `/dev/theme` shows every token, type style, and control. Check it in light and dark after any theme change.
+
 ## The stamp (signature element)
 
 - Circular or serrated-edge outline, drawn as SVG, with an inner illustration or glyph for the place and the neighborhood name set around or under it.
@@ -133,6 +144,8 @@ Icons: **lucide-react** only, 20 px, stroke width 1.75, everywhere. No emoji in 
 - Each stamp sits at a small random rotation (between −6° and 6°), fixed per stamp (derive it from the quest ID so it doesn't change on re-render).
 - **Cross-school stamps** get a second outer ring in `--gold`.
 - **Locked stamps** show as a thin dashed outline in `--border` with the place name in muted text, so users can see what's left to collect.
+- The component is `src/features/passport/stamp.tsx`. Rotation and texture come from a hash of the quest ID.
+- **Open questions:** gold ink is hard to read on a white page (the neighborhood text especially). Should light mode use a darker gold for gold-tier stamps? And the gold cross-school ring disappears on a gold stamp: should it be navy or plum there?
 - On the passport page, stamps are grouped by neighborhood. Each neighborhood shows its tier and a `Progress` bar toward the next tier.
 
 ## Motion
