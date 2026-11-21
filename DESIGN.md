@@ -168,11 +168,11 @@ Use `framer-motion` (or `motion`). Motion only responds to user actions, with on
 
 ## Screen notes
 
-- **Station hub header:** station name in Display style, colored line badges beside it, next-train countdown on the right. Then the stop story (2–3 sentences, with a "Read more" if longer). Then a "Tournament here" banner if one is active. Then filters, then quest cards.
+- **Station hub header:** station name in Display style, colored line badges beside it, next-train countdown on the right. Then the stop story (2–3 sentences, with a "Read more" if longer). Then filters, then quest cards.
 - **Quest card:** photo (4:3, rounded 8 px inside the card), title, a one-line meta row (category icon, price note, walk time from the station, open or closed), up to three vibe tags, and the reward (XP, and the stamp's current tier for this user). Done quests show a small stamp in the corner instead of hiding.
 - **Filters:** always visible above the results, horizontally scrollable on mobile, with a result count ("8 quests") and a "Clear" action. These are what judges look for, so never tuck them behind a menu.
-- **Compete tab:** `Tabs` for Schools, Squads, Tournaments. The user's own school and squads are pinned and highlighted. Schools below the player minimum show "Needs 5 players" instead of a rank.
-- **Tournament detail:** host name and place, station, time window with a countdown, prize tiers (top squad, top individual, everyone who shows up), a live standings list, and one clear action ("Join with a squad" or "Join solo").
+- **Compete tab:** `Tabs` for Schools and Squads. (Tournaments are out of scope for the hackathon; the weekly school leaderboard carries the competition.) The user's own school and squads are pinned and highlighted. Schools below the player minimum show "Needs 5 players" instead of a rank.
+- **Tournament detail (out of scope for the hackathon):** host name and place, station, time window with a countdown, prize tiers (top squad, top individual, everyone who shows up), a live standings list, and one clear action ("Join with a squad" or "Join solo").
 - **Profile:** avatar with school ring, level and XP, passport preview (latest stamps), squads, and a link to privacy settings.
 
 ## Before calling a screen done (anti-vibecoded checklist)

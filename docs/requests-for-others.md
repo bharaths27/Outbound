@@ -3,76 +3,40 @@
 Notes from Angie (app frontend) about things in someone else's area. Answer inline or in
 the team chat, then check the item off.
 
-**Decision:** the backend is the source of truth. The frontend uses `src/lib/types.ts`
-as-is, and `src/lib/data/types.ts` re-exports it, plus row types that copy
-`backend/supabase/schema.sql` column for column. Nothing in `src/lib/types.ts` has been
-changed.
+**Decision:** the backend is the source of truth. Every shape that matches the database
+lives in `src/lib/types.ts`. `src/lib/data/types.ts` re-exports it and adds only
+frontend-derived shapes.
 
-## Everyone
+## Open
 
-- [ ] **Move the row types into `src/lib/types.ts`?** `School`, `Profile`, `Squad`,
-  `Visit`, `Deal`, `Friendship`, `PassportNeighborhood` (view `passport`), and
-  `LeaderboardRow` (view `leaderboard_weekly`) live in `src/lib/data/types.ts` for now.
-  They copy the schema exactly. Moving them into the shared file would keep one copy.
+### Bharath (backend)
 
-## Bharath and Suki (schema, check-in, content)
-
-Ordered by demo impact.
-
-- [ ] **Time filter has nothing to filter on.** `Filters.minutes` exists, but `quests` has
-  no duration or walk-time column, so "I have 30 minutes" can't narrow results. Judges
-  will look at this filter. Could we add `duration_min int` and `walk_min int` to
-  `quests`?
-- [ ] **Demo accounts can't check in.** `check_in()` raises `location required` without
-  coordinates or a QR code. Judges using demo accounts won't be at the spot. Options:
-  accept a null location for the demo users, or give demo-friendly quests a `qr_code`
-  and show it on the screen. Which do you prefer?
-- [ ] **Squad members are hidden by RLS.** `profiles` is readable only for yourself,
-  `public` profiles, or friends. Squad member lists, school rings, and the
-  cross-school badge break for members who are `friends` or `ghost` and not your friend.
-  Could we get a view, or a policy, exposing `id, display_name, avatar_url, school_id`
-  for members of squads you're in?
-- [ ] **Next-tier progress.** The passport shows "2 more for Silver." The tier thresholds
-  (3 and 5) live only in SQL. Could the `passport` view add `next_tier` and
-  `quests_to_next_tier`, so the UI doesn't copy the thresholds?
-- [ ] **Level.** `profiles` has `xp` but no level, and the level formula should live
-  with the XP rules. Could `profiles` (or a view) return `level` and `xp_to_next_level`?
-  If levels aren't planned, we'll show XP only and drop "level" from the profile.
-- [ ] **XP breakdown.** The check-in celebration lists why you earned XP. `check_in()`
-  returns flags (`first_visit`, `new_neighborhood`, `cross_school`) but not per-reason
-  amounts, so the UI will show the labels with the total `xp_awarded` rather than
-  copying the +25 and x2 rules. If you want amounts per line, add an `xp_breakdown`
-  array to the result.
-- [ ] **Check-in error messages.** The frontend sorts `check_in()` exception text into
-  error screens (`src/lib/data/checkInErrors.ts`). Please keep these messages stable, or
-  tell us when they change: `too far: N m away (need within N m)`,
-  `already checked in to this quest today`, `location required`,
-  `QR code does not match this quest`, `you are not in that squad`, `quest not found`,
-  `not signed in`.
+- [ ] **How do demo accounts sign in on Supabase?** The login screen has "Try a demo
+  account" buttons that call `signInDemo(userId)`. With real auth, those users need a way
+  in without an email link. Email and password for the 3 demo accounts? If so, please
+  create them (one each at different schools), mark them `is_demo`, and tell me which
+  env vars hold the credentials.
+- [ ] **Ride time for the time filter.** The rule is
+  `ride_min + 2 * walk_min + duration_min <= minutes`, but nothing provides `ride_min`
+  (time from the user to the station). Until something does, the hub uses 0 and labels
+  times "from the station". Is there a source planned (an API route, or Verna's map)?
+- [ ] **QR quests.** Which quests will have a `qr_code`, and where will judges see the
+  codes? The frontend can take a typed code without adding a scanner library.
+- [ ] **Vercel env var.** Set `NEXT_PUBLIC_DATA_SOURCE` in the Vercel project (`mock`
+  until integration).
 - [ ] **Leaderboard wording.** Unless you want different wording, the Schools tab will
   say: "Total XP earned this week. Schools need 5 active players to rank. Resets Monday."
-- [ ] **Hours format.** `quests.hours` is text. The frontend will read `"HH:MM-HH:MM"` or
-  `"always"`, with past-midnight closes written as `"11:00-02:00"`, for the open-now
-  label. OK?
-- [ ] **Rename in the sign-up error.** `handle_new_user()` still says "T Quest is only
-  open to…". It should say Outbound. The frontend shows this message on the login
-  screen.
-- [x] **Data-source switch.** `NEXT_PUBLIC_DATA_SOURCE` added to `.env.example` on `main`
-  (8ab6ea5). Still needs setting in Vercel (`mock` until integration).
-- [x] **`npm run start` crashes after `npm run build`.** Fixed on `main` (8ab6ea5): `build` no
-  longer uses `--turbopack`.
-- [ ] **Tournaments.** The schema has no tournament tables. The frontend plan had
-  restaurant-hosted tournaments with prizes. Are they in scope? If not, we'll drop them
-  for the hackathon.
 - [ ] **One craving per search** (low priority). `Filters.craving` holds one value, so
   "cheap spicy noodles" keeps `spicy` and drops `noodles`. A `cravings: string[]` would
   allow both. Fine to leave as is.
 
-## Suki (content)
+### Suki (content)
 
 - [ ] **Vibe tags.** Please use lowercase, hyphenated tags (`late-night`, `study-spot`).
   Avoid budget or time words as tags (`cheap`, `free`, `quick`): `price_tier` covers
   those, and the search parser ignores those words as cravings.
+- [ ] **Walk and visit times.** Fill `walk_min` and `duration_min` for real quests. The
+  defaults (5 and 30) make every quest look the same to the time filter.
 - [ ] **Sample deals.** Keep `deals.is_sample = true` and the `SAMPLE:` prefix. The UI
   shows a visible "Sample" label as well.
 - [ ] **Mock content.** The mock uses 7 real stations (Kenmore, Park Street, Harvard,
@@ -80,14 +44,39 @@ Ordered by demo impact.
   `src/lib/data/mock/seed.ts`. If your real content starts with the same stations, the
   demo transfers cleanly.
 
-## Verna (map)
+### Verna (map)
 
-- [x] **Station IDs.** These are MBTA parent stop IDs (`place-kencl`), as in the schema.
-- [ ] **Hub contract.** Station markers call `openStationHub(stationId: string)`. On
-  mobile it's a bottom drawer, and at 768 px and up a 420 px right sheet. The map stays
-  mounted and usable underneath. The export path is coming with the hub milestone. OK?
+- [ ] **Shared layout.** `src/app/layout.tsx` now wraps every page, including the map,
+  in the app shell (bottom tab bar on phones, left rail on desktop), Archivo, and dark
+  mode. The map gets the space that's left; please check it still fills it.
+- [ ] **Hub contract.** Station markers call `openStationHub(stationId: string)` from
+  `src/features/hub`. On mobile it's a bottom drawer, and at 768 px and up a 420 px right
+  sheet. The map stays mounted and usable underneath. OK?
 - [ ] **Arrival slot.** The hub header renders `<ArrivalSlot stationId={id} />`. Tell us
   its file path and export name when it exists. Until then it shows "Next train: —".
-- [ ] **Theme.** Line colors stay in `src/lib/lines.ts`. Theme tokens (DESIGN.md) are
-  coming to `src/app/globals.css` as CSS variables. Please use them instead of
-  hard-coded colors in map UI chrome.
+- [ ] **Theme.** Line colors stay in `src/lib/lines.ts`. Please use the theme tokens in
+  `src/app/globals.css` instead of hard-coded colors in map UI chrome.
+
+## Resolved
+
+From Bharath's answers and `backend/supabase/002_frontend_requests.sql`:
+
+- [x] **Time filter:** `quests.duration_min` and `quests.walk_min` added.
+- [x] **Demo check-ins:** `profiles.is_demo`; demo accounts can call `check_in` with no
+  location.
+- [x] **Squad members:** `squad_member_profiles` view, with no friend check.
+- [x] **Tournaments:** out of scope for the hackathon.
+- [x] **Next tier:** the `passport` view has `next_tier` and `quests_to_next_tier`.
+- [x] **Levels:** `profiles.level` and `profiles.xp_to_next_level` (250 XP per level), also
+  returned by `check_in`.
+- [x] **XP breakdown:** `check_in` returns `xp_breakdown` (`base`, `first_visit`,
+  `new_neighborhood`, `squad`, `cross_school`), adding up to `xp_awarded`.
+- [x] **Stable errors:** switch on `error.hint` (`src/lib/data/checkInErrors.ts` does).
+- [x] **Hours:** `"HH:MM-HH:MM"` (24 h) or `"always"`; an end before the start closes the
+  next day; compare in Boston time.
+- [x] **Sign-up error:** now says Outbound, with hint `SCHOOL_NOT_SUPPORTED`. The UI still
+  checks the email domain first.
+- [x] **`NEXT_PUBLIC_DATA_SOURCE`:** in `.env.example`, default `mock`.
+- [x] **`npm run start`:** fixed; `build` no longer uses `--turbopack`.
+- [x] **Shared types:** schema-matching types moved into `src/lib/types.ts`.
+- [x] **Station IDs:** MBTA parent stop IDs (`place-kencl`).

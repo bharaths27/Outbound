@@ -193,11 +193,9 @@ export default async function ThemePage() {
           <TabsList className="w-full">
             <TabsTrigger value="schools">Schools</TabsTrigger>
             <TabsTrigger value="squads">Squads</TabsTrigger>
-            <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
           </TabsList>
           <TabsContent value="schools" className="pt-2 text-muted-foreground">Weekly school standings.</TabsContent>
           <TabsContent value="squads" className="pt-2 text-muted-foreground">Your squads.</TabsContent>
-          <TabsContent value="tournaments" className="pt-2 text-muted-foreground">Live and upcoming.</TabsContent>
         </Tabs>
         <div className="flex items-center gap-3">
           {schools.map((s) => (
