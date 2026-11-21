@@ -42,7 +42,7 @@ export function CheckInButton({ quest, profile, tier, now, onCheckedIn }: CheckI
   if (!profile) {
     return (
       <Button variant="gold" asChild className="w-full">
-        <Link href="/login">Sign in to check in</Link>
+        <Link href={`/login?next=${encodeURIComponent(`/q/${quest.id}`)}`}>Sign in to check in</Link>
       </Button>
     );
   }
@@ -83,7 +83,7 @@ export function CheckInButton({ quest, profile, tier, now, onCheckedIn }: CheckI
       case "signin":
         return (
           <Button key={step} variant={variant} asChild>
-            <Link href="/login">Sign in</Link>
+            <Link href={`/login?next=${encodeURIComponent(`/q/${quest.id}`)}`}>Sign in</Link>
           </Button>
         );
       case "close":

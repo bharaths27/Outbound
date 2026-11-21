@@ -421,4 +421,11 @@ export const mockService: DataService = {
     user.privacy = privacy;
     return clone(user);
   },
+
+  async updateDisplayName(name) {
+    await wait();
+    const user = requireMe();
+    user.display_name = name.trim().slice(0, 40) || null;
+    return clone(user);
+  },
 };

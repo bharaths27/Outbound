@@ -1,11 +1,9 @@
-// Profile tab. Owner: Angie. Placeholder until the profile milestone.
-export const metadata = { title: "Profile" };
+// Owner: Angie.
+import type { Metadata } from "next";
+import { ProfilePage } from "@/features/profile/profile-page";
 
-export default function ProfilePage() {
-  return (
-    <div className="mx-auto max-w-2xl px-4 py-6 md:px-6">
-      <h1 className="type-title">Your profile</h1>
-      <p className="mt-2 text-muted-foreground">Your level, latest stamps, squads, and privacy settings will live here.</p>
-    </div>
-  );
+export const metadata: Metadata = { title: "Profile" };
+
+export default function Page() {
+  return <ProfilePage />;
 }

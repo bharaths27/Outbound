@@ -62,6 +62,7 @@ export interface DataService {
   getFriends(): Promise<Profile[]>;
   sendFriendRequest(userId: string): Promise<void>;
 
-  // privacy
+  // profile and privacy
   updatePrivacy(privacy: Privacy): Promise<Profile>;
+  updateDisplayName(name: string): Promise<Profile>; // profiles.display_name (onboarding)
 }

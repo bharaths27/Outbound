@@ -37,4 +37,5 @@ export const supabaseService: DataService = {
   getFriends: notImplemented("getFriends"),
   sendFriendRequest: notImplemented("sendFriendRequest"),
   updatePrivacy: notImplemented("updatePrivacy"),
+  updateDisplayName: notImplemented("updateDisplayName"),
 };

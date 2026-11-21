@@ -77,7 +77,7 @@ export function JoinSquadPage({ code }: { code: string }) {
               <SquadCard squad={squad} myId={profile?.id}>
                 {!profile ? (
                   <Button asChild>
-                    <Link href="/login">Sign in to join</Link>
+                    <Link href={`/login?next=${encodeURIComponent(`/squad/join/${squad.code}`)}`}>Sign in to join</Link>
                   </Button>
                 ) : member ? (
                   <Button asChild>

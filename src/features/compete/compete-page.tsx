@@ -58,7 +58,7 @@ function CompeteTabs() {
               Squads can mix schools. Check in together for bonus XP.
             </p>
             <Button asChild>
-              <Link href="/login">Sign in</Link>
+              <Link href="/login?next=/leaderboard?tab=squads">Sign in</Link>
             </Button>
           </div>
         )}

@@ -76,7 +76,7 @@ export function PassportPage() {
           body="Every quest you finish adds a stamp. Collect enough in a neighborhood to go from Bronze to Gold."
           action={
             <Button asChild>
-              <Link href="/login">Sign in</Link>
+              <Link href="/login?next=/passport">Sign in</Link>
             </Button>
           }
         />
