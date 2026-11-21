@@ -137,7 +137,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": "https://upload.wikimedia.org/wikipedia/commons/5/52/Marsh_Chapel.jpg",
-    "xp": 100,
+    "xp": 50,
     "duration_min": 10,
     "walk_min": 2
   },
@@ -157,7 +157,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": null,
-    "xp": 100,
+    "xp": 50,
     "duration_min": 15,
     "walk_min": 3
   },
@@ -176,7 +176,7 @@ export const quests: Quest[] = [
     ],
     "hours": "07:00-19:00",
     "photo_url": null,
-    "xp": 120,
+    "xp": 60,
     "duration_min": 15,
     "walk_min": 2
   },
@@ -196,7 +196,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": null,
-    "xp": 100,
+    "xp": 50,
     "duration_min": 10,
     "walk_min": 2
   },
@@ -216,7 +216,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": "https://upload.wikimedia.org/wikipedia/commons/a/ad/Outside_Fenway_Park_in_Boston.jpg",
-    "xp": 120,
+    "xp": 50,
     "duration_min": 15,
     "walk_min": 5
   },
@@ -235,7 +235,7 @@ export const quests: Quest[] = [
     ],
     "hours": "Mon-Sat 07:00-20:00; Sun 07:30-19:00",
     "photo_url": null,
-    "xp": 120,
+    "xp": 60,
     "duration_min": 20,
     "walk_min": 8
   },
@@ -255,7 +255,7 @@ export const quests: Quest[] = [
     ],
     "hours": "Mon-Thu 09:00-20:00; Fri,Sat 09:00-17:00; Sun 11:00-17:00",
     "photo_url": "https://upload.wikimedia.org/wikipedia/commons/5/50/Boston_Public_Library_Courtyard.png",
-    "xp": 120,
+    "xp": 50,
     "duration_min": 25,
     "walk_min": 3
   },
@@ -275,7 +275,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": null,
-    "xp": 100,
+    "xp": 50,
     "duration_min": 20,
     "walk_min": 6
   },
@@ -294,7 +294,7 @@ export const quests: Quest[] = [
     ],
     "hours": "Mon-Thu 07:00-19:00; Fri-Sun 07:00-21:00",
     "photo_url": null,
-    "xp": 120,
+    "xp": 60,
     "duration_min": 20,
     "walk_min": 7
   },
@@ -314,7 +314,7 @@ export const quests: Quest[] = [
     ],
     "hours": "06:30-23:00",
     "photo_url": null,
-    "xp": 100,
+    "xp": 50,
     "duration_min": 15,
     "walk_min": 5
   },
@@ -334,7 +334,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": null,
-    "xp": 120,
+    "xp": 50,
     "duration_min": 20,
     "walk_min": 10
   },
@@ -353,7 +353,7 @@ export const quests: Quest[] = [
     ],
     "hours": "07:00-19:00",
     "photo_url": null,
-    "xp": 120,
+    "xp": 60,
     "duration_min": 15,
     "walk_min": 4
   },
@@ -373,7 +373,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": null,
-    "xp": 100,
+    "xp": 50,
     "duration_min": 10,
     "walk_min": 2
   },
@@ -393,7 +393,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": "https://upload.wikimedia.org/wikipedia/commons/4/4b/Faneuil_Hall%2C_Boston%2C_exterior.jpg",
-    "xp": 100,
+    "xp": 50,
     "duration_min": 10,
     "walk_min": 5
   },
@@ -413,7 +413,7 @@ export const quests: Quest[] = [
     ],
     "hours": "Mon-Sat 10:00-21:00; Sun 11:00-19:00",
     "photo_url": null,
-    "xp": 120,
+    "xp": 60,
     "duration_min": 25,
     "walk_min": 6
   },
@@ -433,7 +433,7 @@ export const quests: Quest[] = [
     ],
     "hours": "Sun-Tue 08:00-18:00; Wed-Sat 08:00-20:00",
     "photo_url": null,
-    "xp": 120,
+    "xp": 60,
     "duration_min": 20,
     "walk_min": 3
   },
@@ -453,7 +453,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": null,
-    "xp": 100,
+    "xp": 50,
     "duration_min": 15,
     "walk_min": 6
   },
@@ -473,7 +473,7 @@ export const quests: Quest[] = [
     ],
     "hours": "10:00-16:15",
     "photo_url": null,
-    "xp": 140,
+    "xp": 80,
     "duration_min": 40,
     "walk_min": 8
   },
@@ -493,7 +493,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": null,
-    "xp": 100,
+    "xp": 50,
     "duration_min": 10,
     "walk_min": 3
   },
@@ -513,7 +513,7 @@ export const quests: Quest[] = [
     ],
     "hours": "Tue-Sun 10:00-17:00",
     "photo_url": null,
-    "xp": 140,
+    "xp": 80,
     "duration_min": 45,
     "walk_min": 7
   },
@@ -531,9 +531,9 @@ export const quests: Quest[] = [
       "coffee",
       "indoors"
     ],
-    "hours": null,
+    "hours": "Mon,Tue,Thu-Sat 07:00-20:30; Wed 07:00-19:00; Sun 07:30-19:00",
     "photo_url": null,
-    "xp": 120,
+    "xp": 60,
     "duration_min": 20,
     "walk_min": 4
   },
@@ -553,7 +553,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": null,
-    "xp": 110,
+    "xp": 50,
     "duration_min": 10,
     "walk_min": 4
   },
@@ -573,7 +573,7 @@ export const quests: Quest[] = [
     ],
     "hours": "Mon,Fri 10:00-18:00; Tue-Thu 10:00-21:00; Sat 10:00-14:00",
     "photo_url": null,
-    "xp": 110,
+    "xp": 80,
     "duration_min": 20,
     "walk_min": 3
   },
@@ -593,7 +593,7 @@ export const quests: Quest[] = [
     ],
     "hours": "Mon-Fri 07:00-15:00; Sat,Sun 08:00-16:00",
     "photo_url": null,
-    "xp": 120,
+    "xp": 60,
     "duration_min": 15,
     "walk_min": 4
   },
@@ -613,7 +613,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": null,
-    "xp": 100,
+    "xp": 50,
     "duration_min": 10,
     "walk_min": 6
   },
@@ -633,7 +633,7 @@ export const quests: Quest[] = [
     ],
     "hours": "always",
     "photo_url": null,
-    "xp": 110,
+    "xp": 50,
     "duration_min": 15,
     "walk_min": 7
   },
@@ -653,7 +653,7 @@ export const quests: Quest[] = [
     ],
     "hours": "10:00-20:00",
     "photo_url": null,
-    "xp": 130,
+    "xp": 60,
     "duration_min": 35,
     "walk_min": 4
   }

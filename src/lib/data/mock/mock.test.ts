@@ -74,9 +74,9 @@ describe("mock service", () => {
     expect(ok).toMatchObject({
       ok: true,
       result: {
-        xp_awarded: 150,
+        xp_awarded: 100,
         xp_breakdown: [
-          { reason: "base", xp: 100 },
+          { reason: "base", xp: 50 },
           { reason: "first_visit", xp: 25 },
           { reason: "new_neighborhood", xp: 25 },
         ],
@@ -86,9 +86,9 @@ describe("mock service", () => {
         tier: "bronze",
         next_tier: "silver",
         quests_to_next_tier: 2,
-        total_xp: 150,
+        total_xp: 100,
         level: 1,
-        xp_to_next_level: 100,
+        xp_to_next_level: 150,
       },
     });
 

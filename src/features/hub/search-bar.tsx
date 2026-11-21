@@ -1,26 +1,25 @@
 "use client";
 
-// Free-text search for the hub. The query goes to searchQuests (keyword parser now,
-// Gemini later); its parsed filters replace the active ones, so the chips below show
-// exactly what the search understood. Active filters show as removable badges.
+// Free-text search for the hub. The query goes to /api/search (Gemini, with keyword
+// fallbacks on the server and here); what it understood replaces the active filters, so
+// the chips below show it. Active filters and search terms show as removable pills.
 
 import { Loader2, Search, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { data } from "@/lib/data";
-import type { Filters } from "@/lib/data/types";
 import { budgetLabel, cravingLabel, minutesLabel, type HubFilters } from "./filter-state";
+import { searchHub, type HubSearch } from "./search-api";
 
 export interface SearchBarProps {
-  stationId: string;
   stationName: string;
+  /** Vibe tags at this station, for the local fallback parser. */
+  knownTags: string[];
   filters: HubFilters;
-  onParsed: (parsed: Filters) => void;
+  onSearch: (result: HubSearch) => void;
   onChange: (next: HubFilters) => void;
 }
 
-export function SearchBar({ stationId, stationName, filters, onParsed, onChange }: SearchBarProps) {
+export function SearchBar({ stationName, knownTags, filters, onSearch, onChange }: SearchBarProps) {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
 
@@ -30,10 +29,7 @@ export function SearchBar({ stationId, stationName, filters, onParsed, onChange 
     if (!text) return;
     setSearching(true);
     try {
-      const { filters: parsed } = await data.searchQuests(text, stationId);
-      onParsed(parsed);
-    } catch {
-      toast.error("Search didn't work. Use the filters below instead.");
+      onSearch(await searchHub(text, knownTags)); // never throws: falls back to local parsing
     } finally {
       setSearching(false);
     }
@@ -44,6 +40,9 @@ export function SearchBar({ stationId, stationName, filters, onParsed, onChange 
   if (filters.budget !== null) removable.push({ key: "budget", label: budgetLabel(filters.budget), clear: { budget: null } });
   if (filters.minutes !== null) removable.push({ key: "minutes", label: minutesLabel(filters.minutes), clear: { minutes: null } });
   if (filters.openNow) removable.push({ key: "open", label: "Open now", clear: { openNow: false } });
+  for (const term of filters.terms) {
+    removable.push({ key: `term:${term}`, label: cravingLabel(term), clear: { terms: filters.terms.filter((t) => t !== term) } });
+  }
 
   return (
     <div className="flex flex-col gap-2">

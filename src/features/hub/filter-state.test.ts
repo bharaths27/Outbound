@@ -6,7 +6,8 @@ import {
   applyFilters,
   cravingLabel,
   cravingOptions,
-  fromParsed,
+  fromSearch,
+  matchesTerm,
   minutesLabel,
   resultLabel,
 } from "./filter-state";
@@ -81,14 +82,18 @@ describe("cravingOptions", () => {
 });
 
 describe("helpers", () => {
-  it("applies parsed search filters but keeps open now", () => {
-    const next = fromParsed({ ...EMPTY_FILTERS, openNow: true, budget: 3 }, { craving: "spicy", budget: null, minutes: 30 });
-    expect(next).toEqual({ craving: "spicy", budget: null, minutes: 30, openNow: true });
+  it("applies a search's filters and terms but keeps open now", () => {
+    const next = fromSearch(
+      { ...EMPTY_FILTERS, openNow: true, budget: 3, terms: ["old"] },
+      { filters: { craving: "food", budget: null, minutes: 30 }, terms: ["noodles"] },
+    );
+    expect(next).toEqual({ craving: "food", budget: null, minutes: 30, openNow: true, terms: ["noodles"] });
   });
 
   it("counts active filters", () => {
     expect(activeCount(EMPTY_FILTERS)).toBe(0);
-    expect(activeCount({ craving: "food", budget: 0, minutes: 60, openNow: true })).toBe(4);
+    expect(activeCount({ craving: "food", budget: 0, minutes: 60, openNow: true, terms: [] })).toBe(4);
+    expect(activeCount({ ...EMPTY_FILTERS, terms: ["pizza", "rooftop"] })).toBe(2);
   });
 
   it("labels things", () => {
@@ -100,5 +105,36 @@ describe("helpers", () => {
     expect(resultLabel(0)).toBe("No quests");
     expect(resultLabel(1)).toBe("1 quest");
     expect(resultLabel(8)).toBe("8 quests");
+  });
+});
+
+describe("search terms", () => {
+  const photo = quest({
+    id: "citgo",
+    type: "scenic",
+    title: "Kenmore Sign Hunt",
+    description: "Find a spot where the Citgo sign fits in the same photo.",
+    vibe_tags: ["photo", "architecture", "outdoors"],
+  });
+  const dimSum = quest({
+    id: "dim-sum",
+    title: "Pick a Dim Sum Plate",
+    description: "Compare the radish cakes with a dumpling plate.",
+    vibe_tags: ["dim-sum", "dumplings", "sit-down"],
+  });
+
+  it("matches tags exactly, by first word, or through the text", () => {
+    expect(matchesTerm(dimSum, "dumplings")).toBe(true); // tag
+    expect(matchesTerm(dimSum, "Dim Sum")).toBe(true); // tag, different spelling
+    expect(matchesTerm(photo, "photo-spot")).toBe(true); // Gemini's tag vs the content's "photo"
+    expect(matchesTerm(photo, "citgo")).toBe(true); // keyword in the description
+    expect(matchesTerm(dimSum, "dumpling")).toBe(true); // singular vs plural
+    expect(matchesTerm(photo, "ramen")).toBe(false);
+    expect(matchesTerm(photo, "study-spot")).toBe(false);
+  });
+
+  it("keeps quests matching any term, best matches first", () => {
+    const ids = applyFilters([photo, dimSum, noodles], { ...EMPTY_FILTERS, terms: ["photo", "dumplings", "sit-down"] }, nov("12:00"));
+    expect(ids.map((q) => q.id)).toEqual(["dim-sum", "citgo"]);
   });
 });

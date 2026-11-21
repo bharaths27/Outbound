@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { data } from "@/lib/data";
 import type { Quest, Station } from "@/lib/data/types";
 import { FilterBar } from "./filter-bar";
-import { EMPTY_FILTERS, applyFilters, cravingOptions, fromParsed, type HubFilters } from "./filter-state";
+import { EMPTY_FILTERS, applyFilters, cravingOptions, fromSearch, type HubFilters } from "./filter-state";
 import { HubHeader, HubHeaderSkeleton } from "./hub-header";
 import { QuestCard } from "./quest-card";
 import { QuestDetail } from "./quest-detail";
@@ -83,6 +83,7 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
   const quests = load.status === "ready" ? load.quests : NO_QUESTS;
   const results = useMemo(() => applyFilters(quests, filters, now), [quests, filters, now]);
   const cravings = useMemo(() => cravingOptions(quests, filters.craving), [quests, filters.craving]);
+  const knownTags = useMemo(() => [...new Set(quests.flatMap((q) => q.vibe_tags))], [quests]);
 
   if (load.status === "loading") {
     return (
@@ -149,10 +150,10 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
 
           <div className="flex flex-col gap-3">
             <SearchBar
-              stationId={station.id}
               stationName={station.name}
+              knownTags={knownTags}
               filters={filters}
-              onParsed={(parsed) => setFilters((f) => fromParsed(f, parsed))}
+              onSearch={(result) => setFilters((f) => fromSearch(f, result))}
               onChange={setFilters}
             />
             <FilterBar filters={filters} cravings={cravings} resultCount={results.length} onChange={setFilters} />

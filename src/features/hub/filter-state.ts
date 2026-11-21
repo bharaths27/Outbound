@@ -1,5 +1,5 @@
-// Hub filter state: the backend's Filters (craving, budget, minutes) plus "open now",
-// which only the hub knows about. Pure functions so the chip bar, search bar, and tests
+// Hub filter state: the backend's Filters (craving, budget, minutes) plus "open now" and
+// search terms, which only the hub knows about. Pure functions so the chip bar, search bar, and tests
 // share one set of rules. Matching itself is matchesFilters (src/lib/search).
 
 import type { Filters, PriceTier, Quest, QuestType } from "@/lib/data/types";
@@ -9,9 +9,11 @@ import { isOpenAt } from "./hours";
 
 export interface HubFilters extends Filters {
   openNow: boolean;
+  /** Tags and keywords from a search. A quest matches if it matches any of them. */
+  terms: string[];
 }
 
-export const EMPTY_FILTERS: HubFilters = { craving: "any", budget: null, minutes: null, openNow: false };
+export const EMPTY_FILTERS: HubFilters = { craving: "any", budget: null, minutes: null, openNow: false, terms: [] };
 
 export const TYPE_OPTIONS: { value: QuestType; label: string }[] = [
   { value: "food", label: "Food" },
@@ -81,18 +83,50 @@ export function cravingOptions(quests: Quest[], active: string, limit = 6): { va
   return [...TYPE_OPTIONS, ...tags.map((t) => ({ value: t, label: cravingLabel(t) }))];
 }
 
-/** Applies a search's parsed filters. "Open now" stays as the user set it. */
-export function fromParsed(current: HubFilters, parsed: Filters): HubFilters {
-  return { craving: parsed.craving || "any", budget: parsed.budget, minutes: parsed.minutes, openNow: current.openNow };
+/** Applies a search's filters and terms. "Open now" stays as the user set it. */
+export function fromSearch(current: HubFilters, search: { filters: Filters; terms: string[] }): HubFilters {
+  const { craving, budget, minutes } = search.filters;
+  return { craving: craving || "any", budget, minutes, openNow: current.openNow, terms: search.terms };
+}
+
+const words = (text: string) => text.toLowerCase().replace(/[-_]+/g, " ").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
+/**
+ * How well a quest matches one search term. Gemini picks from its own tag list, which
+ * doesn't always match the content's tags ("photo-spot" vs "photo"), so a term matches
+ * when it equals a tag, when all its words appear among the quest's tag words, or when
+ * all its words appear in the title or description (singular or plural).
+ */
+export function matchesTerm(quest: Quest, term: string): boolean {
+  const key = normalizeTag(term);
+  if (quest.vibe_tags.some((t) => normalizeTag(t) === key)) return true;
+  const termWords = words(term).map((w) => normalizeTag(w));
+  if (termWords.length === 0) return false;
+  const tagWords = new Set(quest.vibe_tags.flatMap(words).map((w) => normalizeTag(w)));
+  // "photo-spot" matches a quest tagged "photo": the term's first word is the tag.
+  if (quest.vibe_tags.some((t) => normalizeTag(t) === termWords[0])) return true;
+  const textWords = new Set(words(`${quest.title} ${quest.description ?? ""}`).map((w) => normalizeTag(w)));
+  return termWords.every((w) => textWords.has(w) || tagWords.has(w));
 }
 
 /** How many filters are set (for "Clear" and the result line). */
 export function activeCount(f: HubFilters): number {
-  return (f.craving !== "any" ? 1 : 0) + (f.budget !== null ? 1 : 0) + (f.minutes !== null ? 1 : 0) + (f.openNow ? 1 : 0);
+  return (
+    (f.craving !== "any" ? 1 : 0) +
+    (f.budget !== null ? 1 : 0) +
+    (f.minutes !== null ? 1 : 0) +
+    (f.openNow ? 1 : 0) +
+    f.terms.length
+  );
 }
 
+/** Filters, then (with search terms) puts quests matching more terms first. */
 export function applyFilters(quests: Quest[], f: HubFilters, now: Date): Quest[] {
-  return quests.filter((q) => matchesFilters(q, f) && (!f.openNow || isOpenAt(q.hours, now) !== false));
+  const hits = (q: Quest) => f.terms.filter((t) => matchesTerm(q, t)).length;
+  const kept = quests.filter(
+    (q) => matchesFilters(q, f) && (!f.openNow || isOpenAt(q.hours, now) !== false) && (f.terms.length === 0 || hits(q) > 0),
+  );
+  return f.terms.length === 0 ? kept : kept.map((q) => ({ q, n: hits(q) })).sort((a, b) => b.n - a.n).map((x) => x.q);
 }
 
 /** "8 quests", "1 quest", "No quests". */
