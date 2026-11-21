@@ -11,11 +11,26 @@ frontend-derived shapes.
 
 ### Bharath (backend)
 
-- [ ] **How do demo accounts sign in on Supabase?** The login screen has "Try a demo
-  account" buttons that call `signInDemo(userId)`. With real auth, those users need a way
-  in without an email link. Email and password for the 3 demo accounts? If so, please
-  create them (one each at different schools), mark them `is_demo`, and tell me which
-  env vars hold the credentials.
+- [ ] **Demo sign-in from the login screen.** PR #7 (`scripts/seed-demo.mjs`) answers
+  most of this: 4 team logins (`outbound-demo1@bu.edu` …) sharing `DEMO_PASSWORD`, marked
+  `is_demo`. Remaining question: the "Try a demo account" buttons can't hold
+  `DEMO_PASSWORD` in the browser. OK if the app adds a server route
+  (`POST /api/demo-login { email }`) that signs in with the password from the server env and
+  sets the session cookie? It would only accept the 4 `outbound-demo*` emails.
+- [ ] **Starter quests vs Suki's content.** `seed_quests_starter.sql` (17 quests) and
+  Suki's `content/quests.csv` (27 quests) cover the same places with different ids (Frog
+  Pond, the BPL courtyard, Graffiti Alley, Chinatown Gate). `central-graffiti-alley` is in
+  both. Which set goes into Supabase? Suggestion: Suki's CSV replaces the starter quests,
+  keeping `bu-gsu-expo` (the QR quest). The app can generate a
+  `seed_quests_content.sql` from the CSV if that helps.
+- [ ] **Hours format.** `schema.sql` documents `hours` as `"HH:MM-HH:MM"` or `"always"`.
+  The app now also reads per-day hours (`Mon-Thu 09:00-20:00; Sat,Sun 10:00-14:00`,
+  documented in `content/README.md`), which Suki's content uses. The column is text, so no
+  migration, but please update the comment.
+- [ ] **Search tags.** `/api/search` lets Gemini pick tags only from `KNOWN_TAGS` in
+  `src/lib/search.ts` (`photo-spot`, `study-spot`, …), but Suki's quests use other tags
+  (`photo`, `coffee`, `pastry`, `park`). Could `KNOWN_TAGS` come from the quests' actual
+  tags, or be updated to match `content/quests.csv`?
 - [ ] **Ride time for the time filter.** The rule is
   `ride_min + 2 * walk_min + duration_min <= minutes`, but nothing provides `ride_min`
   (time from the user to the station). Until something does, the hub uses 0 and labels
@@ -53,10 +68,19 @@ in `content/README.md`; `npm test` checks every row.
   Winsor Dim Sum, Thinking Cup Newbury). Keep `is_sample = true` and the `SAMPLE:` prefix
   on any real ones.
 - [ ] **Into Supabase.** Who loads `content/*.csv` into `public.quests` and the station
-  stories (Bharath's seed script or a CSV import)?
+  stories? See "Starter quests vs Suki's content" under Bharath.
+- [ ] **Tags for search.** Gemini search (`/api/search`, by Bharath) only picks tags from
+  a fixed list. Keep the tag set small and consistent so search can match it.
 
 ### Verna (map)
 
+- [ ] **Station tap opens the hub.** The map PR (#1) shows its own station card with the
+  countdown. Please call `openStationHub(station.id)` from `@/features/hub` on station
+  tap instead (the hub is on PR #2), and export the countdown so the hub header can show it
+  (see "Arrival slot").
+- [ ] **`build --turbopack`.** PR #1 adds `--turbopack` back to `npm run build`. Main
+  removed it because `npm run start` crashed with `routesManifest.dataRoutes is not
+  iterable`. Please keep `build` without it.
 - [ ] **Shared layout.** `src/app/layout.tsx` now wraps every page, including the map,
   in the app shell (bottom tab bar on phones, left rail on desktop), Archivo, and dark
   mode. The map gets the space that's left; please check it still fills it.
@@ -91,3 +115,7 @@ From Bharath's answers and `backend/supabase/002_frontend_requests.sql`:
 - [x] **`npm run start`:** fixed; `build` no longer uses `--turbopack`.
 - [x] **Shared types:** schema-matching types moved into `src/lib/types.ts`.
 - [x] **Station IDs:** MBTA parent stop IDs (`place-kencl`).
+- [x] **Gemini search:** `POST /api/search { q }` returns `{ filters, tags, keywords,
+  source }`, with a keyword fallback (PR #6).
+- [x] **Hub countdown data:** `GET /api/trains?stop=<id>` returns `arrivals`.
+- [x] **Passport privacy:** the `passport` view follows visit privacy (migration 003).
