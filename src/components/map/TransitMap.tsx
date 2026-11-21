@@ -14,6 +14,7 @@ import { CityBuildingsLayer, fetchBpdaManifest, inBpda } from "./buildings3d";
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
 import SearchBox, { pointInRing } from "./SearchBox";
 import Explorer, { type ExplorerHandle } from "./Explorer";
+import { FlyControls, type FlyAction } from "./flyControls";
 import {
   LIVE_INTERVAL_MS, ReplayFrame, DemoFeed, fetchLive, fetchReplay, fetchLateness, fetchArrivals,
   sampleArrivals, destinationOf, LATENESS_HEX,
@@ -44,6 +45,7 @@ const lineColorExpr = (colors: Record<string, string>) =>
 export default function TransitMap() {
   const box = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
+  const flyRef = useRef<FlyControls | null>(null);
   const animRef = useRef<TrainAnimator | null>(null);
   const layerRef = useRef<Trains3DLayer | null>(null);
   const cityRef = useRef<CityBuildingsLayer | null>(null);
@@ -106,11 +108,13 @@ export default function TransitMap() {
         zoom: VIEWS.boston.zoom - 0.6,
         pitch: 50,
         bearing: VIEWS.boston.bearing + 25,
-        maxPitch: 78,
+        maxPitch: 85, // tilt almost to street level
         attributionControl: { compact: true },
         canvasContextAttributes: { antialias: true },
       });
       mapRef.current = map;
+      flyRef.current = new FlyControls(map);
+      if (process.env.NODE_ENV !== "production") (window as unknown as { __obFly: FlyControls }).__obFly = flyRef.current; // for tests
       if (process.env.NODE_ENV !== "production") (window as unknown as { __obMap: MlMap }).__obMap = map; // for tests
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
       map.on("error", (e) => console.warn("[map]", e.error?.message ?? e)); // e.g. a tile or font that failed to load
@@ -305,6 +309,7 @@ export default function TransitMap() {
     })();
     return () => {
       disposed = true;
+      flyRef.current?.dispose();
       map?.remove();
       mapRef.current = null;
     };
@@ -793,12 +798,53 @@ export default function TransitMap() {
         </Card>
       )}
 
+      {/* free camera pad (keys: W A S D move, Q E turn, R F tilt, Space/Shift up/down) */}
+      <FlyPad fly={flyRef} />
+
       {/* app nav */}
       <nav className="ob-panel absolute bottom-8 right-14 hidden gap-1 p-1 text-xs sm:flex">
         {[["Passport", "/passport"], ["Leaderboard", "/leaderboard"], ["Login", "/login"]].map(([l, h]) => (
           <Link key={h} href={h} className="rounded-lg px-2.5 py-1.5 font-medium text-slate-700 hover:bg-slate-100">{l}</Link>
         ))}
       </nav>
+    </div>
+  );
+}
+
+const PAD: [FlyAction, string, string][] = [
+  ["turnL", "⟲", "Turn left (Q)"], ["fwd", "▲", "Forward (W)"], ["turnR", "⟳", "Turn right (E)"],
+  ["left", "◀", "Left (A)"], ["back", "▼", "Back (S)"], ["right", "▶", "Right (D)"],
+  ["tiltUp", "⤒", "Tilt up (R)"], ["up", "＋", "Rise (Space)"], ["tiltDown", "⤓", "Tilt down (F)"],
+];
+function FlyPad({ fly }: { fly: React.RefObject<FlyControls | null> }) {
+  const [open, setOpen] = useState(false);
+  const hold = (a: FlyAction) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      fly.current?.press(a);
+    },
+    onPointerUp: () => fly.current?.release(a),
+    onPointerCancel: () => fly.current?.release(a),
+    onLostPointerCapture: () => fly.current?.release(a),
+  });
+  return (
+    <div className="absolute bottom-[132px] right-3 z-10 flex flex-col items-end gap-1.5">
+      {open && (
+        <div className="ob-panel grid select-none grid-cols-3 gap-1 p-1.5 touch-none">
+          {PAD.map(([a, icon, label]) => (
+            <button key={a} {...hold(a)} title={label} aria-label={label} className="h-9 w-9 rounded-lg bg-slate-100 text-sm text-slate-700 active:bg-slate-300">
+              {icon}
+            </button>
+          ))}
+          <button {...hold("down")} title="Sink (Shift)" aria-label="Sink (Shift)" className="col-span-3 h-7 rounded-lg bg-slate-100 text-xs text-slate-700 active:bg-slate-300">
+            － lower
+          </button>
+          <p className="col-span-3 hidden max-w-[120px] text-[9px] leading-tight text-slate-500 sm:block">Keys: WASD move, Q/E turn, R/F tilt, Space/Shift up/down. Right-drag to orbit.</p>
+        </div>
+      )}
+      <button onClick={() => setOpen((o) => !o)} className="ob-panel px-2.5 py-1.5 text-xs font-medium text-slate-700" aria-expanded={open}>
+        🎮 {open ? "Hide" : "Fly"}
+      </button>
     </div>
   );
 }
