@@ -9,9 +9,15 @@ Stations and quests for Outbound, edited as CSV. Columns match `public.stations`
 After editing either file:
 
 ```sh
-npm run content   # regenerates src/lib/data/mock/content.ts for the mock data service
+npm run content   # regenerates the mock content and content/seed.sql
 npm test          # content.test.ts checks every row against the rules below
 ```
+
+**Loading it into Supabase:** run `npm run content`, then paste `content/seed.sql` into
+Supabase > SQL Editor > New query > Run (after `seed_stations.sql`). It's safe to re-run:
+it adds new quests, updates existing ones with the same id, and sets each station's
+neighborhood and story. It never deletes, because deleting a quest also deletes its visits.
+Removing Bharath's starter quests is an optional, commented-out step at the end of the file.
 
 ## Rules
 

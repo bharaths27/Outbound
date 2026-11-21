@@ -37,12 +37,11 @@ frontend-derived shapes.
   `POST /api/demo-login`, which signs in on the server with `DEMO_PASSWORD` and only
   accepts the 4 `outbound-demo*` emails. Please add `DEMO_PASSWORD` to Vercel's env
   (server-only, no `NEXT_PUBLIC_`).
-- [ ] **Starter quests vs Suki's content.** `seed_quests_starter.sql` (17 quests) and
-  Suki's `content/quests.csv` (27 quests) cover the same places with different ids (Frog
-  Pond, the BPL courtyard, Graffiti Alley, Chinatown Gate). `central-graffiti-alley` is in
-  both. Which set goes into Supabase? Suggestion: Suki's CSV replaces the starter quests,
-  keeping `bu-gsu-expo` (the QR quest). The app can generate a
-  `seed_quests_content.sql` from the CSV if that helps.
+- [ ] **Starter quests vs Suki's content.** `content/seed.sql` loads Suki's quests next to
+  the starter quests (`central-graffiti-alley` is in both; Suki's version wins). To drop
+  the other starter quests, there's a commented `delete` at the end of `content/seed.sql`,
+  but deleting a quest deletes its visits, so re-run `scripts/seed-demo.mjs` afterward.
+  Your call.
 - [ ] **Hours format.** `schema.sql` documents `hours` as `"HH:MM-HH:MM"` or `"always"`.
   The app now also reads per-day hours (`Mon-Thu 09:00-20:00; Sat,Sun 10:00-14:00`,
   documented in `content/README.md`), which Suki's content uses. The column is text, so no
@@ -94,8 +93,11 @@ in `content/README.md`; `npm test` checks every row.
 - [ ] **Sample deals.** None in the CSV. The mock has three made-up sample deals (Pavement,
   Winsor Dim Sum, Thinking Cup Newbury). Keep `is_sample = true` and the `SAMPLE:` prefix
   on any real ones.
-- [ ] **Into Supabase.** Who loads `content/*.csv` into `public.quests` and the station
-  stories? See "Starter quests vs Suki's content" under Bharath.
+- [ ] **Into Supabase.** `content/seed.sql` is ready (`npm run content` regenerates it).
+  Whoever has Supabase access (Suki or Bharath): paste it into the SQL Editor and run it.
+  It upserts Suki's 27 quests and 9 station stories and keeps the starter quests and their
+  visits. Tested on a local Postgres with the real tables: 17 starter + 27 = 43 quests,
+  and re-running changes nothing.
 - [ ] **Tags for search.** Gemini search (`/api/search`, by Bharath) only picks tags from
   a fixed list. Keep the tag set small and consistent so search can match it.
 
