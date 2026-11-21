@@ -1,26 +1,181 @@
-@import "tailwindcss";
+/* Outbound theme. Every value here comes from DESIGN.md: change DESIGN.md first, then
+   this file. Components use these tokens only (no raw hex, no default grays).
+   Owner: Angie. The whole team imports it; ask before editing. */
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* shadcn roles */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Outbound tokens */
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-tier-bronze: var(--tier-bronze);
+  --color-tier-silver: var(--tier-silver);
+  --color-tier-gold: var(--tier-gold);
+  --color-xp: var(--xp);
+  --color-overlay: var(--overlay);
+
+  /* Type: Archivo with the width axis (loaded in layout.tsx) */
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Radius hierarchy: inputs and buttons 10, cards 12, drawers and sheets 20, chips full */
+  --radius-sm: 6px;
+  --radius-md: 8px; /* photos inside cards, menu items */
+  --radius-lg: 10px; /* inputs, buttons */
+  --radius-xl: 12px; /* cards, dialogs */
+  --radius-2xl: 16px;
+  --radius-sheet: 20px; /* drawer and sheet corners */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --radius: 10px;
+
+  --background: #ffffff;
+  --foreground: #383d57;
+  --card: #ffffff;
+  --card-foreground: #383d57;
+  --popover: #ffffff;
+  --popover-foreground: #383d57;
+  --primary: #383d57;
+  --primary-foreground: #ffffff;
+  --secondary: #9cb9e7;
+  --secondary-foreground: #262a3e;
+  --muted: #e8ecf5;
+  --muted-foreground: #5b6280;
+  --accent: #7a3e5b;
+  --accent-foreground: #ffffff;
+  --destructive: #c2362b;
+  --border: #d6dcea;
+  --input: #d6dcea;
+  --ring: #9cb9e7;
+
+  --gold: #ffc533;
+  --gold-foreground: #383d57;
+  --tier-bronze: #b87b4b;
+  --tier-silver: #9aa4bc;
+  --tier-gold: var(--gold);
+  --xp: #7a3e5b;
+  --overlay: rgb(56 61 87 / 0.35); /* navy scrim behind dialogs and drawers */
+}
+
+.dark {
+  --background: #1c1f30;
+  --foreground: #eef1f8;
+  --card: #262a40;
+  --card-foreground: #eef1f8;
+  --popover: #262a40;
+  --popover-foreground: #eef1f8;
+  --primary: #9cb9e7;
+  --primary-foreground: #262a3e;
+  --secondary: #30354f;
+  --secondary-foreground: #eef1f8;
+  --muted: #30354f;
+  --muted-foreground: #a6adc6;
+  --accent: #d69bb8;
+  --accent-foreground: #262a3e;
+  --destructive: #f07a6e;
+  --border: #3b4060;
+  --input: #3b4060;
+  --ring: #9cb9e7;
+
+  --gold: #ffc533;
+  --gold-foreground: #262a3e;
+  --tier-bronze: #c98d5d;
+  --tier-silver: #aeb7cc;
+  --tier-gold: var(--gold);
+  --xp: #d69bb8;
+  --overlay: rgb(10 12 20 / 0.6);
+}
+
+/* Type styles from DESIGN.md. Use these instead of ad-hoc text sizes. */
+@utility type-display {
+  font-size: 32px;
+  line-height: 36px;
+  font-weight: 800;
+  font-stretch: 125%;
+}
+@utility type-title {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+  font-stretch: 112%;
+}
+@utility type-heading {
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+  font-stretch: 100%;
+}
+@utility type-body {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 400;
+  font-stretch: 100%;
+}
+@utility type-small {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  font-stretch: 100%;
+}
+@utility type-tiny {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  font-stretch: 100%;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground type-body antialiased;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* lucide icons: stroke width 1.75 everywhere */
+  svg.lucide {
+    stroke-width: 1.75;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
