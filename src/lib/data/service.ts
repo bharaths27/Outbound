@@ -34,7 +34,8 @@ export interface DataService {
   getDeals(questIds: string[]): Promise<Deal[]>;
   searchQuests(query: string, stationId?: string): Promise<{ filters: Filters; quests: Quest[] }>;
 
-  // check-in: rpc('check_in'). Location or QR proof; failures come back as a CheckInError.
+  // check-in: rpc('check_in'). Location or QR proof (demo accounts may skip both);
+  // failures come back as a CheckInError keyed by error.hint.
   checkIn(
     questId: string,
     location: { lat: number; lon: number } | null,
@@ -49,7 +50,7 @@ export interface DataService {
   // school leaderboard: view leaderboard_weekly
   getSchoolLeaderboard(): Promise<LeaderboardRow[]>;
 
-  // squads
+  // squads (members from the squad_member_profiles view)
   getMySquads(): Promise<SquadWithMembers[]>;
   getSquadByCode(code: string): Promise<SquadWithMembers | null>;
   createSquad(name: string): Promise<SquadWithMembers>;

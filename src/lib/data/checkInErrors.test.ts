@@ -1,26 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { parseCheckInError } from "./checkInErrors";
 
-// Messages copied from check_in() in backend/supabase/schema.sql.
+// Hints and messages from check_in() in backend/supabase/002_frontend_requests.sql.
 describe("parseCheckInError", () => {
-  it("reads distance and radius from too-far errors", () => {
-    expect(parseCheckInError("too far: 320 m away (need within 75 m)")).toEqual({
-      code: "too_far",
-      message: "too far: 320 m away (need within 75 m)",
-      distanceM: 320,
+  it("reads distance and radius from TOO_FAR", () => {
+    expect(parseCheckInError({ message: "too far: 120 m away (need within 75 m)", hint: "TOO_FAR" })).toEqual({
+      code: "TOO_FAR",
+      message: "too far: 120 m away (need within 75 m)",
+      distanceM: 120,
       radiusM: 75,
     });
   });
 
   it.each([
-    ["already checked in to this quest today", "already_today"],
-    ["location required", "location_required"],
-    ["QR code does not match this quest", "qr_mismatch"],
-    ["you are not in that squad", "not_in_squad"],
-    ["quest not found", "quest_not_found"],
-    ["not signed in", "not_signed_in"],
-    ["something unexpected", "unknown"],
-  ])("sorts %j", (message, code) => {
-    expect(parseCheckInError(message).code).toBe(code);
+    "NOT_SIGNED_IN",
+    "QUEST_NOT_FOUND",
+    "QR_MISMATCH",
+    "LOCATION_REQUIRED",
+    "NOT_IN_SQUAD",
+    "ALREADY_CHECKED_IN_TODAY",
+  ])("uses the hint %s as the code, whatever the message says", (hint) => {
+    expect(parseCheckInError({ message: "reworded message", hint }).code).toBe(hint);
+  });
+
+  it("falls back to UNKNOWN for a missing or unrecognized hint", () => {
+    expect(parseCheckInError({ message: "network down" }).code).toBe("UNKNOWN");
+    expect(parseCheckInError({ message: "x", hint: "SOMETHING_NEW" }).code).toBe("UNKNOWN");
+    expect(parseCheckInError({ message: "too far: 120 m away (need within 75 m)", hint: null }).code).toBe("UNKNOWN");
   });
 });

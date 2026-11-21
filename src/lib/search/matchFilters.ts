@@ -6,9 +6,15 @@ import { normalizeTag } from "./fallbackParser";
 
 const QUEST_TYPES = new Set(["food", "event", "scenic"]);
 
-export function matchesFilters(quest: Quest, filters: Filters | undefined): boolean {
+export interface MatchOptions {
+  /** Minutes to ride to the quest's station. 0 = already at the station (the default
+   *  until the map can supply a ride time). */
+  rideMin?: number;
+}
+
+export function matchesFilters(quest: Quest, filters: Filters | undefined, opts: MatchOptions = {}): boolean {
   if (!filters) return true;
-  const { craving, budget } = filters;
+  const { craving, budget, minutes } = filters;
   if (craving && craving !== "any") {
     if (QUEST_TYPES.has(craving)) {
       if (quest.type !== craving) return false;
@@ -18,7 +24,9 @@ export function matchesFilters(quest: Quest, filters: Filters | undefined): bool
     }
   }
   if (budget !== null && budget !== undefined && quest.price_tier > budget) return false;
-  // `minutes` is not applied: quests have no duration or walk-time field yet.
-  // Requested from the backend in docs/requests-for-others.md.
+  // Backend rule (migration 002): ride + walk there and back + time at the spot.
+  if (minutes !== null && minutes !== undefined) {
+    if ((opts.rideMin ?? 0) + 2 * quest.walk_min + quest.duration_min > minutes) return false;
+  }
   return true;
 }

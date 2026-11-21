@@ -1,6 +1,10 @@
 // Real backend implementation. Stubbed until the halfway integration, when it is filled in
-// against backend/supabase/schema.sql (tables, views, and the check_in() RPC).
-// Use parseCheckInError() on check_in() exceptions.
+// against backend/supabase/schema.sql and 002_frontend_requests.sql. Notes for later:
+// - checkIn: supabase.rpc("check_in", { p_quest_id, p_lat, p_lon, p_qr, p_squad_id }); on error,
+//   return { ok: false, error: parseCheckInError(error) } (it switches on error.hint).
+// - getMySquads / getSquadByCode: members come from the squad_member_profiles view.
+// - signInWithEmail: check the domain against schools first; Supabase may only report
+//   "Database error saving new user" (hint SCHOOL_NOT_SUPPORTED).
 
 import type { DataService } from "../service";
 

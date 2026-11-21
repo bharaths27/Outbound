@@ -1,19 +1,34 @@
-// Sorts check_in() exception messages (backend/supabase/schema.sql) into error codes.
-// The mock service raises the same messages, so both data sources share this parser.
-// If the backend changes a message, update the patterns here.
+// Sorts a failed check_in() by its stable code in error.hint (migration 002). Messages may
+// change; codes won't. The TOO_FAR message also carries the distance, which is read here.
+// The mock service raises errors in the same shape, so both data sources share this.
 
-import type { CheckInError } from "./types";
+import type { CheckInError, CheckInErrorHint } from "./types";
 
-export function parseCheckInError(message: string): CheckInError {
-  const tooFar = message.match(/too far: (\d+(?:\.\d+)?) m away \(need within (\d+) m\)/);
-  if (tooFar) {
-    return { code: "too_far", message, distanceM: Number(tooFar[1]), radiusM: Number(tooFar[2]) };
+const HINTS: ReadonlySet<string> = new Set<CheckInErrorHint>([
+  "NOT_SIGNED_IN",
+  "QUEST_NOT_FOUND",
+  "QR_MISMATCH",
+  "LOCATION_REQUIRED",
+  "TOO_FAR",
+  "NOT_IN_SQUAD",
+  "ALREADY_CHECKED_IN_TODAY",
+]);
+
+/** Shape of a supabase-js PostgrestError, or any thrown error. */
+export interface RpcErrorLike {
+  message: string;
+  hint?: string | null;
+}
+
+export function parseCheckInError(err: RpcErrorLike): CheckInError {
+  const code = err.hint && HINTS.has(err.hint) ? (err.hint as CheckInErrorHint) : "UNKNOWN";
+  const error: CheckInError = { code, message: err.message };
+  if (code === "TOO_FAR") {
+    const m = err.message.match(/(\d+(?:\.\d+)?) m away \(need within (\d+) m\)/);
+    if (m) {
+      error.distanceM = Number(m[1]);
+      error.radiusM = Number(m[2]);
+    }
   }
-  if (message.includes("already checked in")) return { code: "already_today", message };
-  if (message.includes("location required")) return { code: "location_required", message };
-  if (message.includes("QR code does not match")) return { code: "qr_mismatch", message };
-  if (message.includes("not in that squad")) return { code: "not_in_squad", message };
-  if (message.includes("quest not found")) return { code: "quest_not_found", message };
-  if (message.includes("not signed in")) return { code: "not_signed_in", message };
-  return { code: "unknown", message };
+  return error;
 }

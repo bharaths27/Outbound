@@ -32,6 +32,7 @@ describe("matchesFilters", () => {
   const quest = {
     id: "q", station_id: "s", type: "food", title: "t", description: null, lat: 0, lon: 0,
     price_tier: 1, vibe_tags: ["spicy", "late-night"], hours: null, photo_url: null, xp: 50,
+    walk_min: 5, duration_min: 30,
   } satisfies Quest;
 
   it("matches a quest type, a vibe tag, or any", () => {
@@ -44,5 +45,13 @@ describe("matchesFilters", () => {
   it("filters by max price tier", () => {
     expect(matchesFilters(quest, { craving: "any", budget: 1, minutes: null })).toBe(true);
     expect(matchesFilters(quest, { craving: "any", budget: 0, minutes: null })).toBe(false);
+  });
+
+  it("applies the backend time rule: ride + 2 x walk + time at the spot", () => {
+    // 0 ride + 2 x 5 walk + 30 at the spot = 40 minutes
+    expect(matchesFilters(quest, { craving: "any", budget: null, minutes: 40 })).toBe(true);
+    expect(matchesFilters(quest, { craving: "any", budget: null, minutes: 39 })).toBe(false);
+    expect(matchesFilters(quest, { craving: "any", budget: null, minutes: 60 }, { rideMin: 20 })).toBe(true);
+    expect(matchesFilters(quest, { craving: "any", budget: null, minutes: 60 }, { rideMin: 21 })).toBe(false);
   });
 });

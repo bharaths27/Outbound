@@ -21,6 +21,21 @@ describe("seed", () => {
 });
 
 describe("mock service", () => {
+  it("computes levels like the generated columns (250 XP per level)", async () => {
+    const maya = await data.signInDemo("demo-maya");
+    expect(maya.is_demo).toBe(true);
+    expect(maya.level).toBe(Math.floor(maya.xp / 250) + 1);
+    expect(maya.xp_to_next_level).toBe(250 - (maya.xp % 250));
+  });
+
+  it("filters by time available using walk and visit times", async () => {
+    const all = await data.getQuests("place-kencl");
+    const quick = await data.getQuests("place-kencl", { craving: "any", budget: null, minutes: 30 });
+    expect(quick.length).toBeGreaterThan(0);
+    expect(quick.length).toBeLessThan(all.length);
+    expect(quick.every((q) => 2 * q.walk_min + q.duration_min <= 30)).toBe(true);
+  });
+
   it("gates sign-up by school email domain, including subdomains", async () => {
     expect(await data.signInWithEmail("x@husky.northeastern.edu")).toEqual({ ok: true });
     expect(await data.signInWithEmail("x@gmail.com")).toEqual({ ok: false, error: "unsupported_school" });
@@ -36,8 +51,17 @@ describe("mock service", () => {
   it("gives Maya a Gold and a Silver neighborhood", async () => {
     await data.signInDemo("demo-maya");
     const passport = await data.getPassport("demo-maya");
-    expect(passport.find((n) => n.neighborhood === "Fenway-Kenmore")).toMatchObject({ tier: "gold", has_cross_school_stamp: true });
-    expect(passport.find((n) => n.neighborhood === "Chinatown")?.tier).toBe("silver");
+    expect(passport.find((n) => n.neighborhood === "Fenway-Kenmore")).toMatchObject({
+      tier: "gold",
+      has_cross_school_stamp: true,
+      next_tier: null,
+      quests_to_next_tier: 0,
+    });
+    expect(passport.find((n) => n.neighborhood === "Chinatown")).toMatchObject({
+      tier: "silver",
+      next_tier: "gold",
+      quests_to_next_tier: 2,
+    });
   });
 
   it("starts Sam empty and runs every check-in path", async () => {
@@ -45,19 +69,39 @@ describe("mock service", () => {
     expect(await data.getPassport("demo-sam")).toEqual([]);
     expect(await data.getMySquads()).toEqual([]);
 
+    // Demo accounts (is_demo) may check in with no location, as in migration 002.
     const ok = await data.checkIn("harsq-yard-scenic", null);
-    expect(ok).toMatchObject({ ok: true, result: { first_visit: true, new_neighborhood: true, tier: "bronze", neighborhood: "Harvard Square" } });
+    expect(ok).toMatchObject({
+      ok: true,
+      result: {
+        xp_awarded: 90,
+        xp_breakdown: [
+          { reason: "base", xp: 40 },
+          { reason: "first_visit", xp: 25 },
+          { reason: "new_neighborhood", xp: 25 },
+        ],
+        first_visit: true,
+        new_neighborhood: true,
+        neighborhood: "Harvard Square",
+        tier: "bronze",
+        next_tier: "silver",
+        quests_to_next_tier: 2,
+        total_xp: 90,
+        level: 1,
+        xp_to_next_level: 160,
+      },
+    });
 
     const again = await data.checkIn("harsq-yard-scenic", null);
-    expect(again).toMatchObject({ ok: false, error: { code: "already_today" } });
+    expect(again).toMatchObject({ ok: false, error: { code: "ALREADY_CHECKED_IN_TODAY" } });
 
     const far = await data.checkIn(seed.TOO_FAR_QUEST_ID, null);
-    expect(far).toMatchObject({ ok: false, error: { code: "too_far", distanceM: 320, radiusM: 75 } });
+    expect(far).toMatchObject({ ok: false, error: { code: "TOO_FAR", distanceM: 320, radiusM: 75 } });
 
-    expect(await data.checkIn("nope", null)).toMatchObject({ ok: false, error: { code: "quest_not_found" } });
+    expect(await data.checkIn("nope", null)).toMatchObject({ ok: false, error: { code: "QUEST_NOT_FOUND" } });
     expect(await data.checkIn("harsq-books-event", null, { squadId: "sq-grazers" })).toMatchObject({
       ok: false,
-      error: { code: "not_in_squad" },
+      error: { code: "NOT_IN_SQUAD" },
     });
   });
 
@@ -65,6 +109,11 @@ describe("mock service", () => {
     await data.signInDemo("demo-jordan");
     const grazers = (await data.getMySquads()).find((s) => s.id === "sq-grazers")!;
     expect(new Set(grazers.members.map((m) => m.school_id)).size).toBe(3);
+    expect(grazers.members.find((m) => m.user_id === "demo-jordan")).toMatchObject({
+      squad_id: "sq-grazers",
+      school_name: "MIT",
+      school_color: "#A31F34",
+    });
 
     const created = await data.createSquad("Test squad");
     expect(created.code).toHaveLength(6);
@@ -81,6 +130,6 @@ describe("mock service", () => {
   it("rejects check-ins after sign-out", async () => {
     await data.signOut();
     expect(await data.getCurrentUser()).toBeNull();
-    expect(await data.checkIn("harsq-books-event", null)).toMatchObject({ ok: false, error: { code: "not_signed_in" } });
+    expect(await data.checkIn("harsq-books-event", null)).toMatchObject({ ok: false, error: { code: "NOT_SIGNED_IN" } });
   });
 });

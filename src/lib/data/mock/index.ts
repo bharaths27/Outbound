@@ -1,12 +1,15 @@
 // In-memory mock of the backend, used when NEXT_PUBLIC_DATA_SOURCE is not "supabase".
 // Where it has to produce results (XP, tiers, leaderboard), it copies the rules written in
-// backend/supabase/schema.sql (check_in(), the passport and leaderboard_weekly views) so
+// backend/supabase/schema.sql and 002_frontend_requests.sql (check_in(), the passport,
+// leaderboard_weekly, and squad_member_profiles views, generated level columns) so
 // demos behave like the real thing. The backend stays the source of truth: if the schema
 // changes, update this file, and never import these rules into UI code.
 
 import { parseCheckInError } from "../checkInErrors";
 import type { DataService } from "../service";
 import type {
+  CheckInErrorHint,
+  CheckInResult,
   LeaderboardRow,
   PassportNeighborhood,
   Profile,
@@ -15,6 +18,7 @@ import type {
   SquadWithMembers,
   Tier,
   Visit,
+  XpReason,
 } from "../types";
 import { matchesFilters } from "@/lib/search/matchFilters";
 import { parseQuery } from "@/lib/search/fallbackParser";
@@ -23,12 +27,26 @@ import * as seed from "./seed";
 const DELAY_MS = 250;
 const CHECK_IN_DELAY_MS = 600;
 const STORAGE_KEY = "outbound.mockUserId";
-const DEMO_IDS = new Set<string>(seed.DEMO_ACCOUNTS.map((a) => a.userId));
+const DEMO_IDS = new Set<string>(seed.DEMO_ACCOUNTS.map((a) => a.userId)); // signInDemo only
 
 // Simulated network latency, so loading states get built. Skipped under test.
 const wait = (ms = DELAY_MS) =>
   process.env.NODE_ENV === "test" ? Promise.resolve() : new Promise((r) => setTimeout(r, ms));
 const clone = <T>(v: T): T => structuredClone(v);
+
+/** Raised like a Postgres exception: supabase-js exposes `hint` on the error. */
+class RpcError extends Error {
+  constructor(message: string, readonly hint: CheckInErrorHint) {
+    super(message);
+  }
+}
+
+/** profiles.level and xp_to_next_level are generated columns: one level per 250 XP. */
+function setXp(p: Profile, xp: number) {
+  p.xp = xp;
+  p.level = Math.floor(xp / 250) + 1;
+  p.xp_to_next_level = 250 - (xp % 250);
+}
 
 // ---------- clock (Monday 00:00 America/New_York, like date_trunc('week', ...)) ----------
 
@@ -46,15 +64,15 @@ function nyWeekStart(now: Date): Date {
 const state = (() => {
   const now = new Date();
   const visits = seed.buildVisits(now, nyWeekStart(now));
-  const profiles = clone(seed.profiles).map((p) => ({
-    ...p,
-    xp: visits.filter((v) => v.user_id === p.id).reduce((sum, v) => sum + v.xp_awarded, 0),
-  }));
+  const profiles = clone(seed.profiles);
+  for (const p of profiles) {
+    setXp(p, visits.filter((v) => v.user_id === p.id).reduce((sum, v) => sum + v.xp_awarded, 0));
+  }
   return {
     profiles,
     visits,
     squads: clone(seed.squads),
-    squadMembers: clone(seed.squadMembers),
+    squadMembers: clone(seed.squadMembers) as { squad_id: string; user_id: string; joined_at?: string }[],
     friendships: clone(seed.friendships),
     currentUserId: null as string | null,
   };
@@ -85,7 +103,7 @@ function me(): Profile | null {
 
 function requireMe(): Profile {
   const user = me();
-  if (!user) throw new Error("not signed in");
+  if (!user) throw new RpcError("not signed in", "NOT_SIGNED_IN");
   return user;
 }
 
@@ -100,16 +118,33 @@ function schoolForEmail(email: string) {
     .sort((a, b) => b.email_domain.length - a.email_domain.length)[0];
 }
 
+// squad_member_profiles view
 function withMembers(squad: Squad): SquadWithMembers {
   const members = state.squadMembers
     .filter((m) => m.squad_id === squad.id)
-    .map((m) => state.profiles.find((p) => p.id === m.user_id)!)
-    .map(({ id, display_name, avatar_url, school_id }) => ({ id, display_name, avatar_url, school_id }));
+    .map((m) => {
+      const p = state.profiles.find((x) => x.id === m.user_id)!;
+      const school = seed.schools.find((s) => s.id === p.school_id)!;
+      return {
+        squad_id: squad.id,
+        user_id: p.id,
+        display_name: p.display_name,
+        avatar_url: p.avatar_url,
+        school_id: p.school_id,
+        school_name: school.name,
+        school_color: school.color,
+        joined_at: m.joined_at ?? squad.created_at,
+      };
+    });
   return { ...clone(squad), members };
 }
 
-// passport view: tiers bronze 1-2, silver 3-4, gold 5+
+// passport view and check_in(): bronze 1-2, silver 3-4, gold 5+
 const tierFor = (count: number): Tier => (count >= 5 ? "gold" : count >= 3 ? "silver" : "bronze");
+const nextTier = (count: number) => ({
+  next_tier: count >= 5 ? null : count >= 3 ? ("gold" as const) : ("silver" as const),
+  quests_to_next_tier: count >= 5 ? 0 : count >= 3 ? 5 - count : 3 - count,
+});
 
 // ---------- the service ----------
 
@@ -182,31 +217,41 @@ export const mockService: DataService = {
   async checkIn(questId, location, opts) {
     await wait(CHECK_IN_DELAY_MS);
     try {
-      // Same order of checks and messages as check_in() in schema.sql.
+      // Same order of checks, messages, and hints as check_in() in migration 002.
       const user = requireMe();
       const q = questById(questId);
-      if (!q) throw new Error("quest not found");
+      if (!q) throw new RpcError("quest not found", "QUEST_NOT_FOUND");
       const hood = neighborhoodOf(q);
-      if (!opts?.qr) {
-        // Demo accounts skip location in mock mode (open question for the backend).
-        if (!location && !DEMO_IDS.has(user.id)) throw new Error("location required");
-        if (questId === seed.TOO_FAR_QUEST_ID) throw new Error("too far: 320 m away (need within 75 m)");
+      if (!opts?.qr && !user.is_demo) {
+        if (!location) throw new RpcError("location required", "LOCATION_REQUIRED");
+      }
+      // Mock only: this quest always fails as too far (even for demo accounts), so the
+      // error screen can be built. The real check compares the location to the quest.
+      if (!opts?.qr && questId === seed.TOO_FAR_QUEST_ID) {
+        throw new RpcError("too far: 320 m away (need within 75 m)", "TOO_FAR");
       }
       if (opts?.squadId && !state.squadMembers.some((m) => m.squad_id === opts.squadId && m.user_id === user.id)) {
-        throw new Error("you are not in that squad");
+        throw new RpcError("you are not in that squad", "NOT_IN_SQUAD");
       }
       const mine = state.visits.filter((v) => v.user_id === user.id);
       const now = new Date();
       const today = seed.nyDate(now);
       if (mine.some((v) => v.quest_id === q.id && v.visit_date === today)) {
-        throw new Error("already checked in to this quest today");
+        throw new RpcError("already checked in to this quest today", "ALREADY_CHECKED_IN_TODAY");
       }
 
       const firstVisit = !mine.some((v) => v.quest_id === q.id);
       const newNeighborhood = !mine.some((v) => neighborhoodOf(questById(v.quest_id)!) === hood);
-      // Cross-school doubling is not simulated; the backend decides it.
-      let xp = q.xp + (firstVisit ? 25 : 0) + (newNeighborhood ? 25 : 0);
-      if (opts?.squadId) xp = Math.round(xp * 1.2);
+      // Cross-school doubling is not simulated (it needs a squad-mate's live check-in).
+      const breakdown: { reason: XpReason; xp: number }[] = [{ reason: "base", xp: q.xp }];
+      if (firstVisit) breakdown.push({ reason: "first_visit", xp: 25 });
+      if (newNeighborhood) breakdown.push({ reason: "new_neighborhood", xp: 25 });
+      let xp = breakdown.reduce((sum, b) => sum + b.xp, 0);
+      if (opts?.squadId) {
+        const bonus = Math.round(xp * 0.2);
+        breakdown.push({ reason: "squad", xp: bonus });
+        xp += bonus;
+      }
 
       const visit: Visit = {
         id: Math.max(0, ...state.visits.map((v) => v.id)) + 1,
@@ -220,27 +265,30 @@ export const mockService: DataService = {
         hidden: false,
       };
       state.visits.push(visit);
-      user.xp += xp;
+      setXp(user, user.xp + xp);
 
       const count = new Set(
         [...mine, visit].filter((v) => neighborhoodOf(questById(v.quest_id)!) === hood).map((v) => v.quest_id),
       ).size;
 
-      return {
-        ok: true as const,
-        result: {
-          xp_awarded: xp,
-          first_visit: firstVisit,
-          new_neighborhood: newNeighborhood,
-          cross_school: false,
-          neighborhood: hood,
-          neighborhood_quests: count,
-          tier: tierFor(count),
-          total_xp: user.xp,
-        },
+      const result: CheckInResult = {
+        xp_awarded: xp,
+        xp_breakdown: breakdown,
+        first_visit: firstVisit,
+        new_neighborhood: newNeighborhood,
+        cross_school: false,
+        neighborhood: hood,
+        neighborhood_quests: count,
+        tier: tierFor(count),
+        ...nextTier(count),
+        total_xp: user.xp,
+        level: user.level,
+        xp_to_next_level: user.xp_to_next_level,
       };
+      return { ok: true as const, result };
     } catch (e) {
-      return { ok: false as const, error: parseCheckInError(e instanceof Error ? e.message : String(e)) };
+      const err = e instanceof RpcError ? e : { message: e instanceof Error ? e.message : String(e) };
+      return { ok: false as const, error: parseCheckInError(err) };
     }
   },
 
@@ -261,6 +309,7 @@ export const mockService: DataService = {
         tier: tierFor(questsDone),
         has_cross_school_stamp: vs.some((v) => v.cross_school),
         stamps: sorted.map((v) => ({ quest_id: v.quest_id, at: v.checked_in_at, cross_school: v.cross_school })),
+        ...nextTier(questsDone),
       };
     });
   },
@@ -320,7 +369,7 @@ export const mockService: DataService = {
       created_at: new Date().toISOString(),
     };
     state.squads.push(squad);
-    state.squadMembers.push({ squad_id: squad.id, user_id: user.id });
+    state.squadMembers.push({ squad_id: squad.id, user_id: user.id, joined_at: squad.created_at });
     return withMembers(squad);
   },
 
@@ -330,7 +379,7 @@ export const mockService: DataService = {
     const squad = state.squads.find((s) => s.code === code.trim().toUpperCase());
     if (!squad) throw new Error("squad not found");
     if (!state.squadMembers.some((m) => m.squad_id === squad.id && m.user_id === user.id)) {
-      state.squadMembers.push({ squad_id: squad.id, user_id: user.id });
+      state.squadMembers.push({ squad_id: squad.id, user_id: user.id, joined_at: new Date().toISOString() });
     }
     return withMembers(squad);
   },
