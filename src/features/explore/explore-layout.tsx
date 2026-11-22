@@ -46,8 +46,9 @@ function Frame({ hubOpen, children }: { hubOpen: boolean; children: ReactNode })
         </div>
       </div>
 
-      {/* Room for the station hub, a 420 px panel 24 px from the right edge (hub-host.tsx). */}
-      {hubOpen && <div aria-hidden className="hidden w-[444px] shrink-0 desk:block" />}
+      {/* Room for the station hub, a 420 px panel 24 px from the right edge (hub-host.tsx),
+          plus a 24 px gap on its left so the map and its controls stop short of the panel. */}
+      {hubOpen && <div aria-hidden className="hidden w-[468px] shrink-0 bg-background desk:block" />}
     </div>
   );
 }

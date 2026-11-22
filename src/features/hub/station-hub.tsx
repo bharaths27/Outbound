@@ -139,7 +139,7 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
 
   if (load.status === "loading") {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 pt-3 desk:pt-6">
         <HubHeaderSkeleton onClose={onClose} />
         <ListSkeleton />
       </div>
@@ -148,7 +148,7 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
 
   if (load.status !== "ready") {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 pt-3 desk:pt-6">
         <div className="flex justify-end">
           <Button variant="ghost" onClick={onClose}>
             Close
@@ -185,8 +185,9 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
 
   return (
     <div ref={rootRef} className="flex flex-col gap-4">
-      {/* Pinned while the rest scrolls (DESIGN.md §7). */}
-      <div className="sticky top-0 z-10 -mx-4 bg-background px-4 pb-1 desk:-mx-6 desk:px-6">
+      {/* Pinned while the rest scrolls (DESIGN.md §7). The scroll area has no top padding and
+          the header carries it instead, so nothing scrolls into a gap above the header. */}
+      <div className="sticky top-0 z-20 -mx-4 bg-background px-4 pt-3 pb-1 desk:-mx-6 desk:px-6 desk:pt-6">
         <HubHeader station={station} onClose={onClose} />
       </div>
 
