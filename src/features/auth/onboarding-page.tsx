@@ -99,9 +99,9 @@ export function OnboardingPage() {
           {step === 0 && (
             <section className="flex flex-1 flex-col justify-center gap-[22px]">
               <div aria-hidden className="relative flex h-[220px] items-center justify-center gap-1 overflow-hidden rounded-[28px] bg-maroon">
-                <Stamp questId="ob-1" title="Chinatown" neighborhood="Chinatown" tier="silver" size={92} rotate={-10} className="translate-y-3 rounded-full bg-page" />
-                <Stamp questId="ob-2" title="Back Bay" neighborhood="Back Bay" tier="gold" size={120} rotate={4} className="z-10 rounded-full bg-page" />
-                <Stamp questId="ob-3" title="North End" neighborhood="North End" tier="bronze" size={92} rotate={9} className="translate-y-4 rounded-full bg-page" />
+                <Stamp questId="ob-1" title="Chinatown" neighborhood="Chinatown" stationId="place-chncl" tier="silver" size={92} rotate={-10} className="translate-y-3 rounded-full bg-page" />
+                <Stamp questId="ob-2" title="Back Bay" neighborhood="Back Bay" stationId="place-coecl" tier="gold" size={120} rotate={4} className="z-10 rounded-full bg-page" />
+                <Stamp questId="ob-3" title="North End" neighborhood="North End" stationId="place-haecl" tier="bronze" size={92} rotate={9} className="translate-y-4 rounded-full bg-page" />
               </div>
               <div>
                 <h1 className="font-display text-[32px] leading-[1.1] font-bold text-maroon">Every stop is a quest</h1>
@@ -141,7 +141,7 @@ export function OnboardingPage() {
                   leaderboard resets every Monday.
                 </p>
                 <p className="mt-2.5 text-[15px] leading-normal text-ink-2">
-                  Squads can mix schools. Check in with a friend from another school for double XP.
+                  Squads can mix schools. Check in together for +20% XP, or double XP if a squad-mate from another school checks in at the same quest within an hour.
                 </p>
               </div>
             </section>

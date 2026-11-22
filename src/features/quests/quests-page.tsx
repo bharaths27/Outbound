@@ -8,15 +8,16 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { data } from "@/lib/data";
-import type { Quest, QuestType, Station } from "@/lib/data/types";
+import { XP_PER_LEVEL, data, levelProgress } from "@/lib/data";
+import type { Quest, QuestType, Station, Visit } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { CATEGORY, QuestThumb } from "@/features/hub/category";
 import { LineLetter, groupLines } from "@/features/hub/line-badge";
 import { XpChip } from "@/features/hub/quest-card";
 import { usePlayer } from "@/features/hub/use-player";
 import { PageHeader } from "@/features/shell/page-header";
-import { DAILY_COUNT, bostonDateKey, doneToday, pickDailyQuests } from "./daily";
+import { QuestOfTheWeekCard, QuestOfWeekBadge } from "@/features/weekly/quest-of-the-week";
+import { DAILY_COUNT, bostonDateKey, dailyEligible, doneToday, pickDailyQuests, xpToday } from "./daily";
 
 type Filter = "all" | QuestType;
 const FILTERS: { id: Filter; label: string }[] = [
@@ -36,7 +37,7 @@ interface Loaded {
 export function QuestsPage() {
   const [loaded, setLoaded] = useState<Loaded | null | "error">(null);
   const [filter, setFilter] = useState<Filter>("all");
-  const { player } = usePlayer();
+  const { player, loaded: playerLoaded } = usePlayer();
   const dateKey = bostonDateKey(new Date());
 
   useEffect(() => {
@@ -52,15 +53,23 @@ export function QuestsPage() {
   }, []);
 
   const daily = useMemo(
-    () => (loaded && loaded !== "error" ? pickDailyQuests(loaded.quests, dateKey) : []),
+    () => (loaded && loaded !== "error" ? pickDailyQuests(dailyEligible(loaded.quests, new Date()), dateKey) : []),
     [loaded, dateKey],
   );
   const done = useMemo(() => doneToday(player.visits, dateKey), [player.visits, dateKey]);
   const doneQuests = daily.filter((q) => done.has(q.id));
-  const doneXp = doneQuests.reduce((s, q) => s + q.xp, 0);
+  // Everything earned today, from check_in's xp_awarded (bonuses included), not base quest XP.
+  // Only today's quests, so the XP agrees with "N of 5 done".
+  const doneXp = useMemo(
+    () => xpToday(player.visits, dateKey, new Set(daily.map((q) => q.id))),
+    [player.visits, dateKey, daily],
+  );
   const total = daily.length || DAILY_COUNT;
   const shown = filter === "all" ? daily : daily.filter((q) => q.type === filter);
-  const progressLabel = `${doneQuests.length} of ${total} done · +${doneXp} XP`;
+  // Until both the quests and the player's visits are in, don't claim "0 of 5 done".
+  const progressReady = playerLoaded && loaded !== null;
+  const progressLabel = progressReady ? `${doneQuests.length} of ${total} done · +${doneXp} XP today` : "Checking today’s progress…";
+  const progressValue = progressReady ? doneQuests.length : 0;
   const profile = player.profile;
 
   return (
@@ -73,12 +82,12 @@ export function QuestsPage() {
               <span>Daily progress</span>
               <span className="font-semibold text-muted-foreground tabular-nums">{progressLabel}</span>
             </div>
-            <Progress value={doneQuests.length} max={total} className="mt-2.5 h-2.5 bg-sand" fill="bg-gold-500" />
+            <Progress value={progressValue} max={total} className="mt-2.5 h-2.5 bg-sand" fill="bg-gold-500" />
           </div>
         }
       >
         <div className="flex items-center gap-3">
-          <Progress value={doneQuests.length} max={total} className="h-2 flex-1 bg-white/20" fill="bg-gold" />
+          <Progress value={progressValue} max={total} className="h-2 flex-1 bg-white/20" fill="bg-gold" />
           <span className="text-[13px] text-on-maroon-muted tabular-nums">{progressLabel}</span>
         </div>
       </PageHeader>
@@ -101,7 +110,7 @@ export function QuestsPage() {
                   aria-pressed={filter === f.id}
                   onClick={() => setFilter(f.id)}
                   className={cn(
-                    "h-10 shrink-0 rounded-full border px-4 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2 desk:h-11 desk:px-[18px] desk:text-[15px]",
+                    "h-11 shrink-0 rounded-full border px-4 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2 desk:h-11 desk:px-[18px] desk:text-[15px]",
                     filter === f.id
                       ? "border-maroon bg-maroon text-white"
                       : "border-border-strong bg-surface text-ink hover:bg-sand desk:bg-sand desk:hover:bg-cream",
@@ -111,6 +120,8 @@ export function QuestsPage() {
                 </button>
               ))}
             </div>
+
+            <QuestOfTheWeekCard visits={player.visits} />
 
             <div className="desk:hidden">
               <BonusBanner />
@@ -132,7 +143,7 @@ export function QuestsPage() {
             {shown.length > 0 && loaded && loaded !== "error" && (
               <ul className="grid grid-cols-1 gap-2.5 desk:grid-cols-[repeat(auto-fill,minmax(min(100%,360px),1fr))] desk:gap-3.5">
                 {shown.map((q) => (
-                  <QuestRow key={q.id} quest={q} station={loaded.stations.get(q.station_id)} done={done.has(q.id)} />
+                  <QuestRow key={q.id} quest={q} station={loaded.stations.get(q.station_id)} done={done.has(q.id)} visits={player.visits} />
                 ))}
               </ul>
             )}
@@ -155,8 +166,8 @@ export function QuestsPage() {
                   <span className="text-[13px] text-muted-foreground">Lv. {profile.level + 1} next</span>
                 </div>
                 <Progress
-                  value={250 - profile.xp_to_next_level}
-                  max={250}
+                  value={levelProgress(profile).into}
+                  max={XP_PER_LEVEL}
                   label={`Progress to level ${profile.level + 1}`}
                   className="mt-3 h-2.5 bg-sand"
                   fill="bg-gold-500"
@@ -222,10 +233,10 @@ function BonusBanner({ large = false }: { large?: boolean }) {
       <section className="rounded-xl bg-maroon p-5 text-white">
         {icon}
         <p className="mt-3.5 type-eyebrow text-gold">Cross-school bonus</p>
-        <h2 className="mt-1 font-display text-2xl leading-tight font-semibold">Quest with another school for 2× XP</h2>
+        <h2 className="mt-1 font-display text-2xl leading-tight font-semibold">Squad up across schools for 2× XP</h2>
         <p className="mt-2 text-sm leading-relaxed text-on-maroon-muted">
-          Team up with a student from another school on any quest. You both earn double XP and a cross-school ring on the
-          stamp.
+          Check in with your squad for +20% XP, or double XP if a squad-mate from another school checks in at the same
+          quest within an hour. Cross-school stamps get a gold ring.
         </p>
         <Link
           href="/leaderboard?tab=squads"
@@ -245,14 +256,24 @@ function BonusBanner({ large = false }: { large?: boolean }) {
       <div className="min-w-0 flex-1">
         <p className="type-eyebrow text-gold">Cross-school bonus</p>
         <p className="mt-0.5 text-[15px] leading-snug font-semibold">
-          Complete any quest with a student from another school for 2× XP
+          +20% XP with your squad, or double if a squad-mate from another school checks in within an hour
         </p>
       </div>
     </Link>
   );
 }
 
-function QuestRow({ quest, station, done }: { quest: Quest; station: Station | undefined; done: boolean }) {
+function QuestRow({
+  quest,
+  station,
+  done,
+  visits,
+}: {
+  quest: Quest;
+  station: Station | undefined;
+  done: boolean;
+  visits: Visit[];
+}) {
   const line = station ? groupLines(station.lines)[0] : undefined;
   const where = station ? `${station.neighborhood} · ${station.name}` : "";
   const cat = CATEGORY[quest.type];
@@ -268,7 +289,7 @@ function QuestRow({ quest, station, done }: { quest: Quest; station: Station | u
           {quest.title}
         </Link>
         {station && (
-          <p className="mt-1 flex items-center gap-1.5 text-[13px] text-muted-foreground desk:text-sm">
+          <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-muted-foreground desk:text-sm">
             {line && <LineLetter line={line.line} size={16} />}
             <span className="truncate">{where}</span>
           </p>
@@ -279,6 +300,7 @@ function QuestRow({ quest, station, done }: { quest: Quest; station: Station | u
             {cat.label}
           </span>
           <XpChip xp={quest.xp} className="text-xs" />
+          <QuestOfWeekBadge questId={quest.id} visits={visits} />
         </div>
       </div>
       {done ? (

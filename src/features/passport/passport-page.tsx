@@ -12,10 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { data } from "@/lib/data";
+import { data, levelProgress as sharedLevelProgress } from "@/lib/data";
 import type { Profile, School, Tier } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { TIER_LABEL, buildPassport, progressLine, type NeighborhoodView, type PassportView } from "./build-passport";
+import { BadgesAndStreak } from "./badges";
 import { Stamp } from "./stamp";
 import { PageHeader } from "@/features/shell/page-header";
 import { PlayerAvatar } from "@/features/shell/shell-parts";
@@ -120,9 +121,8 @@ export function PassportPage() {
 const STAR = "M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z";
 
 function levelProgress(profile: Profile) {
-  // 250 XP per level (profiles.level is generated from xp).
-  const into = 250 - profile.xp_to_next_level;
-  return { pct: Math.max(0, Math.min(100, (into / 250) * 100)), into };
+  const { into, pct } = sharedLevelProgress(profile);
+  return { pct: pct * 100, into };
 }
 
 /** Phones: avatar, name, school, level pill, and XP to the next level, in the title band. */
@@ -277,6 +277,8 @@ function Passport({ profile, view }: { profile: Profile; view: PassportView }) {
         </span>
       </div>
 
+      <BadgesAndStreak />
+
       <Tabs defaultValue={empty ? "explore" : "stamps"} className="gap-4">
         <TabsList className="w-full desk:w-fit">
           <TabsTrigger value="stamps">Your stamps</TabsTrigger>
@@ -392,6 +394,7 @@ function Neighborhood({ n }: { n: NeighborhoodView }) {
                 questId={e.quest.id}
                 title={e.quest.title}
                 neighborhood={n.neighborhood}
+                stationId={e.quest.station_id}
                 type={e.quest.type}
                 tier={n.tier}
                 crossSchool={e.crossSchool}
@@ -411,7 +414,7 @@ function Neighborhood({ n }: { n: NeighborhoodView }) {
               href={`/q/${q.id}`}
               className="group flex flex-col items-center gap-1.5 rounded-xl p-1 text-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              <Stamp questId={q.id} title={q.title} neighborhood={n.neighborhood} type={q.type} tier={n.tier} locked size={88} />
+              <Stamp questId={q.id} title={q.title} neighborhood={n.neighborhood} stationId={q.station_id} type={q.type} tier={n.tier} locked size={88} />
               <span className="type-small line-clamp-2 text-muted-foreground group-hover:underline">{q.title}</span>
             </Link>
           </li>

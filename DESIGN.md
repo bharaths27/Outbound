@@ -41,6 +41,7 @@ The map itself is owned by Verna. Restyle only the chrome around it; the illustr
 
 1. **Navigation.**
    - Replace the 4-tab shell (Map, Passport, Compete, Profile; left rail on desktop) with **5 items: Explore · Quests · Passport · Leaderboard · Events**.
+   - **Team decision (2026-11-21):** the phone tab bar shows **Explore · Quests · Passport · Leaderboard · Rewards**. Events isn't designed yet, so it's in the desktop top bar only.
    - Phones get a **bottom tab bar**. Desktop gets a **maroon top bar** with the logo, nav pills, XP pill, bell and avatar.
    - **Profile** has no tab. On desktop you reach it from the avatar; on mobile from the avatar or menu.
    - Keep the shell hidden on Login, Onboarding and Squad invite.
@@ -86,7 +87,7 @@ The map itself is owned by Verna. Restyle only the chrome around it; the illustr
 - **School colors** appear on avatar rings and dots: BU `#B3121F`, Northeastern `#26262B`, MIT `#8A1538`, Harvard `#A51C30`. Others come from the backend.
 
 ### Type
-- **Fonts:** Fraunces (display, 500 / 600 / 700) and DM Sans (UI, 400 / 500 / 600 / 700), from Google Fonts.
+- **Fonts:** Fraunces (display, 500 / 600 / 700) and DM Sans (UI, 400 / 500 / 600 / 700). They are bundled with the app in `src/app/fonts/` (variable weight, latin), not loaded from Google Fonts.
 - **Display headings** use upright Fraunces: page titles are 26–28 mobile / 40 desktop; hero titles are 30–32 mobile / 44 desktop. Italic is reserved for the "Explore Boston" and "My Passport" titles.
 - **Station names** are set like a station sign: DM Sans 700, 26 px, white on `#2B1A1F`, radius 8. Step long names down a size.
 - **Body text** is 14–17; labels 13–15 at weight 600–700; eyebrows 12 px, 700, uppercase, +0.08–0.12em tracking.
@@ -125,7 +126,7 @@ Toasts sit at the bottom center, above the tab bar. They're a dark ink pill (`#2
 
 | Component | Spec |
 |---|---|
-| **Stamp** (signature element) | Circular badge with a perforated dashed outer ring, a thin inner ring, the neighborhood name in caps along the top arc, and a line-art landmark glyph in the center. Earned stamps sit at a slight tilt (−8° to +7°). **Sizes:** 44–48 (card corner), 72 (profile mobile), 88 (passport / profile desktop), 96–128 (quest detail, celebration, onboarding). **Tiers:** Bronze `#A8643A`, Silver (ink `#6B7486`, ring `#9AA3B2`, bg `#F4F5F8`), Gold (ink `#1F4A7A`, ring `#D9A21B`, bg `#FFF4D6`; the darker ink keeps it readable on white). **Cross-school:** an extra thin **gold** outer ring; on a gold stamp, make that ring **maroon**. **Locked:** grey `#8C7F79` ink on `#F3EDE3`, dashed. Always give it an `aria-label`, e.g. "Back Bay stamp, Silver". |
+| **Stamp** (signature element) | Circular badge with a perforated dashed outer ring, a thin inner ring, the neighborhood name in caps along the top arc, and a line-art landmark glyph in the center. Earned stamps sit at a slight tilt (−8° to +7°). **Sizes:** 44–48 (card corner), 72 (profile mobile), 88 (passport / profile desktop), 96–128 (quest detail, celebration, onboarding). **Tiers:** Bronze `#A8643A`, Silver (ink `#6B7486`, ring `#9AA3B2`, bg `#F4F5F8`), Gold (ink `#1F4A7A`, ring `#D9A21B`, bg `#FFF4D6`; the darker ink keeps it readable on white). **Cross-school:** an extra thin **gold** outer ring; on a gold stamp, make that ring **maroon**. **Locked:** grey `#8C7F79` ink on `#F3EDE3`, dashed. Always give it an `aria-label`, e.g. "Back Bay stamp, Silver". **Station stamps:** stations with quests use an illustrated stamp instead (scalloped edge, double ring, area on the top arc, a two-tone landmark scene, the station on a ribbon with a paper keyline and a tier-ring outline, and line badges). Source and build script: `design/stamps/`; standalone Gold SVGs: `public/stamps/<station-id>.svg`. |
 | **Tier progress dots** | 3 dots under a stamp: `#C7901A` = earned, `#DCCFBD` = not yet. |
 | **Line badge** | A colored circle with a white letter (G / R / O / B / SL). In headers, a colored dot plus branch text ("Green B C D E"). |
 | **Quest card: hub** | Mobile: a 4:3 photo on top (tinted placeholder with a category icon until photos exist), then the title (17/700), a meta row (price · walk time · hours in green when open, maroon when closed), up to 3 vibe tags, and "+50 XP" with "Silver in Back Bay". Desktop: the same content in a horizontal layout with a 104 × 96 thumbnail. Done quests get a 44–48 stamp in the corner. The whole card is a link. |

@@ -22,7 +22,7 @@ export async function fetchLive(): Promise<{ updatedAt: string; trains: Train[] 
 
 export async function fetchReplay(): Promise<ReplayFrame[] | null> {
   try {
-    const r = await fetch("replay.json");
+    const r = await fetch("/replay.json");
     if (!r.ok) return null;
     const j = await r.json();
     return Array.isArray(j.frames) && j.frames.length > 1 ? j.frames : null;
@@ -73,6 +73,7 @@ const DEST: Record<string, [string, string]> = {
   Red: ["Ashmont/Braintree", "Alewife"],
   Orange: ["Forest Hills", "Oak Grove"],
   Blue: ["Bowdoin", "Wonderland"],
+  Mattapan: ["Mattapan", "Ashmont"],
   "Green-B": ["Boston College", "Government Center"],
   "Green-C": ["Cleveland Circle", "Government Center"],
   "Green-D": ["Riverside", "Union Square"],
@@ -108,7 +109,6 @@ export class DemoFeed {
   constructor(private net: TrackNetwork) {
     let n = 0;
     net.polys.forEach((p, pi) => {
-      if (p.line === "Blue") return; // /api/trains only covers Red, Orange, Green
       const count = Math.max(1, Math.floor(p.len / 1800));
       for (let i = 0; i < count; i++)
         this.trains.push({ id: `demo-${n++}`, line: p.line, poly: pi, along: ((i + 0.5) / count) * p.len, dir: i % 2 ? 1 : -1 });

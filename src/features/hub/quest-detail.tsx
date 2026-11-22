@@ -12,7 +12,10 @@ import { ArrowLeft, Clock } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { CheckInButton } from "@/features/checkin";
+import { ShareQuestButton } from "@/features/share/share-quest-button";
 import { ShareStampButton } from "@/features/share/share-stamp-button";
+import { QuestOfWeekBadge } from "@/features/weekly/quest-of-the-week";
+import { RecommendButton } from "@/features/weekly/recommend-button";
 import { Stamp, TIER_NAME } from "@/features/passport/stamp";
 import { data } from "@/lib/data";
 import type { Deal, Quest, Station } from "@/lib/data/types";
@@ -72,29 +75,34 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
     </>
   );
 
-  const stamp = visit ? (
+  // Earned: the stamp in its tier colors. Not yet: the same art greyed out, as on Passport.
+  const stamp = (
     <Stamp
       questId={quest.id}
       title={quest.title}
       neighborhood={station.neighborhood}
+      stationId={quest.station_id}
+      type={quest.type}
       tier={tier ?? "bronze"}
-      crossSchool={visit.cross_school}
-      size={page ? 96 : 64}
-      rotate={-8}
-      label={`You have this stamp, ${TIER_NAME[tier ?? "bronze"]}`}
+      crossSchool={visit?.cross_school ?? false}
+      locked={!visit}
+      size={page ? 132 : 84}
+      rotate={visit ? -8 : undefined}
+      label={visit ? `You have this stamp, ${TIER_NAME[tier ?? "bronze"]}` : `${quest.title} stamp, not collected yet`}
     />
-  ) : null;
+  );
 
   const share =
     visit && player.profile ? (
       <ShareStampButton
         variant="ghost"
         size="sm"
-        label="Share"
+        label="Share stamp"
         className="font-semibold text-maroon"
         questId={quest.id}
         questTitle={quest.title}
         neighborhood={station.neighborhood}
+        stationId={quest.station_id}
         stationName={station.name}
         tier={tier ?? "bronze"}
         crossSchool={visit.cross_school}
@@ -118,10 +126,12 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   const titleBlock = (
     <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1">
-        <h2 className={cn("font-display leading-[1.1] font-bold text-maroon", page ? "text-[30px] desk:text-[44px]" : "text-[28px]")}>
+        {/* leading goes last: tailwind-merge drops a line-height that comes before a font size. */}
+        <h2 className={cn("font-display font-bold text-maroon", page ? "text-[30px] desk:text-[44px]" : "text-[28px]", "leading-[1.15]")}>
           {quest.title}
         </h2>
-        <StationLine station={station} href={stationHref} />
+        {/* Title-to-station gap: 12 px in the hub, 16 px on the full page (bigger title). */}
+        <StationLine station={station} href={stationHref} className={page ? "mt-3 desk:mt-4" : "mt-3"} />
       </div>
       {/* On the desktop page the stamp lives in the side column. */}
       <div className={cn("flex flex-col items-center gap-1", page && "desk:hidden")}>
@@ -143,9 +153,16 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   const timeLine = <TimeLine quest={quest} />;
   const dealsBox = deals.length > 0 && <DealsBox deals={deals} />;
   const reward = (
-    <div className="flex items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-3 text-sm text-ink-2">
+    <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-3 text-sm text-ink-2">
       <XpChip xp={quest.xp} className="text-sm" />
+      <QuestOfWeekBadge questId={quest.id} visits={player.visits} className="text-[13px]" />
       <span>{rewardText}</span>
+    </div>
+  );
+  const actions = (
+    <div className="flex flex-wrap gap-2">
+      <ShareQuestButton questId={quest.id} questTitle={quest.title} />
+      <RecommendButton questId={quest.id} visits={player.visits} />
     </div>
   );
 
@@ -172,6 +189,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
         </section>
         {dealsBox}
         {reward}
+        {actions}
         <StickyCheckIn>{checkIn}</StickyCheckIn>
       </article>
     );
@@ -200,6 +218,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
           <div className="flex flex-col gap-4 desk:hidden">
             {dealsBox}
             {reward}
+            {actions}
           </div>
         </div>
       </div>
@@ -207,9 +226,9 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
       {/* Desktop side column */}
       <aside className="hidden desk:flex desk:flex-[1_1_340px] desk:flex-col desk:gap-4 desk:self-start desk:sticky desk:top-6">
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-5 text-center">
-          {stamp ? (
+          {stamp}
+          {visit ? (
             <>
-              {stamp}
               <p className="text-sm text-ink-2">
                 You have this stamp · <b>{TIER_NAME[tier ?? "bronze"]} in {station.neighborhood}</b>
               </p>
@@ -221,6 +240,10 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
           {reward}
           <div className="w-full">{checkIn}</div>
           <p className="text-[13px] text-muted-foreground">You&apos;ll need to be within {quest.checkin_radius_m} m.</p>
+          <div className="flex w-full flex-col gap-2 [&>button]:w-full">
+            <ShareQuestButton questId={quest.id} questTitle={quest.title} />
+            <RecommendButton questId={quest.id} visits={player.visits} />
+          </div>
         </div>
         {dealsBox}
       </aside>
@@ -232,10 +255,10 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   );
 }
 
-function StationLine({ station, href }: { station: Station; href?: string }) {
+function StationLine({ station, href, className }: { station: Station; href?: string; className?: string }) {
   const lines = groupLines(station.lines);
   return (
-    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-sm text-ink-2">
+    <div className={cn("flex flex-wrap items-center gap-1.5 text-sm text-ink-2", className)}>
       {lines.map((g) => (
         <LineLetter key={g.line} line={g.line} />
       ))}

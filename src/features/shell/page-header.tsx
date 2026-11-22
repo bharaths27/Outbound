@@ -1,15 +1,17 @@
 "use client";
 
 // Page title (DESIGN.md §4). Phones: a maroon band with the title (or a back arrow and the
-// title on sub-pages), the profile avatar on the right, and optional extra content inside
+// title on sub-pages), Ask Guide (see src/features/guide/placement.ts) and the profile avatar on the right, and optional extra content inside
 // the band (a segmented control, a podium). Desktop: the shell's top bar is the chrome, so
 // the title sits on the page in Fraunces 40 with an optional back link above it.
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { guideInHeaderOn } from "@/features/guide/placement";
 import { cn } from "@/lib/utils";
-import { ProfileLink } from "./shell-parts";
+import { AskGuideButton, ProfileLink } from "./shell-parts";
 import { useShellPlayer } from "./use-shell-player";
 
 export interface PageHeaderProps {
@@ -29,6 +31,7 @@ export interface PageHeaderProps {
 
 export function PageHeader({ title, back, icon, children, desktopAside, desktopBackOnly, className }: PageHeaderProps) {
   const player = useShellPlayer();
+  const guideInHeader = guideInHeaderOn(usePathname());
   return (
     <>
       {/* Phones */}
@@ -51,6 +54,7 @@ export function PageHeader({ title, back, icon, children, desktopAside, desktopB
             icon
           )}
           <h1 className="min-w-0 flex-1 truncate font-display text-[26px] leading-8 font-semibold">{title}</h1>
+          {guideInHeader && <AskGuideButton compact />}
           <ProfileLink player={player} size={34} />
         </div>
         {children && <div className="mt-3">{children}</div>}

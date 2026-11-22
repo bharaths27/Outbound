@@ -1,7 +1,7 @@
 # Requests for others
 
 Notes from the app frontend (Angie and Bharath) about things in someone else's area.
-Answer inline or in the team chat, then check the item off. Last updated 2026-11-22 for the
+Answer inline or in the team chat, then check the item off. Last updated 2026-11-22 (Bharath's answers) for the
 hi-fi redesign (`DESIGN.md` v1 · Maroon): light mode only, Fraunces + DM Sans, 1024 px
 desktop breakpoint, 5-item nav.
 
@@ -13,60 +13,19 @@ frontend-derived shapes.
 
 ### Bharath (backend)
 
-- [ ] **Security: players can edit any column of their own profile and visits (high).**
-  `004_api_grants.sql` grants `update` on whole tables, and RLS only limits which *rows*.
-  From the browser console with the public key, a player can set their own `xp`, flip
-  `is_demo` (skips location checks), change `school_id`, or raise `visits.xp_awarded` to
-  win the leaderboard. Fix with column grants (the app only updates these):
-  ```sql
-  revoke update on public.profiles, public.visits from authenticated;
-  grant update (display_name, avatar_url, privacy) on public.profiles to authenticated;
-  grant update (hidden) on public.visits to authenticated;
-  ```
-  `check_in()` runs as its owner, so XP and visits keep working.
-- [ ] **Security: QR codes are readable by everyone.** `quests.qr_code` is in the public
-  `select` grant, so anyone can run `supabase.from("quests").select("qr_code")` and read
-  every code, which makes QR check-in prove nothing. The app no longer fetches the column
-  (it selects explicit columns and learns which quests need a code from
-  `.select("id").not("qr_code", "is", null)`), but the grant still exposes it. Please
-  `revoke select (qr_code)` from `anon` and `authenticated` and add a `has_qr boolean`
-  (generated column) the app can read. Tell us when: the app's "which quests need a code"
-  query switches to `has_qr` then.
-- [ ] **QR codes: compare case-insensitively?** `check_in()` compares exactly. The app
-  sends what the player types in capitals, which matches `OUTBOUND-EXPO`. Lowercase codes
-  would never match unless `check_in()` uses `upper()` on both sides.
-- [ ] **`DEMO_PASSWORD` in Vercel.** The login screen's one-tap demo buttons call
-  `POST /api/demo-login`, which signs in on the server with `DEMO_PASSWORD` and only
-  accepts the 4 `outbound-demo*` emails. Please add `DEMO_PASSWORD` to Vercel's env
-  (server-only, no `NEXT_PUBLIC_`).
-- [ ] **Starter quests vs Suki's content.** `content/seed.sql` loads Suki's quests next to
-  the starter quests (`central-graffiti-alley` is in both; Suki's version wins). To drop
-  the other starter quests, there's a commented `delete` at the end of `content/seed.sql`,
-  but deleting a quest deletes its visits, so re-run `scripts/seed-demo.mjs` afterward.
-  Your call.
-- [ ] **Hours format.** `schema.sql` documents `hours` as `"HH:MM-HH:MM"` or `"always"`.
-  The app now also reads per-day hours (`Mon-Thu 09:00-20:00; Sat,Sun 10:00-14:00`,
-  documented in `content/README.md`), which Suki's content uses. The column is text, so no
-  migration, but please update the comment.
-- [ ] **Search tags.** `/api/search` lets Gemini pick tags only from `KNOWN_TAGS` in
-  `src/lib/search.ts` (`photo-spot`, `study-spot`, …), but Suki's quests use other tags
-  (`photo`, `coffee`, `pastry`, `park`). Could `KNOWN_TAGS` come from the quests' actual
-  tags, or be updated to match `content/quests.csv`?
-- [ ] **Ride time for the time filter.** The rule is
-  `ride_min + 2 * walk_min + duration_min <= minutes`, but nothing provides `ride_min`
-  (time from the user to the station). Until something does, the hub uses 0 and labels
-  times "from the station". Is there a source planned (an API route, or Verna's map)?
-- [ ] **QR quests.** Which quests will have a `qr_code`, and where will judges see the
-  codes? The frontend can take a typed code without adding a scanner library.
-- [ ] **Vercel env var.** Set `NEXT_PUBLIC_DATA_SOURCE=supabase` in the Vercel project. The
-  Supabase data service is done; `mock` stays the local default.
-- [ ] **Today's Quests list** (low priority). The new Quests tab (`/quests`) picks 5 quests
-  per Boston date on the client (`src/features/quests/daily.ts`), the same for everyone. If
-  you want a curated or personalized daily list, a `daily_quests` view or RPC would replace
-  it; the page only needs quest ids.
-- [ ] **One craving per search** (low priority). `Filters.craving` holds one value, so
-  "cheap spicy noodles" keeps `spicy` and drops `noodles`. A `cravings: string[]` would
-  allow both. Fine to leave as is.
+Answered by Bharath on 2026-11-22; the answers are under Resolved. Still in progress:
+
+- [ ] **Run `007_hide_qr_codes.sql`.** The app now reads `quests.has_qr` (and only falls back
+  to an id-only `qr_code` filter if 006 hasn't run), so 007 can run once this change is on
+  `main` and deployed. Quests are always selected by named columns, never `*`.
+- [ ] **`DEMO_PASSWORD` in Vercel** (server-only). Bharath is adding it.
+- [ ] **`NEXT_PUBLIC_DATA_SOURCE=supabase` in Vercel.** Set when the integration branch
+  merges to `main`.
+- [ ] **`/api/ride-times` on `main`.** It's on `bharath/guide-pipeline`. The hub's time
+  filter uses it as ride time "from you" once it's there (until then, "from the station").
+- [ ] **Public site URL (optional).** Share-card QR codes link to the public site. With
+  nothing set they use Vercel's production domain (`VERCEL_PROJECT_PRODUCTION_URL`). For a
+  custom domain, set `NEXT_PUBLIC_SITE_URL=https://<that domain>` in Vercel.
 
 ### Suki (content)
 
@@ -131,6 +90,32 @@ in `content/README.md`; `npm test` checks every row.
   phones. If it covers map controls, tell us where you'd like it.
 
 ## Resolved
+
+Bharath's answers (2026-11-22):
+
+- [x] **Profile and visit columns:** column-level update grants in `005_gamification.sql`
+  (PR #15). Players can only update `display_name`, `avatar_url`, `privacy` and
+  `visits.hidden`.
+- [x] **QR codes readable:** `006_qr_has_qr.sql` adds `quests.has_qr`; the app reads it
+  (`src/lib/data/supabase/index.ts`). `007_hide_qr_codes.sql` revokes `qr_code` (see Open).
+- [x] **QR case:** codes are stored uppercase and trimmed (006 adds a check). `check_in()`
+  compares exactly; the app sends the typed code trimmed and uppercased.
+- [x] **Starter quests vs Suki's:** keep both. Don't run the commented `delete` in
+  `content/seed.sql`: it wipes the demo accounts' visits, passport and leaderboard.
+- [x] **Hours format:** per-day hours are official; the column comment is updated (006).
+- [x] **Search tags:** `KNOWN_TAGS` includes every tag in `content/quests.csv`, with a test
+  that fails on a new CSV tag.
+- [x] **Ride time:** `GET /api/ride-times?from=lat,lng` returns minutes from the player to
+  every station (T or walking). Without `from`, it starts at BU Central.
+- [x] **QR quests:** only `bu-gsu-expo`, code `OUTBOUND-EXPO`, printed on a card at the
+  team's expo table. A typed code is enough; no scanner.
+- [x] **Level size:** stays 250 XP per level (`XP_PER_LEVEL` in `src/lib/data/levels.ts`).
+- [x] **Today's Quests:** client-side picking is fine. Quest of the Week can come first via
+  `quest_of_the_week()`.
+- [x] **One craving:** leave it as is.
+- [x] **Guide routes:** the Ask Guide panel's "Show route on map" sends `outbound:go`
+  (`{name, lat, lng}`) or opens `/?go=lat,lng&name=`. `TransitMap.tsx` listens for it; keep
+  that listener if the map is restyled.
 
 - [x] **Squad score:** not shown; there's no backend support (DESIGN.md §11.6).
 - [x] **Leaderboard wording:** "Schools need 5 active players to rank. Resets Monday at

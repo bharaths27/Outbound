@@ -2,6 +2,7 @@
 // leaderboard_weekly view as-is; these only rank for display and format squad details.
 
 import type { LeaderboardRow, SquadWithMembers } from "@/lib/data/types";
+import { bostonWeekStart } from "@/features/quests/daily";
 
 export interface RankedRow extends LeaderboardRow {
   /** 1-based rank among eligible schools; null when the school needs more players. */
@@ -65,13 +66,12 @@ export function schoolAbbr(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-/** Monday (YYYY-MM-DD) of the week containing a Boston date key, matching the weekly reset. */
-export function weekStart(dateKey: string): string {
-  const d = new Date(`${dateKey}T12:00:00Z`);
-  const back = (d.getUTCDay() + 6) % 7; // Mon = 0
-  d.setUTCDate(d.getUTCDate() - back);
-  return d.toISOString().slice(0, 10);
-}
+/**
+ * Monday (YYYY-MM-DD) of the week containing a Boston date key, matching the weekly reset.
+ * visit_date is the Boston date of checked_in_at, so "visit_date >= Monday" selects the same
+ * check-ins as leaderboard_weekly's "checked_in_at >= Monday 00:00 Boston".
+ */
+export const weekStart = bostonWeekStart;
 
 /** The player's XP from check-ins this week (Monday on), for "Your school contribution". */
 export function weeklyXp(visits: { visit_date: string; xp_awarded: number }[], dateKey: string): number {

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Fraunces } from "next/font/google";
+import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner";
 import { StationHubHost } from "@/features/hub";
 import { AppShell } from "@/features/shell/app-shell";
@@ -7,18 +7,22 @@ import "./globals.css";
 import { ShellGuide } from "@/features/shell/shell-guide";
 
 // Fraunces for display headings, DM Sans for UI (DESIGN.md §3 Type).
-const fraunces = Fraunces({
+// Bundled from src/app/fonts (latin, variable weight, SIL OFL) so builds never
+// fetch Google Fonts. Files come from @fontsource-variable/{fraunces,dm-sans} 5.3.0.
+const fraunces = localFont({
   variable: "--font-fraunces",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  style: ["normal", "italic"],
+  src: [
+    { path: "./fonts/fraunces-latin-wght-normal.woff2", weight: "100 900", style: "normal" },
+    { path: "./fonts/fraunces-latin-wght-italic.woff2", weight: "100 900", style: "italic" },
+  ],
   display: "swap",
+  fallback: ["Georgia", "serif"],
 });
-const dmSans = DM_Sans({
+const dmSans = localFont({
   variable: "--font-dm-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  src: [{ path: "./fonts/dm-sans-latin-wght-normal.woff2", weight: "100 1000", style: "normal" }],
   display: "swap",
+  fallback: ["system-ui", "sans-serif"],
 });
 
 export const metadata: Metadata = {

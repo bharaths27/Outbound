@@ -7,6 +7,9 @@ import { loadGraph, planRoute } from "@/lib/transit-route";
 
 export const dynamic = "force-dynamic";
 
+import { googleMapsKey } from "@/lib/google-places";
+import { computeRoutes, seconds } from "@/lib/google-routes";
+
 async function ourRoute(req: Request, from: string, to: string, name?: string | null) {
   const p = (s: string) => {
     const [lat, lng] = s.split(",").map(Number);
@@ -18,7 +21,6 @@ async function ourRoute(req: Request, from: string, to: string, name?: string | 
   return Response.json(planRoute(g, a, b, name || undefined));
 }
 
-const KEY = process.env.GOOGLE_MAPS_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "";
 
 /** Google encoded polyline -> [[lng, lat], ...] */
 function decode(str: string): [number, number][] {
@@ -40,33 +42,12 @@ function decode(str: string): [number, number][] {
   }
   return out;
 }
-const mins = (d?: string) => (d ? Math.round(parseInt(d) / 60) : 0);
-const point = (s: string) => {
-  const [lat, lng] = s.split(",").map(Number);
-  return { location: { latLng: { latitude: lat, longitude: lng } } };
-};
-
-async function compute(from: string, to: string, mode: "TRANSIT" | "WALK") {
-  const r = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
-    method: "POST",
-    headers: {
-      "X-Goog-Api-Key": KEY,
-      "content-type": "application/json",
-      "X-Goog-FieldMask":
-        "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.legs.steps.travelMode,routes.legs.steps.staticDuration,routes.legs.steps.distanceMeters,routes.legs.steps.polyline.encodedPolyline,routes.legs.steps.navigationInstruction.instructions,routes.legs.steps.transitDetails",
-    },
-    body: JSON.stringify({ origin: point(from), destination: point(to), travelMode: mode, ...(mode === "TRANSIT" ? { transitPreferences: { allowedTravelModes: ["SUBWAY", "TRAIN", "LIGHT_RAIL", "BUS"] } } : {}) }),
-  });
-  const j = await r.json();
-  if (!r.ok) throw new Error(j.error?.message ?? `HTTP ${r.status}`);
-  return j.routes?.[0];
-}
-
+const mins = (d?: string) => Math.round((seconds(d) || 0) / 60);
 export async function GET(req: Request) {
   const u = new URL(req.url);
   const from = u.searchParams.get("from"), to = u.searchParams.get("to"), name = u.searchParams.get("name");
   if (!from || !to) return Response.json({ error: "from and to are required" }, { status: 400 });
-  if (!KEY || u.searchParams.get("engine") === "outbound") {
+  if (!googleMapsKey() || u.searchParams.get("engine") === "outbound") {
     try {
       return await ourRoute(req, from, to, name);
     } catch (e) {
@@ -74,13 +55,18 @@ export async function GET(req: Request) {
     }
   }
   try {
-    const route = (await compute(from, to, "TRANSIT")) ?? (await compute(from, to, "WALK"));
-    if (!route) return Response.json({ error: "No route found" }, { status: 404 });
+    const coords = (value: string) => {
+      const [lat, lng] = value.split(",").map(Number);
+      return { lat, lng };
+    };
+    const origin = coords(from), destination = coords(to);
+    const [transit] = await computeRoutes(origin, destination, "TRANSIT");
+    const route = transit ?? (await computeRoutes(origin, destination, "WALK"))[0];
+    if (!route) return await ourRoute(req, from, to, name);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const steps: any[] = [];
     const segments: { mode: string; color: string; path: [number, number][] }[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const s of route.legs?.[0]?.steps ?? ([] as any[])) {
+    for (const s of route.legs?.[0]?.steps ?? []) {
       const path = s.polyline?.encodedPolyline ? decode(s.polyline.encodedPolyline) : [];
       const td = s.transitDetails;
       if (td) {

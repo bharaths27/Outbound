@@ -1,4 +1,4 @@
-// GET /api/trains            -> live positions of every Red, Orange and Green Line train
+// GET /api/trains            -> live positions of every Red, Orange, Blue and Green Line train
 // GET /api/trains?stop=place-kencl -> plus next arrivals at that station (for the hub countdown)
 //
 // Proxies the MBTA so the API key stays on the server. Cached ~10 s.
@@ -10,7 +10,7 @@
 export const dynamic = "force-dynamic";
 
 const MBTA = "https://api-v3.mbta.com";
-const ROUTES = "Red,Orange,Green-B,Green-C,Green-D,Green-E";
+const ROUTES = "Red,Mattapan,Orange,Blue,Green-B,Green-C,Green-D,Green-E";
 
 async function mbta(path: string) {
   const res = await fetch(`${MBTA}${path}`, {
@@ -21,7 +21,7 @@ async function mbta(path: string) {
   return res.json();
 }
 
-const lineOf = (route: string) => route.split("-")[0];
+const lineOf = (route: string) => (route === "Mattapan" ? "Red" : route.split("-")[0]); // the Mattapan Trolley is drawn as part of the Red Line
 
 export async function GET(req: Request) {
   try {

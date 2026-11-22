@@ -8,11 +8,14 @@ import type {
   CheckInOutcome,
   Deal,
   Filters,
+  GameProgress,
   LeaderboardRow,
   PassportNeighborhood,
   Privacy,
+  PlayerLeaderboardRow,
   Profile,
   Quest,
+  QuestOfTheWeek,
   School,
   SquadWithMembers,
   Station,
@@ -55,6 +58,14 @@ export interface DataService {
 
   // school leaderboard: view leaderboard_weekly
   getSchoolLeaderboard(): Promise<LeaderboardRow[]>;
+  // player leaderboard: view leaderboard_players_weekly (public players only)
+  getPlayerLeaderboard(): Promise<PlayerLeaderboardRow[]>;
+
+  // weekly game (migration 005_gamification)
+  getQuestOfTheWeek(): Promise<QuestOfTheWeek | null>; // rpc('quest_of_the_week')
+  // rpc('recommend_quest'): a vote for next week's pick. Needs a check-in there this week.
+  recommendQuest(questId: string): Promise<void>;
+  getGameProgress(): Promise<GameProgress | null>; // rpc('my_game_progress'); null signed out
 
   // squads (members from the squad_member_profiles view)
   getMySquads(): Promise<SquadWithMembers[]>;

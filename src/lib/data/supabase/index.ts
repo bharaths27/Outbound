@@ -19,10 +19,13 @@ import type {
   AuthError,
   AuthResult,
   CheckInResult,
+  GameProgress,
   LeaderboardRow,
   PassportNeighborhood,
+  PlayerLeaderboardRow,
   Profile,
   Quest,
+  QuestOfTheWeek,
   School,
   Squad,
   SquadMemberProfile,
@@ -52,8 +55,9 @@ export function authError(message: string | undefined, hint?: string | null): Au
 }
 
 /**
- * Quest columns the app reads. Never qr_code: it's the secret check_in() compares against.
- * Which quests need a code comes from qrQuestIds() as ids only.
+ * Quest columns the app reads, named one by one: never qr_code (the secret check_in() compares
+ * against) and never "*", which fails once migration 007 revokes qr_code. Which quests need a
+ * code comes from qrQuestIds() as ids only.
  */
 const QUEST_COLUMNS =
   "id,station_id,type,title,description,lat,lon,price_tier,vibe_tags,hours,photo_url,xp,checkin_radius_m,duration_min,walk_min";
@@ -63,14 +67,17 @@ type QuestRow = Omit<Quest, "requires_qr">;
 export function createSupabaseService(client: () => SupabaseClient): DataService {
   const db = () => client();
 
-  // Ids of quests checked in by code. Filters on qr_code without returning it. If the
-  // column's select grant is revoked (see docs/requests-for-others.md), this falls back to
-  // none until a has_qr column exists.
+  // Ids of quests checked in by code, from quests.has_qr (migration 006), never the code itself.
+  // Migration 007 then revokes qr_code. Until 006 has run everywhere, a missing has_qr column
+  // falls back to filtering on qr_code (still id-only); once 007 runs, only has_qr works.
   let qrIds: Promise<Set<string>> | null = null;
   function qrQuestIds(): Promise<Set<string>> {
     qrIds ??= (async () => {
-      const res = await db().from("quests").select("id").not("qr_code", "is", null);
-      return new Set(res.error ? [] : (res.data ?? []).map((r: { id: string }) => r.id));
+      const ids = (rows: { id: string }[] | null) => new Set((rows ?? []).map((r) => r.id));
+      const res = await db().from("quests").select("id").eq("has_qr", true);
+      if (!res.error) return ids(res.data);
+      const legacy = await db().from("quests").select("id").not("qr_code", "is", null);
+      return legacy.error ? new Set<string>() : ids(legacy.data);
     })();
     return qrIds;
   }
@@ -229,6 +236,28 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
     // ---------- leaderboard ----------
     async getSchoolLeaderboard() {
       return must(await db().from("leaderboard_weekly").select("*"), "leaderboard") as LeaderboardRow[];
+    },
+
+    async getPlayerLeaderboard() {
+      return must(
+        await db().from("leaderboard_players_weekly").select("*").order("rank").limit(50),
+        "player leaderboard",
+      ) as PlayerLeaderboardRow[];
+    },
+
+    // ---------- weekly game ----------
+    async getQuestOfTheWeek() {
+      const rows = must(await db().rpc("quest_of_the_week"), "quest of the week") as QuestOfTheWeek[];
+      return rows[0] ?? null;
+    },
+
+    async recommendQuest(questId) {
+      must(await db().rpc("recommend_quest", { p_quest_id: questId }), "recommend quest");
+    },
+
+    async getGameProgress() {
+      if (!(await myId())) return null;
+      return must(await db().rpc("my_game_progress"), "game progress") as GameProgress;
     },
 
     // ---------- squads ----------

@@ -6,6 +6,7 @@
 import type { Quest, Tier, Visit } from "@/lib/data/types";
 import { Stamp, TIER_NAME } from "@/features/passport/stamp";
 import { cn } from "@/lib/utils";
+import { QuestOfWeekBadge } from "@/features/weekly/quest-of-the-week";
 import { QuestThumb, priceSymbol } from "./category";
 import { cravingLabel } from "./filter-state";
 import { openState } from "./hours";
@@ -45,10 +46,24 @@ export function XpChip({ xp, className }: { xp: number; className?: string }) {
   );
 }
 
-export function Reward({ xp, tier, neighborhood }: { xp: number; tier: Tier | null; neighborhood: string }) {
+export function Reward({
+  xp,
+  tier,
+  neighborhood,
+  questId,
+  visit,
+}: {
+  xp: number;
+  tier: Tier | null;
+  neighborhood: string;
+  questId?: string;
+  /** The player's latest visit to this quest, so the Quest of the Week badge knows if it's used. */
+  visit?: Visit;
+}) {
   return (
-    <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+    <p className="flex flex-wrap items-center gap-1.5 text-[13px] text-muted-foreground">
       <XpChip xp={xp} />
+      {questId && <QuestOfWeekBadge questId={questId} visits={visit ? [visit] : []} />}
       {tier && (
         <span>
           · {TIER_NAME[tier]} in {neighborhood}
@@ -95,7 +110,7 @@ export function QuestCard({ quest, neighborhood, now, tier, visit, onOpen }: Que
         </h3>
         <QuestMeta quest={quest} now={now} />
         <TagList tags={quest.vibe_tags} />
-        <Reward xp={quest.xp} tier={tier} neighborhood={neighborhood} />
+        <Reward xp={quest.xp} tier={tier} neighborhood={neighborhood} questId={quest.id} visit={visit} />
       </div>
       {visit && (
         <div className="pointer-events-none absolute top-2 right-2">
@@ -103,6 +118,7 @@ export function QuestCard({ quest, neighborhood, now, tier, visit, onOpen }: Que
             questId={quest.id}
             title={quest.title}
             neighborhood={neighborhood}
+            stationId={quest.station_id}
             tier={tier ?? "bronze"}
             crossSchool={visit.cross_school}
             size={48}

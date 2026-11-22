@@ -22,7 +22,9 @@ type Load =
   | { status: "ready"; squad: SquadWithMembers; profile: Profile | null };
 
 export function JoinSquadPage({ code }: { code: string }) {
-  const clean = normalizeCode(decodeURIComponent(code));
+  // A malformed escape ("%" alone) would throw during render; normalizeCode drops
+  // non-alphanumerics anyway, so fall back to the raw value.
+  const clean = normalizeCode(safeDecode(code));
   const router = useRouter();
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [joining, setJoining] = useState(false);
@@ -99,8 +101,8 @@ export function JoinSquadPage({ code }: { code: string }) {
                 )}
               </SquadCard>
               <p className="text-sm text-on-maroon-muted">
-                Squads can mix schools. Check in at a quest together for bonus XP, or double XP with a squad-mate from
-                another school.
+                Squads can mix schools. Check in together for +20% XP, or double XP if a squad-mate from another
+                school checks in at the same quest within an hour.
               </p>
             </>
           );
@@ -108,4 +110,12 @@ export function JoinSquadPage({ code }: { code: string }) {
       </div>
     </div>
   );
+}
+
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
 }

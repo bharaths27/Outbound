@@ -98,11 +98,11 @@ export default async function ThemePage() {
 
       <Section title="Stamps">
         <div className="flex flex-wrap items-center gap-6">
-          <Stamp questId="chncl-bakery-food" title="Bakery run in Chinatown" neighborhood="Chinatown" type="food" tier="bronze" />
-          <Stamp questId="harsq-books-event" title="Browse a Harvard Square bookstore" neighborhood="Harvard Square" type="event" tier="silver" />
-          <Stamp questId="kenmore-citgo-scenic" title="See the Citgo sign light up" neighborhood="Fenway-Kenmore" type="scenic" tier="gold" />
-          <Stamp questId="kenmore-gardner-scenic" title="See the Gardner Museum courtyard" neighborhood="Fenway-Kenmore" type="scenic" tier="gold" crossSchool />
-          <Stamp questId="coecl-brunch-food" title="Brunch on Newbury Street" neighborhood="Back Bay" tier="bronze" locked />
+          <Stamp questId="chncl-bakery-food" title="Bakery run in Chinatown" neighborhood="Chinatown" stationId="place-chncl" type="food" tier="bronze" />
+          <Stamp questId="harsq-books-event" title="Browse a Harvard Square bookstore" neighborhood="Harvard Square" stationId="place-harsq" type="event" tier="silver" />
+          <Stamp questId="kenmore-citgo-scenic" title="See the Citgo sign light up" neighborhood="Fenway-Kenmore" stationId="place-kencl" type="scenic" tier="gold" />
+          <Stamp questId="kenmore-gardner-scenic" title="See the Gardner Museum courtyard" neighborhood="Fenway-Kenmore" stationId="place-kencl" type="scenic" tier="gold" crossSchool />
+          <Stamp questId="coecl-brunch-food" title="Brunch on Newbury Street" neighborhood="Back Bay" stationId="place-coecl" tier="bronze" locked />
         </div>
         <p className="type-small text-muted-foreground">Bronze, silver, gold, gold cross-school, locked.</p>
       </Section>

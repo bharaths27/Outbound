@@ -214,14 +214,14 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
   return (
     <div className="ob-panel flex max-h-[min(70vh,560px)] w-[min(340px,calc(100vw-24px))] flex-col overflow-hidden text-sm">
       {/* header */}
-      <div className="flex items-center gap-2 border-b border-slate-200/70 px-3 py-2">
+      <div className="flex items-center gap-2 border-b border-[var(--ob-line)] px-3 py-2">
         {place && results && (
-          <button className="rounded px-1 text-slate-500 hover:text-slate-900" onClick={() => (setPlace(null), setRoute(null))} aria-label="Back to results">
+          <button className="rounded px-1 text-[var(--ob-muted)] hover:text-[var(--ob-ink)]" onClick={() => (setPlace(null), setRoute(null))} aria-label="Back to results">
             <ArrowLeft size={16} />
           </button>
         )}
-        <div className="min-w-0 flex-1 truncate font-medium text-slate-900">{place ? place.name : `“${query}”`}</div>
-        <button className="rounded px-1 text-slate-400 hover:text-slate-800" onClick={close} aria-label="Close">
+        <div className="min-w-0 flex-1 truncate font-medium text-[var(--ob-ink)]">{place ? place.name : `“${query}”`}</div>
+        <button className="rounded px-1 text-[var(--ob-muted)] hover:text-[var(--ob-ink)]" onClick={close} aria-label="Close">
           <X size={16} />
         </button>
       </div>
@@ -229,27 +229,27 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
       {!place && (
         <>
           {/* filter chips, like the mockup: Craving / Budget / Time */}
-          <div className="flex flex-wrap gap-1.5 border-b border-slate-200/70 px-3 py-2 text-xs">
+          <div className="flex flex-wrap gap-1.5 border-b border-[var(--ob-line)] px-3 py-2 text-xs">
             {CRAVINGS.map(([n, Icon]) => (
-              <button key={n} onClick={() => setCraving(n)} className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${craving === n ? "bg-[#6b1d3a] text-white" : "bg-slate-100 text-slate-700"}`}>
+              <button key={n} onClick={() => setCraving(n)} className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${craving === n ? "bg-[var(--ob-maroon)] text-white" : "bg-[var(--ob-sand)] text-[var(--ob-ink-2)]"}`}>
                 {Icon && <Icon size={13} strokeWidth={2.2} aria-hidden />}
                 {n}
               </button>
             ))}
             {[1, 2, 3].map((b) => (
-              <button key={b} onClick={() => setBudget(budget === b ? null : b)} className={`rounded-full px-2.5 py-1 ${budget === b ? "bg-[#6b1d3a] text-white" : "bg-slate-100 text-slate-700"}`}>
+              <button key={b} onClick={() => setBudget(budget === b ? null : b)} className={`rounded-full px-2.5 py-1 ${budget === b ? "bg-[var(--ob-maroon)] text-white" : "bg-[var(--ob-sand)] text-[var(--ob-ink-2)]"}`}>
                 {"$".repeat(b)}
               </button>
             ))}
-            <button onClick={() => setOpenNow(!openNow)} className={`rounded-full px-2.5 py-1 ${openNow ? "bg-[#6b1d3a] text-white" : "bg-slate-100 text-slate-700"}`}>
+            <button onClick={() => setOpenNow(!openNow)} className={`rounded-full px-2.5 py-1 ${openNow ? "bg-[var(--ob-maroon)] text-white" : "bg-[var(--ob-sand)] text-[var(--ob-ink-2)]"}`}>
               <Clock size={13} strokeWidth={2.2} className="mr-1 inline -translate-y-px" aria-hidden />
               Open now
             </button>
           </div>
           <div className="overflow-auto">
-            {loading && <div className="px-3 py-3 text-xs text-slate-500">Searching…</div>}
+            {loading && <div className="px-3 py-3 text-xs text-[var(--ob-muted)]">Searching…</div>}
             {error && <div className="px-3 py-3 text-xs text-amber-800">{error}</div>}
-            {filtered && !loading && !error && filtered.length === 0 && <div className="px-3 py-3 text-xs text-slate-500">Nothing matches these filters.</div>}
+            {filtered && !loading && !error && filtered.length === 0 && <div className="px-3 py-3 text-xs text-[var(--ob-muted)]">Nothing matches these filters.</div>}
             {filtered?.map((p) => (
               <button
                 key={p.id}
@@ -257,14 +257,14 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                   setPlace(p);
                   map?.flyTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 16.2), pitch: map.getPitch(), duration: 1500 });
                 }}
-                className="flex w-full gap-2.5 border-b border-slate-100 px-3 py-2 text-left hover:bg-slate-50"
+                className="flex w-full gap-2.5 border-b border-[var(--ob-line)] px-3 py-2 text-left hover:bg-[var(--ob-cream)]"
               >
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#6b1d3a]/10 text-[#6b1d3a]">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--ob-maroon)]/10 text-[var(--ob-maroon)]">
                   <IconFor types={p.types} size={15} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium text-slate-900">{p.name}</span>
-                  <span className="block truncate text-xs text-slate-500">
+                  <span className="block truncate font-medium text-[var(--ob-ink)]">{p.name}</span>
+                  <span className="block truncate text-xs text-[var(--ob-muted)]">
                     {p.rating != null && <Star size={11} className="mr-0.5 inline -translate-y-px fill-amber-400 text-amber-400" aria-hidden />}
                     {[stars(p.rating) + (p.ratings ? ` (${p.ratings.toLocaleString()})` : ""), dollars(p.price), p.category].filter(Boolean).join(" · ")}
                   </span>
@@ -278,18 +278,18 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
 
       {place && (
         <div className="overflow-auto px-3 py-2.5">
-          <div className="text-xs text-slate-600">
+          <div className="text-xs text-[var(--ob-ink-2)]">
             {place.rating != null && <Star size={11} className="mr-0.5 inline -translate-y-px fill-amber-400 text-amber-400" aria-hidden />}
                     {[stars(place.rating) + (place.ratings ? ` (${place.ratings.toLocaleString()})` : ""), dollars(place.price), place.category].filter(Boolean).join(" · ")}
           </div>
           {place.openNow != null && <div className={`text-xs ${place.openNow ? "text-emerald-700" : "text-rose-700"}`}>{place.openNow ? "Open now" : "Closed now"}</div>}
-          <div className="mt-1 text-xs text-slate-500">{place.address}</div>
+          <div className="mt-1 text-xs text-[var(--ob-muted)]">{place.address}</div>
           <div className="mt-2.5 flex gap-2">
-            <button className="flex-1 rounded-lg bg-[#6b1d3a] px-3 py-1.5 font-medium text-white disabled:opacity-60" disabled={routing} onClick={() => directions(place)}>
+            <button className="flex-1 rounded-lg bg-[var(--ob-maroon)] px-3 py-1.5 font-medium text-white disabled:opacity-60" disabled={routing} onClick={() => directions(place)}>
               {routing ? "Finding route…" : "Directions"}
             </button>
             {place.url && (
-              <a className="rounded-lg bg-slate-100 px-3 py-1.5 text-slate-700" href={place.url} target="_blank" rel="noreferrer">
+              <a className="rounded-lg bg-[var(--ob-sand)] px-3 py-1.5 text-[var(--ob-ink-2)]" href={place.url} target="_blank" rel="noreferrer">
                 Google Maps
               </a>
             )}
@@ -297,15 +297,15 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
           {error && <div className="mt-2 text-xs text-amber-800">{error}</div>}
           {route && (
             <div className="mt-3">
-              <div className="text-xs font-medium text-slate-900">
+              <div className="text-xs font-medium text-[var(--ob-ink)]">
                 {route.minutes} min · {route.distanceKm} km {fromLabel}
               </div>
               <ol className="mt-1.5 flex flex-col gap-1.5">
                 {route.steps.map((s, i) => (
-                  <li key={i} className="flex gap-2 text-xs text-slate-700">
+                  <li key={i} className="flex gap-2 text-xs text-[var(--ob-ink-2)]">
                     {s.mode === "walk" ? (
                       <>
-                        <span className="flex w-12 shrink-0 items-center gap-0.5 text-slate-400"><Footprints size={12} aria-hidden /> {s.minutes}m</span>
+                        <span className="flex w-12 shrink-0 items-center gap-0.5 text-[var(--ob-muted)]"><Footprints size={12} aria-hidden /> {s.minutes}m</span>
                         <span>{s.text}</span>
                       </>
                     ) : (
@@ -315,7 +315,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                         </span>
                         <span>
                           {s.from} → {s.to}
-                          <span className="block text-[11px] text-slate-500">
+                          <span className="block text-[11px] text-[var(--ob-muted)]">
                             {[s.headsign && `toward ${s.headsign}`, s.stops && `${s.stops} stops`, `${s.minutes} min`, s.depart && `leaves ${s.depart}`].filter(Boolean).join(" · ")}
                           </span>
                         </span>

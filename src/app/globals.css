@@ -77,6 +77,12 @@
   --color-success: var(--success);
   --color-closed: var(--closed);
   --color-danger: var(--danger);
+  --color-delay-severe: var(--delay-severe-bg);
+  --color-delay-severe-ink: var(--delay-severe-ink);
+  --color-delay-minor: var(--delay-minor-bg);
+  --color-delay-minor-ink: var(--delay-minor-ink);
+  --color-badge-earned: var(--badge-earned-bg);
+  --color-badge-locked-ink: var(--badge-locked-ink);
 
   /* Tiers and stamps */
   --color-tier-bronze: var(--tier-bronze);
@@ -175,6 +181,14 @@
   --success: #2f6b4f;
   --closed: #8a2a44;
   --danger: #b3121f;
+  /* Line delay pills in the hub: red = severe, amber = minor (src/features/hub/line-delays.tsx) */
+  --delay-severe-bg: #fbe3e3;
+  --delay-severe-ink: #9b1c1c;
+  --delay-minor-bg: #fdf0d8;
+  --delay-minor-ink: #8a5300;
+  /* Passport badges: earned card fill, locked icon */
+  --badge-earned-bg: #fff4d6;
+  --badge-locked-ink: #b7aba4;
 
   /* Tiers and stamps */
   --tier-bronze: #a8643a;
@@ -285,14 +299,32 @@
 }
 
 /* ---------- map UI ---------- */
+/* Map colors come from the app theme (maroon/gold, DESIGN.md); the fallbacks keep the map
+   styled on pages or branches that don't load those tokens. */
+:root {
+  --ob-maroon: var(--maroon-700, #6b1f33);
+  --ob-maroon-dark: var(--maroon-800, #4a1424);
+  --ob-ink: var(--ink, #2b1a1f);
+  --ob-ink-2: var(--muted-2, #5a4549);
+  --ob-muted: #8a7478;
+  --ob-paper: var(--paper, #fbf6ec);
+  --ob-sand: var(--sand, #f1e6d3);
+  --ob-cream: var(--cream, #f6eddd);
+  --ob-line: var(--border-strong, #e2d3bc);
+  --ob-shadow: var(--shadow-float, 0 4px 14px rgb(74 20 36 / 0.18));
+}
 .ob-panel {
-  background: rgba(255, 255, 255, 0.88);
+  background: color-mix(in srgb, var(--ob-paper) 92%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--ob-line);
   border-radius: 14px;
-  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--ob-shadow);
+  color: var(--ob-ink);
 }
+/* Zoom/tilt buttons sit in the bottom-right corner; the Ask Guide button floats there too,
+   so lift the controls clear of it. */
+.ob-map .maplibregl-ctrl-bottom-right { bottom: 76px; }
 .ob-pulse { animation: ob-pulse 2s ease-in-out infinite; }
 @keyframes ob-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
@@ -305,8 +337,8 @@
   background: rgba(255, 255, 255, 0.92);
   border: 1.5px solid var(--c);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
-  font: 600 11px/1.1 var(--font-geist-sans), system-ui, sans-serif;
-  color: #0f172a;
+  font: 600 11px/1.1 var(--font-dm-sans, system-ui), system-ui, sans-serif;
+  color: var(--ob-ink);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -323,16 +355,16 @@
   background: linear-gradient(135deg, #fde68a, #fca5a5);
   border: 2.5px solid var(--c);
   box-shadow: 0 0 0 2px #fff, 0 3px 10px rgba(15, 23, 42, 0.3);
-  font: 700 11px/1 var(--font-geist-sans), system-ui, sans-serif;
-  color: #1f2937;
+  font: 700 11px/1 var(--font-dm-sans, system-ui), system-ui, sans-serif;
+  color: var(--ob-ink);
 }
 .ob-popup .maplibregl-popup-content { border-radius: 12px; padding: 8px 12px; font-size: 12px; line-height: 1.45; }
 .ob-search-pin { width: 22px; height: 22px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #e11d48; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); margin-bottom: 8px; }
 .ob-me { width: 18px; height: 18px; border-radius: 999px; background: #1a73e8; border: 3px solid #fff; box-shadow: 0 0 0 8px rgba(26,115,232,.18), 0 1px 4px rgba(0,0,0,.35); }
-.ob-place-pin { display: flex; align-items: center; gap: 3px; padding: 3px 7px 3px 4px; border-radius: 999px; background: #fff; border: 2px solid #6b1d3a; box-shadow: 0 2px 6px rgba(0,0,0,.25); font: 600 11px/1 system-ui, sans-serif; color: #6b1d3a; cursor: pointer; }
+.ob-place-pin { display: flex; align-items: center; gap: 3px; padding: 3px 7px 3px 4px; border-radius: 999px; background: #fff; border: 2px solid var(--ob-maroon); box-shadow: 0 2px 6px rgba(0,0,0,.25); font: 600 11px/1 system-ui, sans-serif; color: var(--ob-maroon); cursor: pointer; }
 .ob-place-pin-icon { display: grid; place-items: center; line-height: 0; }
 
 /* passport quest pins */
 .ob-quest { cursor: pointer; display: flex; align-items: center; gap: 3px; padding: 3px 7px 3px 4px; border-radius: 999px; background: #fffbeb; border: 2px solid #f59e0b; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.25); }
 .ob-quest-icon { display: grid; place-items: center; line-height: 0; color: #b45309; }
-.ob-quest-pts { font: 700 10px/1 var(--font-geist-sans), system-ui, sans-serif; color: #b45309; }
+.ob-quest-pts { font: 700 10px/1 var(--font-dm-sans, system-ui), system-ui, sans-serif; color: #b45309; }

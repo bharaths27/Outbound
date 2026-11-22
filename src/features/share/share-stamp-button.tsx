@@ -18,6 +18,8 @@ export interface ShareStampProps {
   questId: string;
   questTitle: string;
   neighborhood: string;
+  /** Picks the illustrated station stamp when there's art for it. */
+  stationId?: string;
   stationName: string | null;
   tier: Tier;
   crossSchool: boolean;
@@ -149,6 +151,7 @@ function ShareSheet(props: ShareStampProps) {
           questId={props.questId}
           title={props.questTitle}
           neighborhood={props.neighborhood}
+          stationId={props.stationId}
           tier={props.tier}
           crossSchool={props.crossSchool}
           size={460}

@@ -11,6 +11,7 @@ import {
   Search, Sparkles, Star, TrainFront, TriangleAlert, Utensils, X,
 } from "lucide-react";
 import type { FinalReport } from "@/lib/agent/report";
+import { OPEN_GUIDE_EVENT, type OpenGuideDetail } from "@/features/guide/open-guide";
 
 type StageId = "vision" | "decide" | "where" | "food" | "trip" | "grok" | "report";
 type StageStatus = "running" | "done" | "skipped" | "error";
@@ -292,7 +293,19 @@ function ReportCard({ r, onRetryPhoto, onType, onRoute }: { r: FinalReport; onRe
 
 const WELCOME: Msg = { role: "assistant", content: "" };
 
-export default function GrokGuide() {
+/**
+ * Placement follows the app shell (src/features/shell/shell-guide.tsx): the launcher sits bottom-left,
+ * clear of the map's zoom buttons and the station hub. `hideLauncher` hides only the button (pages with a
+ * header Ask Guide button, or while the phone hub drawer is up); the chat still opens from openGuide().
+ */
+export default function GrokGuide({
+  hideLauncher = false,
+  openFromHeader = false,
+}: {
+  hideLauncher?: boolean;
+  /** The page opens the chat from a header button: on desktop the panel drops from the top right. */
+  openFromHeader?: boolean;
+} = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const onMap = pathname === "/";
@@ -318,6 +331,26 @@ export default function GrokGuide() {
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [msgs, busy, open]);
+
+  // openGuide() from the hub, headers and empty states; an optional prompt is typed in, not sent.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const prompt = (e as CustomEvent<OpenGuideDetail>).detail?.prompt;
+      setOpen(true);
+      setUnread(false);
+      if (prompt) setInput(prompt);
+    };
+    window.addEventListener(OPEN_GUIDE_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_GUIDE_EVENT, onOpen);
+  }, []);
+
+  // Esc puts the panel away (DESIGN.md §10).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   async function pickPhoto(file: File | undefined) {
     if (!file) return;
@@ -412,7 +445,10 @@ export default function GrokGuide() {
 
   return (
     <div
-      className={`fixed right-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50 flex flex-col items-end gap-2 desk:bottom-6 ${onMap ? "desk:right-[4.25rem]" : "desk:right-6"}`}
+      hidden={hideLauncher && !open}
+      className={`fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-4 z-[60] flex-col items-start gap-2 ${hideLauncher && !open ? "hidden" : "flex"} ${
+        openFromHeader ? "desk:top-20 desk:right-6 desk:bottom-auto desk:left-auto desk:items-end" : "desk:bottom-6 desk:left-6"
+      }`}
     >
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickPhoto(e.target.files?.[0])} />
 
@@ -570,6 +606,7 @@ export default function GrokGuide() {
         </section>
       )}
 
+      {!hideLauncher && (
       <button
         onClick={() => {
           setOpen((o) => !o);
@@ -582,6 +619,7 @@ export default function GrokGuide() {
         {open ? "Put away" : busy ? "Guide is working…" : "Ask Guide"}
         {!open && unread && <span className="absolute -top-0.5 -right-0.5 size-3.5 rounded-full border-2 border-white bg-gold" aria-label="New answer" />}
       </button>
+      )}
     </div>
   );
 }

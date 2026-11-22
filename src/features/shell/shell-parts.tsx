@@ -1,9 +1,9 @@
 "use client";
 
 // Pieces of the shell shared by the mobile header, desktop top bar, and page headers:
-// nav items, the XP pill, the notifications bell, and the player avatar (DESIGN.md §4–5).
+// nav items, the XP pill, the Ask Guide button, the notifications bell, and the player avatar (DESIGN.md §4–5).
 
-import { Bell } from "lucide-react";
+import { Bell, Sparkles } from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -11,6 +11,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { openGuide } from "@/features/guide/open-guide";
 import { cn } from "@/lib/utils";
 import type { ShellPlayer } from "./use-shell-player";
 
@@ -28,8 +29,16 @@ export const NAV = [
     label: "Leaderboard",
     d: "M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8",
   },
-  { href: "/events", label: "Events", d: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" },
-] as const;
+  {
+    href: "/rewards",
+    label: "Rewards",
+    d: "M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 7h18v4H3zM12 7v14M12 7c-1.4-2.8-5-3.2-5-1.2C7 7 9.5 7 12 7zm0 0c1.4-2.8 5-3.2 5-1.2C17 7 14.5 7 12 7z",
+  },
+  { href: "/events", label: "Events", d: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4", desktopOnly: true },
+] as const satisfies readonly { href: string; label: string; d: string; desktopOnly?: boolean }[];
+
+/** The phone tab bar keeps 5 items (DESIGN.md §4); Events (not designed yet) is desktop only. */
+export const PHONE_NAV = NAV.filter((item) => !("desktopOnly" in item && item.desktopOnly));
 
 export const isActive = (pathname: string, href: string) =>
   href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
@@ -75,6 +84,29 @@ export function XpPill({ player, size = "md" }: { player: ShellPlayer | null | u
       </svg>
       {player.profile.xp.toLocaleString("en-US")} XP
     </Link>
+  );
+}
+
+/**
+ * "Ask Guide" in a page header, for pages where the floating button is hidden
+ * (src/features/guide/placement.ts). Opens the same chat as the floating button.
+ */
+export function AskGuideButton({ compact = false }: { compact?: boolean }) {
+  const base =
+    "flex shrink-0 items-center justify-center rounded-full border border-gold/70 bg-white/12 text-on-maroon outline-none hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-gold";
+  // Compact (phone title bands): icon only, so long titles like "Today's Quests" still fit.
+  if (compact) {
+    return (
+      <button type="button" onClick={() => openGuide()} aria-label="Ask Guide" title="Ask Guide" className={cn(base, "size-11")}>
+        <Sparkles className="size-5 text-gold" aria-hidden />
+      </button>
+    );
+  }
+  return (
+    <button type="button" onClick={() => openGuide()} className={cn(base, "h-9 gap-1.5 px-3.5 text-sm font-bold")}>
+      <Sparkles className="size-4 text-gold" aria-hidden />
+      Ask Guide
+    </button>
   );
 }
 

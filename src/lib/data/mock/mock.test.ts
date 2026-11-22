@@ -21,6 +21,18 @@ describe("seed", () => {
 });
 
 describe("mock service", () => {
+  it("awards squad_goals only like has_squad_goals(): 3+ squad-mates at one station within an hour", async () => {
+    await data.signInDemo("demo-maya");
+    // Maya's only squad check-in (Night Owls at Kenmore) had 2 squad-mates there, not 3.
+    expect((await data.getGameProgress())?.badges).not.toContain("squad_goals");
+  });
+
+  it("lists only public players with a school, top 50 at most", async () => {
+    const rows = await data.getPlayerLeaderboard();
+    expect(rows.length).toBeLessThanOrEqual(50);
+    expect(rows.every((r) => r.school_name !== "")).toBe(true);
+  });
+
   it("computes levels like the generated columns (250 XP per level)", async () => {
     await data.signInDemo("demo-maya");
     const maya = (await data.getCurrentUser())!;

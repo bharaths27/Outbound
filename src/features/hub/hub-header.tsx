@@ -8,6 +8,7 @@ import type { Station } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { ArrivalSlot } from "./arrival-slot";
 import { LineBadges } from "./line-badge";
+import { LineDelays } from "./line-delays";
 
 function CloseButton({ onClose }: { onClose: () => void }) {
   return (
@@ -43,6 +44,7 @@ export function HubHeader({ station, onClose }: { station: Station; onClose: () 
         <CloseButton onClose={onClose} />
       </div>
       <ArrivalSlot stationId={station.id} />
+      <LineDelays routes={station.lines} />
     </header>
   );
 }

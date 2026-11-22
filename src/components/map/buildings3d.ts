@@ -31,7 +31,7 @@ export const BPDA_BOUNDS = { west: -71.112, south: 42.3228, east: -71.019, north
 export const inBpda = (lng: number, lat: number) =>
   lng > BPDA_BOUNDS.west && lng < BPDA_BOUNDS.east && lat > BPDA_BOUNDS.south && lat < BPDA_BOUNDS.north;
 
-const dataUrl = (f: string) => new URL(`data/${f}`, document.baseURI).href;
+const dataUrl = (f: string) => new URL(`/data/${f}`, document.baseURI).href;
 
 export async function fetchBpdaManifest(): Promise<BpdaManifest | null> {
   try {

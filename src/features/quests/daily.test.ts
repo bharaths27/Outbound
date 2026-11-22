@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Quest, Visit } from "@/lib/data/types";
-import { bostonDateKey, doneToday, pickDailyQuests } from "./daily";
+import { bostonDateKey, bostonWeekStart, dailyEligible, doneToday, pickDailyQuests, xpToday } from "./daily";
 
 function quest(id: string, station_id: string, type: Quest["type"]): Quest {
   return {
@@ -68,5 +68,49 @@ describe("doneToday", () => {
   it("counts only visits on that date", () => {
     const v = (quest_id: string, visit_date: string) => ({ quest_id, visit_date }) as Visit;
     expect([...doneToday([v("a", "2026-11-21"), v("b", "2026-11-20")], "2026-11-21")]).toEqual(["a"]);
+  });
+});
+
+describe("dailyEligible", () => {
+  // Sunday Nov 22, 2026, noon in Boston.
+  const sunday = new Date("2026-11-22T17:00:00Z");
+
+  it("skips quests that need a code", () => {
+    const qr = { ...quest("qr", "s1", "event"), requires_qr: true };
+    expect(dailyEligible([qr, quest("a", "s2", "food")], sunday).map((q) => q.id)).toEqual(["a"]);
+  });
+
+  it("skips places with no hours that day, keeps unknown and always-open", () => {
+    const weekdays = { ...quest("wk", "s1", "food"), hours: "Mon-Fri 09:00-17:00" };
+    const sundayOnly = { ...quest("sun", "s2", "food"), hours: "Sun 10:00-14:00" };
+    const always = { ...quest("all", "s3", "scenic"), hours: "always" };
+    const unknown = quest("unk", "s4", "scenic");
+    expect(dailyEligible([weekdays, sundayOnly, always, unknown], sunday).map((q) => q.id)).toEqual([
+      "sun",
+      "all",
+      "unk",
+    ]);
+  });
+});
+
+describe("xpToday", () => {
+  it("sums xp_awarded from that date's visits", () => {
+    const v = (xp_awarded: number, visit_date: string) => ({ xp_awarded, visit_date }) as Visit;
+    expect(xpToday([v(72, "2026-11-21"), v(120, "2026-11-21"), v(50, "2026-11-20")], "2026-11-21")).toBe(192);
+  });
+
+  it("counts only today's quests when given their ids", () => {
+    const visit = (quest_id: string, xp_awarded: number, visit_date: string) => ({ quest_id, xp_awarded, visit_date }) as Visit;
+    const visits = [visit("a", 72, "2026-11-21"), visit("b", 120, "2026-11-21"), visit("a", 50, "2026-11-20")];
+    expect(xpToday(visits, "2026-11-21", new Set(["a"]))).toBe(72);
+    expect(xpToday(visits, "2026-11-21", new Set(["c"]))).toBe(0);
+  });
+});
+
+describe("bostonWeekStart", () => {
+  it("returns that week's Monday", () => {
+    expect(bostonWeekStart("2026-11-22")).toBe("2026-11-16"); // Sunday
+    expect(bostonWeekStart("2026-11-16")).toBe("2026-11-16"); // Monday
+    expect(bostonWeekStart("2026-11-18")).toBe("2026-11-16");
   });
 });

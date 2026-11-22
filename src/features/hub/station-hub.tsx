@@ -3,11 +3,14 @@
 // The station hub's content: header, stop story, search, filters, and quest cards, or one
 // quest's detail. The host decides whether it sits in a drawer or a sheet.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Sparkles } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { openGuide } from "@/features/guide/open-guide";
 import { data } from "@/lib/data";
 import type { Quest, Station } from "@/lib/data/types";
+import { getExploreFilters } from "@/features/explore/explore-filters";
 import { FilterBar } from "./filter-bar";
 import { EMPTY_FILTERS, applyFilters, cravingOptions, fromSearch, type HubFilters } from "./filter-state";
 import { HubHeader, HubHeaderSkeleton } from "./hub-header";
@@ -59,10 +62,53 @@ function ListSkeleton() {
   );
 }
 
+/** The quest with the shortest walk from the station. */
+function closestQuest(quests: Quest[]): Quest | null {
+  return quests.reduce<Quest | null>((best, q) => (best === null || q.walk_min < best.walk_min ? q : best), null);
+}
+
+/** Filters found nothing: say which filter to drop, and still show the closest quest. */
+function NoMatches({
+  filters,
+  closest,
+  onChange,
+  card,
+}: {
+  filters: HubFilters;
+  closest: Quest | null;
+  onChange: (f: HubFilters) => void;
+  card: (q: Quest) => ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col items-center gap-3 py-5 text-center">
+        <p className="type-body text-muted-foreground">
+          {filters.openNow ? "Nothing open matches. Try turning off Open now." : "No quests match these filters."}
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {filters.openNow && (
+            <Button onClick={() => onChange({ ...filters, openNow: false })}>Turn off Open now</Button>
+          )}
+          <Button variant="outline" onClick={() => onChange(EMPTY_FILTERS)}>
+            Clear filters
+          </Button>
+        </div>
+      </div>
+      {closest && (
+        <>
+          <p className="type-eyebrow text-muted-foreground">Closest to the station</p>
+          {card(closest)}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function StationHub({ stationId, onClose }: { stationId: string; onClose: () => void }) {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
-  const [filters, setFilters] = useState<HubFilters>(EMPTY_FILTERS);
+  // Starts from the Explore card's Craving / Budget / Time picks, if any.
+  const [filters, setFilters] = useState<HubFilters>(() => ({ ...EMPTY_FILTERS, ...getExploreFilters() }));
   const [openQuestId, setOpenQuestId] = useState<string | null>(null);
   const { player, reload } = usePlayer();
   const now = useNow();
@@ -157,6 +203,15 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
         <>
           {station.story && <Story text={station.story} />}
 
+          <Button
+            variant="outline"
+            className="self-start"
+            onClick={() => openGuide({ prompt: `What should I do near ${station.name}?` })}
+          >
+            <Sparkles className="text-maroon" aria-hidden />
+            Ask Guide about {station.name}
+          </Button>
+
           <div className="flex flex-col gap-4">
             <SearchBar
               stationName={station.name}
@@ -174,12 +229,21 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
                 No quests here yet. Try a station nearby.
               </p>
             ) : results.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 py-8 text-center">
-                <p className="type-body text-muted-foreground">No quests match these filters.</p>
-                <Button variant="outline" onClick={() => setFilters(EMPTY_FILTERS)}>
-                  Clear filters
-                </Button>
-              </div>
+              <NoMatches
+                filters={filters}
+                closest={closestQuest(quests)}
+                onChange={setFilters}
+                card={(q) => (
+                  <QuestCard
+                    quest={q}
+                    neighborhood={station.neighborhood}
+                    now={now}
+                    tier={tier}
+                    visit={lastVisit(player, q.id)}
+                    onOpen={setOpenQuestId}
+                  />
+                )}
+              />
             ) : (
               results.map((q) => (
                 <QuestCard
