@@ -19,6 +19,7 @@ import type {
   AuthError,
   AuthResult,
   CheckInResult,
+  PlaceCheckInResult,
   GameProgress,
   LeaderboardRow,
   PassportNeighborhood,
@@ -215,6 +216,21 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
       });
       if (error) return { ok: false, error: parseCheckInError(error) };
       return { ok: true, result: data as CheckInResult };
+    },
+
+    async checkInPlace(place, location) {
+      const { data, error } = await db().rpc("check_in_place", {
+        p_key: place.key,
+        p_name: place.name,
+        p_category: place.category,
+        p_place_lat: place.lat,
+        p_place_lon: place.lon,
+        p_minutes: Math.round(place.minutes),
+        p_lat: location?.lat ?? null,
+        p_lon: location?.lon ?? null,
+      });
+      if (error) return { ok: false, error: parseCheckInError(error) };
+      return { ok: true, result: data as PlaceCheckInResult };
     },
 
     // ---------- passport and visits ----------

@@ -61,7 +61,7 @@ export default function ServicePanel({
   return (
     // Sits under the map's 3D/2D panel (TransitMap's right column); tall enough for the four lines,
     // short enough to end above the Quest of the Week card. It scrolls inside.
-    <div className="ob-panel max-h-[max(160px,min(520px,calc(100dvh-var(--ob-map-top,0px)-29rem)))] w-[min(340px,calc(100vw-24px))] overflow-y-auto px-2 py-1.5 text-xs desk:max-h-[max(160px,min(520px,calc(100dvh-var(--ob-map-top,0px)-24rem)))]">
+    <div className="ob-panel max-h-[max(160px,min(520px,calc(100dvh-var(--ob-map-top,0px)-29rem)))] w-[min(340px,calc(100vw-24px))] desk:w-[460px] overflow-y-auto px-2 py-1.5 text-xs desk:max-h-[max(160px,min(520px,calc(100dvh-var(--ob-map-top,0px)-22rem)))]">
       {GROUPS.map((g) => {
         const count = g.routes.reduce((n, r) => n + (byRoute.get(r)?.length ?? 0), 0);
         const isOpen = open === g.id;

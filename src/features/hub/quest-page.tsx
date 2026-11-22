@@ -12,7 +12,9 @@ import { usePlayer } from "./use-player";
 export function QuestPage({ quest, station }: { quest: Quest; station: Station }) {
   const { player, reload } = usePlayer();
   const now = useNow();
-  const stationHref = `/?station=${encodeURIComponent(station.id)}`;
+  // The station link opens Explore on this quest: the map flies there, shows every way to get there,
+  // and the station hub opens beside it.
+  const stationHref = `/?station=${encodeURIComponent(station.id)}&go=${quest.lat.toFixed(5)},${quest.lon.toFixed(5)}&name=${encodeURIComponent(quest.title)}`;
   return (
     <>
       <PageHeader

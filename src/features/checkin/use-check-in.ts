@@ -28,7 +28,7 @@ export type CheckInState =
 
 type Position = { lat: number; lon: number };
 
-function locate(): Promise<Position | FlowError> {
+export function locate(): Promise<Position | FlowError> {
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     return Promise.resolve({ code: "LOCATION_UNAVAILABLE" });
   }
@@ -55,8 +55,8 @@ export function useCheckIn(quest: Quest, profile: Profile | null, needsOptions: 
       const id = ++run.current;
       const live = () => run.current === id;
       let location: Position | null = null;
-      // QR check-ins don't need location; demo accounts never do.
-      if (!profile?.is_demo && !opts.qr) {
+      // QR check-ins don't need location. Everyone else, demo accounts included, must be at the place.
+      if (!opts.qr) {
         setState({ step: "locating" });
         const found = await locate();
         if (!live()) return;
@@ -72,7 +72,7 @@ export function useCheckIn(quest: Quest, profile: Profile | null, needsOptions: 
         if (live()) setState({ step: "error", error: { code: "NETWORK" } });
       }
     },
-    [quest.id, profile?.is_demo],
+    [quest.id],
   );
 
   /** After any closed-hours confirm: ask for options if needed, else send. */

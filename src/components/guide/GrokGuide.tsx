@@ -67,6 +67,11 @@ async function toJpeg(file: File): Promise<string> {
   }
 }
 
+/** Raw model errors only show with ?debug in the URL, so a demo never shows provider errors. */
+function showDebug() {
+  return typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
+}
+
 function StageList({ stages, photo }: { stages: Stage[]; photo: boolean }) {
   const byId = new Map(stages.map((s) => [s.stage, s]));
   return (
@@ -94,7 +99,7 @@ function StageList({ stages, photo }: { stages: Stage[]; photo: boolean }) {
               {s?.detail && status === "done" && id === "vision" && <span className="block text-muted-foreground">Saw: {s.detail}</span>}
               {s?.detail && status === "done" && id === "decide" && <span className="block text-muted-foreground">{s.detail}</span>}
               {s?.detail && status === "done" && id === "where" && <span className="block text-muted-foreground">Found: {s.detail}</span>}
-              {s?.detail && status === "error" && <span className="block break-words text-[11px] text-danger">{s.detail}</span>}
+              {s?.detail && status === "error" && showDebug() && <span className="block break-words text-[11px] text-danger">{s.detail}</span>}
             </span>
           </li>
         );
@@ -191,7 +196,7 @@ function ReportCard({ r, onRetryPhoto, onType, onRoute }: { r: FinalReport; onRe
           <TriangleAlert className="size-4 text-gold-600" aria-hidden /> {r.title}
         </p>
         <p className="mt-1 text-[13px] leading-snug">{r.summary}</p>
-        {r.debug && <p className="mt-1.5 break-words text-[11px] text-muted-foreground">Why: {r.debug}</p>}
+        {r.debug && showDebug() && <p className="mt-1.5 break-words text-[11px] text-muted-foreground">Why: {r.debug}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
           <button onClick={onRetryPhoto} className="inline-flex items-center gap-1.5 rounded-full bg-maroon px-3 py-1.5 text-xs font-semibold text-white hover:bg-maroon-600">
             <Camera className="size-3.5" aria-hidden /> Try another photo
@@ -501,10 +506,10 @@ export default function GrokGuide({
             if (e.currentTarget === e.target) setDragging(false);
           }}
           onDrop={onDrop}
-          className={`relative flex h-[640px] max-h-[calc(100dvh-8.5rem)] w-[420px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-border bg-white text-ink shadow-2xl ${
-            // On the map, stay below the Explore card (with its "Where to?" search) instead of over it.
+          className={`relative flex h-[680px] max-h-[calc(100dvh-8.5rem)] w-[460px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-border bg-white text-ink shadow-2xl ${
+            // Phones/tablets on the map: stay below the Explore card. Desktop: the card is on the right.
             onMap && !openFromHeader
-              ? "min-[820px]:max-h-[max(320px,calc(100dvh-28rem))] desk:max-h-[max(320px,calc(100dvh-26.5rem))]"
+              ? "min-[820px]:max-h-[max(320px,calc(100dvh-28rem))] desk:max-h-[calc(100dvh-10.5rem)]"
               : "desk:max-h-[calc(100dvh-6.5rem)]"
           }`}
         >

@@ -12,6 +12,7 @@ const HINTS: ReadonlySet<string> = new Set<CheckInErrorHint>([
   "TOO_FAR",
   "NOT_IN_SQUAD",
   "ALREADY_CHECKED_IN_TODAY",
+  "DAILY_LIMIT",
 ]);
 
 /** Shape of a supabase-js PostgrestError, or any thrown error. */

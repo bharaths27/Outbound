@@ -84,13 +84,16 @@ function progressOn(r: Route, pos: LL) {
   return { step, minutesLeft: toEnd < 0.08 ? 0 : left, toEndKm: toEnd, offRoute: bestD > 0.3, arrived: toEnd < 0.08 };
 }
 /** " · $2.40 fare", " · free (walk)", or nothing when the route didn't say. */
+const pathKm = (p: LL[]) => p.slice(1).reduce((n, pt, i) => n + kmBetween(p[i], pt), 0);
+const TRAIN_SVG =
+  '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.1V7a4 4 0 0 0 8 0V3.1"/><path d="m9 15-1-1"/><path d="m15 15 1-1"/><path d="M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5Z"/><path d="m8 19-2 3"/><path d="m16 19 2 3"/></svg>';
 const fareLabel = (fare?: number) => (fare === undefined ? "" : fare > 0 ? ` · ${"$"}${fare.toFixed(2)} fare` : " · free (walk)");
 
 export interface ExplorerHandle {
   search: (q: string) => void;
   show: (p: Place) => void;
   /** Open a place card and draw the route there (from you, or from BU Central if we don't know where you are). */
-  navigate: (t: { name: string; lat: number; lng: number; address?: string }) => void;
+  navigate: (t: { name: string; lat: number; lng: number; address?: string; category?: string }, from?: { lng: number; lat: number; label: string }) => void;
 }
 const BU_CENTRAL: [number, number] = [-71.107037, 42.350049];
 
@@ -162,16 +165,17 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
       resetRoute();
       map?.flyTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 16.2), pitch: map.getPitch(), duration: 1800 });
     },
-    navigate: (t) => {
+    navigate: (t, from) => {
       const p: Place = {
         id: `guide-${t.lat},${t.lng}`, name: t.name, address: t.address ?? "", lng: t.lng, lat: t.lat,
-        types: [], category: "From the Outbound Guide", rating: null, ratings: 0, price: null, openNow: null, url: null,
+        types: [], category: t.category ?? "From the Outbound Guide", rating: null, ratings: 0, price: null, openNow: null, url: null,
       };
       setQuery(null);
       setResults(null);
       setPlace(p);
       resetRoute();
-      void directions(p, userLoc ?? BU_CENTRAL, userLoc ? "from you" : "from BU Central");
+      if (from) void directions(p, [from.lng, from.lat], from.label);
+      else void directions(p, userLoc ?? BU_CENTRAL, userLoc ? "from you" : "from BU Central");
     },
   }));
 
@@ -262,15 +266,30 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
   useEffect(() => {
     if (!map || !route || follow !== "sim") return;
     const path = pathOf(route);
+    // Each leg gets screen time by its minutes (not its length), so walks don't flash past and the
+    // T legs show a train riding the line in its color.
+    const legs = route.segments.filter((x) => x.path.length > 1);
+    const legMin = legs.map((x) => Math.max(1, x.mode === "walk" ? kmBetween(x.path[0], x.path.at(-1)!) * 12 : pathKm(x.path) * 2));
+    const legTotal = legMin.reduce((a, b) => a + b, 0);
     const el = document.createElement("div");
     el.className = "ob-sim-rider";
-    simMarker.current = new maplibregl.Marker({ element: el }).setLngLat(path[0]).addTo(map);
-    const total = Math.min(28000, Math.max(12000, route.minutes * 600)); // 12-28 s for the whole trip
+    simMarker.current = new maplibregl.Marker({ element: el, rotationAlignment: "map" }).setLngLat(path[0]).addTo(map);
+    const total = Math.min(30000, Math.max(14000, route.minutes * 650)); // 14-30 s for the whole trip
     const t0 = performance.now();
-    let raf = 0, last = 0;
+    let raf = 0, last = 0, lastLeg = -1;
     const tick = (now: number) => {
       const f = Math.min(1, (now - t0) / total);
-      const { pt, heading } = along(path, f);
+      let at = f * legTotal, li = 0;
+      while (li < legs.length - 1 && at > legMin[li]) at -= legMin[li++];
+      const leg = legs[li];
+      const { pt, heading } = leg ? along(leg.path, at / legMin[li]) : along(path, f);
+      if (li !== lastLeg && leg) {
+        lastLeg = li;
+        const train = leg.mode === "transit";
+        el.className = train ? "ob-sim-train" : "ob-sim-rider";
+        el.style.setProperty("--c", leg.color || "#7a1f3d");
+        el.innerHTML = train ? TRAIN_SVG : "";
+      }
       simMarker.current?.setLngLat(pt);
       map.jumpTo({ center: pt, bearing: heading, pitch: 60, zoom: 15.6 });
       if (now - last > 250) {
@@ -340,7 +359,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
 
   if (!query && !place) return null;
   return (
-    <div className="ob-panel flex max-h-[min(70vh,560px)] w-[min(340px,calc(100vw-24px))] flex-col overflow-hidden text-sm">
+    <div className="ob-panel flex max-h-[min(72vh,640px)] w-[min(400px,calc(100vw-24px))] flex-col overflow-hidden text-[15px]">
       {/* header */}
       <div className="flex items-center gap-2 border-b border-[var(--ob-line)] px-3 py-2">
         {place && results && (
@@ -357,7 +376,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
       {!place && (
         <>
           {/* filter chips, like the mockup: Craving / Budget / Time */}
-          <div className="flex flex-wrap gap-1.5 border-b border-[var(--ob-line)] px-3 py-2 text-xs">
+          <div className="flex flex-wrap gap-1.5 border-b border-[var(--ob-line)] px-3 py-2 text-[13.5px]">
             {CRAVINGS.map(([n, Icon]) => (
               <button key={n} onClick={() => setCraving(n)} className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${craving === n ? "bg-[var(--ob-maroon)] text-white" : "bg-[var(--ob-sand)] text-[var(--ob-ink-2)]"}`}>
                 {Icon && <Icon size={13} strokeWidth={2.2} aria-hidden />}
@@ -375,9 +394,9 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
             </button>
           </div>
           <div className="overflow-auto">
-            {loading && <div className="px-3 py-3 text-xs text-[var(--ob-muted)]">Searching…</div>}
-            {error && <div className="px-3 py-3 text-xs text-amber-800">{error}</div>}
-            {filtered && !loading && !error && filtered.length === 0 && <div className="px-3 py-3 text-xs text-[var(--ob-muted)]">Nothing matches these filters.</div>}
+            {loading && <div className="px-3 py-3 text-[13.5px] text-[var(--ob-muted)]">Searching…</div>}
+            {error && <div className="px-3 py-3 text-[13.5px] text-amber-800">{error}</div>}
+            {filtered && !loading && !error && filtered.length === 0 && <div className="px-3 py-3 text-[13.5px] text-[var(--ob-muted)]">Nothing matches these filters.</div>}
             {filtered?.map((p) => (
               <button
                 key={p.id}
@@ -392,11 +411,11 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium text-[var(--ob-ink)]">{p.name}</span>
-                  <span className="block truncate text-xs text-[var(--ob-muted)]">
+                  <span className="block truncate text-[13.5px] text-[var(--ob-muted)]">
                     {p.rating != null && <Star size={11} className="mr-0.5 inline -translate-y-px fill-amber-400 text-amber-400" aria-hidden />}
                     {[stars(p.rating) + (p.ratings ? ` (${p.ratings.toLocaleString()})` : ""), dollars(p.price), p.category].filter(Boolean).join(" · ")}
                   </span>
-                  {p.openNow != null && <span className={`text-[11px] ${p.openNow ? "text-emerald-700" : "text-rose-700"}`}>{p.openNow ? "Open now" : "Closed"}</span>}
+                  {p.openNow != null && <span className={`text-[12.5px] ${p.openNow ? "text-emerald-700" : "text-rose-700"}`}>{p.openNow ? "Open now" : "Closed"}</span>}
                 </span>
               </button>
             ))}
@@ -406,12 +425,12 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
 
       {place && (
         <div className="overflow-auto px-3 py-2.5">
-          <div className="text-xs text-[var(--ob-ink-2)]">
+          <div className="text-[13.5px] text-[var(--ob-ink-2)]">
             {place.rating != null && <Star size={11} className="mr-0.5 inline -translate-y-px fill-amber-400 text-amber-400" aria-hidden />}
                     {[stars(place.rating) + (place.ratings ? ` (${place.ratings.toLocaleString()})` : ""), dollars(place.price), place.category].filter(Boolean).join(" · ")}
           </div>
-          {place.openNow != null && <div className={`text-xs ${place.openNow ? "text-emerald-700" : "text-rose-700"}`}>{place.openNow ? "Open now" : "Closed now"}</div>}
-          <div className="mt-1 text-xs text-[var(--ob-muted)]">{place.address}</div>
+          {place.openNow != null && <div className={`text-[13.5px] ${place.openNow ? "text-emerald-700" : "text-rose-700"}`}>{place.openNow ? "Open now" : "Closed now"}</div>}
+          <div className="mt-1 text-[13.5px] text-[var(--ob-muted)]">{place.address}</div>
           {!options && (
             <div className="mt-2.5 flex gap-2">
               <button className="flex-1 rounded-lg bg-[var(--ob-maroon)] px-3 py-1.5 font-medium text-white disabled:opacity-60" disabled={routing} onClick={() => directions(place)}>
@@ -424,13 +443,13 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
               )}
             </div>
           )}
-          {error && <div className="mt-2 text-xs text-amber-800">{error}</div>}
+          {error && <div className="mt-2 text-[13.5px] text-amber-800">{error}</div>}
 
           {/* 1. Route options: every way there by T, fastest first. Hover to preview on the map. */}
           {options && chosen == null && (
             <div className="mt-3">
-              <div className="flex items-baseline justify-between text-xs">
-                <span className="font-semibold text-[var(--ob-ink)]">{options.length} ways there {fromLabel}</span>
+              <div className="flex items-baseline justify-between text-[13.5px]">
+                <span className="font-semibold text-[var(--ob-ink)]">{options.length} {options.length === 1 ? "way" : "ways"} there {fromLabel}</span>
                 <button className="text-[var(--ob-muted)] hover:underline" onClick={resetRoute}>Clear</button>
               </div>
               <ul className="mt-1.5 flex flex-col gap-1.5">
@@ -443,19 +462,19 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                         onMouseLeave={() => setHover(null)}
                         onFocus={() => setHover(i)}
                         onClick={() => choose(i)}
-                        className={`w-full rounded-xl border px-2.5 py-2 text-left text-xs ${i === shownIdx ? "border-[var(--ob-maroon)] bg-[var(--ob-cream)]" : "border-[var(--ob-line)] hover:bg-[var(--ob-cream)]"}`}
+                        className={`w-full rounded-xl border px-2.5 py-2 text-left text-[13.5px] ${i === shownIdx ? "border-[var(--ob-maroon)] bg-[var(--ob-cream)]" : "border-[var(--ob-line)] hover:bg-[var(--ob-cream)]"}`}
                       >
                         <span className="flex items-center justify-between gap-2">
                           <span className="font-semibold text-[var(--ob-ink)]">{o.minutes} min{fareLabel(o.fare)}</span>
-                          {o.label && <span className="rounded-full bg-[var(--ob-sand)] px-2 py-0.5 text-[10px] font-semibold text-[var(--ob-ink-2)]">{o.label}</span>}
+                          {o.label && <span className="rounded-full bg-[var(--ob-sand)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--ob-ink-2)]">{o.label}</span>}
                         </span>
                         <span className="mt-1 flex flex-wrap items-center gap-1">
                           {rides.length === 0 && <span className="flex items-center gap-0.5 text-[var(--ob-muted)]"><Footprints size={12} aria-hidden /> Walk the whole way</span>}
                           {rides.map((x, k) => (
-                            <span key={k} className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-white" style={{ background: x.color }}>{x.line}</span>
+                            <span key={k} className="rounded px-1.5 py-0.5 text-[11.5px] font-semibold text-white" style={{ background: x.color }}>{x.line}</span>
                           ))}
                         </span>
-                        <span className="mt-1 block text-[11px] text-[var(--ob-muted)]">
+                        <span className="mt-1 block text-[12.5px] text-[var(--ob-muted)]">
                           {[
                             rides.length ? `${o.transfers ?? Math.max(0, rides.length - 1)} transfer${(o.transfers ?? 0) === 1 ? "" : "s"}` : null,
                             o.walkMin != null ? `${o.walkMin} min walking` : null,
@@ -473,11 +492,11 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
           {/* 2. Journey preview, then 3. follow along */}
           {route && (
             <div className="mt-3">
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between text-[13.5px]">
                 <button className="text-[var(--ob-muted)] hover:underline" onClick={() => (setChosen(null), setFollow(null), fit(options!.map(pathOf)))}>
                   ← All options
                 </button>
-                {route.label && <span className="rounded-full bg-[var(--ob-sand)] px-2 py-0.5 text-[10px] font-semibold text-[var(--ob-ink-2)]">{route.label}</span>}
+                {route.label && <span className="rounded-full bg-[var(--ob-sand)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--ob-ink-2)]">{route.label}</span>}
               </div>
               <div className="mt-2 grid grid-cols-4 gap-1 text-center">
                 {[
@@ -487,17 +506,17 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                   [`${route.transfers ?? 0}`, route.transfers === 1 ? "transfer" : "transfers"],
                 ].map(([v, l]) => (
                   <div key={l} className="rounded-lg bg-[var(--ob-sand)] px-1 py-1.5">
-                    <div className="text-sm font-bold text-[var(--ob-ink)] tabular-nums">{v}</div>
-                    <div className="text-[10px] text-[var(--ob-muted)]">{l}</div>
+                    <div className="text-base font-bold text-[var(--ob-ink)] tabular-nums">{v}</div>
+                    <div className="text-[11.5px] text-[var(--ob-muted)]">{l}</div>
                   </div>
                 ))}
               </div>
 
               {prog?.arrived ? (
-                <div className="mt-2 rounded-lg bg-emerald-600/10 px-2.5 py-2 text-xs font-semibold text-emerald-700">You’re here: {place.name}. Open its quest to check in.</div>
+                <div className="mt-2 rounded-lg bg-emerald-600/10 px-2.5 py-2 text-[13.5px] font-semibold text-emerald-700">You’re here: {place.name}. Open its quest to check in.</div>
               ) : (
                 follow && (
-                  <div className="mt-2 rounded-lg bg-[var(--ob-maroon)] px-2.5 py-2 text-xs text-white">
+                  <div className="mt-2 rounded-lg bg-[var(--ob-maroon)] px-2.5 py-2 text-[13.5px] text-white">
                     {follow === "gps" && !userLoc ? (
                       "Waiting for your location… turn on location for Outbound."
                     ) : prog ? (
@@ -507,7 +526,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                           const x = route.steps[prog.step];
                           return x.mode === "walk" ? x.text : `Ride the ${x.line} Line ${x.from} → ${x.to} (${x.stops} stops)`;
                         })()}
-                        {prog.offRoute && follow === "gps" && <span className="mt-0.5 block text-[11px] text-white/80">You’re off this route. Head back to it, or pick another option.</span>}
+                        {prog.offRoute && follow === "gps" && <span className="mt-0.5 block text-[12.5px] text-white/80">You’re off this route. Head back to it, or pick another option.</span>}
                       </>
                     ) : (
                       "Starting…"
@@ -518,7 +537,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
 
               <ol className="mt-2 flex flex-col gap-1.5">
                 {route.steps.map((x, i) => (
-                  <li key={i} className={`flex gap-2 rounded text-xs ${prog && i === prog.step ? "bg-[var(--ob-cream)] font-semibold text-[var(--ob-ink)]" : "text-[var(--ob-ink-2)]"} ${prog && i < prog.step ? "opacity-50" : ""}`}>
+                  <li key={i} className={`flex gap-2 rounded text-[13.5px] ${prog && i === prog.step ? "bg-[var(--ob-cream)] font-semibold text-[var(--ob-ink)]" : "text-[var(--ob-ink-2)]"} ${prog && i < prog.step ? "opacity-50" : ""}`}>
                     {x.mode === "walk" ? (
                       <>
                         <span className="flex w-12 shrink-0 items-center gap-0.5 text-[var(--ob-muted)]"><Footprints size={12} aria-hidden /> {x.minutes}m</span>
@@ -531,7 +550,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                         </span>
                         <span>
                           {x.from} → {x.to}
-                          <span className="block text-[11px] font-normal text-[var(--ob-muted)]">
+                          <span className="block text-[12.5px] font-normal text-[var(--ob-muted)]">
                             {[x.headsign && `toward ${x.headsign}`, x.stops && `${x.stops} stops`, `${x.minutes} min`, x.depart && `leaves ${x.depart}`].filter(Boolean).join(" · ")}
                           </span>
                         </span>
@@ -559,7 +578,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
               </div>
               {routeFrom && (
                 <a
-                  className="mt-1.5 block text-center text-[11px] text-[var(--ob-muted)] underline-offset-2 hover:underline"
+                  className="mt-1.5 block text-center text-[12.5px] text-[var(--ob-muted)] underline-offset-2 hover:underline"
                   href={`https://www.google.com/maps/dir/?api=1&origin=${routeFrom[1]},${routeFrom[0]}&destination=${place.lat},${place.lng}&travelmode=transit`}
                   target="_blank"
                   rel="noreferrer"

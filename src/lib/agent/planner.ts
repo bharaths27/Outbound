@@ -14,16 +14,48 @@ export const AGENT_MODEL = process.env.MASTRA_MODEL || "gemini-2.5-flash";
 // calls. So every agent falls back to a second model when the first is rate limited.
 export const FALLBACK_MODEL = process.env.MASTRA_FALLBACK_MODEL || "gemini-2.5-flash-lite";
 
-/** Gemini for Mastra agents, with a fallback model on errors such as 429 rate limits. */
-export function geminiModels() {
-  const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
-  if (!key) throw new Error("GEMINI_API_KEY not set");
-  const google = createGoogleGenerativeAI({ apiKey: key });
-  return [
-    { model: google(AGENT_MODEL), maxRetries: 1 },
-    { model: google(FALLBACK_MODEL), maxRetries: 2 },
-  ];
+/** Models for Mastra agents: Gemini first, a lighter Gemini on rate limits, then Grok (xAI) if
+ * Gemini is out of quota or down, so the Guide keeps answering during a demo. Either key alone works.
+ * Once Gemini says it's out of quota, Grok goes first for the next 10 minutes (no waiting on retries). */
+let geminiDownUntil = 0;
+let grokDownUntil = 0;
+/** Grok just failed (grok.ts): agents leave it out for 2 minutes instead of waiting on its retries. */
+export function markGrokDown() {
+  grokDownUntil = Date.now() + 2 * 60_000;
 }
+/** Tests: forget which providers failed. */
+export function resetModelHealth() {
+  geminiDownUntil = grokDownUntil = 0;
+}
+const geminiFetch: typeof fetch = async (input, init) => {
+  if (Date.now() < geminiDownUntil) return new Response(JSON.stringify({ error: { code: 400, message: "Gemini skipped: out of quota recently", status: "SKIPPED" } }), { status: 400, headers: { "content-type": "application/json" } });
+  const res = await fetch(input, init);
+  if (res.status === 429 || res.status === 403 || res.status >= 500) {
+    geminiDownUntil = Date.now() + 10 * 60_000;
+    console.warn(`[agents] Gemini ${res.status}: using Grok for 10 minutes`);
+    // a 400 isn't retried, so the agent moves straight to the next model
+    return new Response(await res.text(), { status: 400, headers: { "content-type": "application/json" } });
+  }
+  return res;
+};
+export function geminiModels(opts: { grok?: boolean } = {}) {
+  const clean = (v?: string) => v?.trim().replace(/^["']|["']$/g, "") || undefined;
+  const key = clean(process.env.GEMINI_API_KEY);
+  const xai = clean(process.env.XAI_API_KEY);
+  const useGrok = opts.grok !== false && !!xai && Date.now() >= grokDownUntil;
+  if (!key && !useGrok) throw new Error(opts.grok === false ? "GEMINI_API_KEY not set" : "GEMINI_API_KEY and XAI_API_KEY not set");
+  const gemini = key
+    ? (() => {
+        const google = createGoogleGenerativeAI({ apiKey: key, fetch: geminiFetch });
+        return [{ model: google(AGENT_MODEL), maxRetries: 0 }, { model: google(FALLBACK_MODEL), maxRetries: 0 }];
+      })()
+    : [];
+  const grok = useGrok ? [{ model: { id: `xai/${GROK_TEXT_MODEL}` as `${string}/${string}`, apiKey: xai! }, maxRetries: 0 }] : [];
+  return Date.now() < geminiDownUntil ? [...grok, ...gemini] : [...gemini, ...grok];
+}
+// Grok model the agents fall back to (text only). grok-4.7 matches the Guide's vision model.
+export const GROK_TEXT_MODEL = process.env.GROK_FALLBACK_MODEL || process.env.GROK_MODEL || "grok-4.7";
+
 const PRICE = ["free", "under $10", "$10-25", "splurge"];
 const QUEST_FIELDS =
   "id,title,type,description,price_tier,vibe_tags,hours,xp,duration_min,walk_min,station_id,lat,lon,stations(name,lines,neighborhood)";

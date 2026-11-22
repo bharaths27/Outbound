@@ -58,4 +58,12 @@ export interface DemoAccount {
   blurb: string;
 }
 
+export interface PlaceCheckInResult {
+  xp_awarded: number;
+  base: number;
+  distance_xp: number;
+  budget_xp: number;
+  total_xp: number;
+}
+export type PlaceCheckInOutcome = { ok: true; result: PlaceCheckInResult } | { ok: false; error: CheckInError };
 export type CheckInOutcome = { ok: true; result: CheckInResult } | { ok: false; error: CheckInError };

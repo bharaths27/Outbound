@@ -81,6 +81,12 @@ export interface Quest {
   icon: "Landmark" | "Waves" | "Soup" | "BookOpen" | "Sunset" | "Trophy" | "Trees" | "Pizza" | "Coffee";
   /** food, scenery or event: food and events need a check-in, scenery also takes a photo */
   kind?: "food" | "scenery" | "event";
+  /** a real quest from the database (check-in goes through check_in(), XP from the quest) */
+  real?: boolean;
+  /** for Explore's filters: food / event / scenic, price tier 0-3, minutes spent there */
+  qtype?: string;
+  price?: number;
+  duration?: number;
 }
 export const SAMPLE_QUESTS: Quest[] = [
   { id: "q1", title: "Freedom Trail starter", place: "Massachusetts State House", lng: -71.0637, lat: 42.3581, points: 50, hint: "Find the gold dome, then walk the red-brick line", icon: "Landmark" },

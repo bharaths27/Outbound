@@ -5,8 +5,13 @@ import { createPortal } from "react-dom";
 import * as maplibregl from "maplibre-gl";
 import type { Map as MlMap, GeoJSONSource, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { MAP_SEARCH_SLOT } from "@/features/explore/explore-card";
+import { MAP_SEARCH_SLOT, useExploreFilters } from "@/features/explore/explore-card";
 import { openStationHub } from "@/features/hub/open-hub";
+import { errorCopy } from "@/features/checkin/errors";
+import { locate } from "@/features/checkin/use-check-in";
+import { notifyPlayerChanged } from "@/features/shell/use-shell-player";
+import { data } from "@/lib/data";
+import type { Quest as DbQuest, Station as DbStation } from "@/lib/data/types";
 import type { LineLateness, Station, Train } from "@/lib/types";
 import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
@@ -20,7 +25,7 @@ import ServicePanel from "./ServicePanel";
 import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
-import { BookOpen, Check, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Coffee, Compass, Landmark, Layers, LocateFixed, MapPin, Moon, Pizza, Soup, Star, Sun, Sunset, TrainFront, Trees, Trophy, Waves } from "lucide-react";
+import { BookOpen, Check, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Coffee, Landmark, Layers, LocateFixed, MapPin, Moon, Pizza, Soup, Star, Sun, Sunset, TrainFront, Trees, Trophy, Waves } from "lucide-react";
 import { createElement, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN, Trees as TreesN, Pizza as PizzaN, Coffee as CoffeeN, Check as CheckN } from "lucide";
 
 const QUEST_ICONS = { Landmark, Waves, Soup, BookOpen, Sunset, Trophy, Trees, Pizza, Coffee };
@@ -38,8 +43,8 @@ import {
 } from "./feed";
 import { CAMPUSES, SAMPLE_FRIEND_VISITS, SAMPLE_QUESTS, initials, type FriendVisit, type Quest } from "./places";
 import {
-  CHECKIN_RADIUS_M, DEFAULT_HOME, NEW_AREA_BONUS, checkedInToday, estimateRide, exploredStops, fogGeoJSON, haversineM, levelOf,
-  loadProgress, nearestStation, pickExpeditions, saveProgress, spotXp, type Progress, type Ride,
+  CHECKIN_RADIUS_M, DEFAULT_HOME, FOOD_CLASSES, NEW_AREA_BONUS, POINT_CLASSES, SCENIC_CLASSES, placeTier, checkedInToday, estimateRide, fogGeoJSON, haversineM, levelOf,
+  loadProgress, nearestStation, pickExpeditions, placePoints, saveProgress, spotXp, type Progress, type Ride,
 } from "./gamify";
 
 type FeedMode = "live" | "replay" | "demo";
@@ -102,7 +107,10 @@ export default function TransitMap() {
   const [ready, setReady] = useState(false);
   const [offlineBasemap, setOfflineBasemap] = useState(false);
   const [is3D, setIs3D] = useState(true);
-  const [orbit, setOrbit] = useState(false); // drag turns and tilts the camera instead of moving the map
+  const orbit = false; // left-drag always moves the map; right-drag turns and tilts (MapLibre's own)
+  // right-click (without dragging): a small menu for directions to / from that point
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; lng: number; lat: number } | null>(null);
+  const [routeStart, setRouteStart] = useState<{ lng: number; lat: number } | null>(null);
   const [satellite, setSatellite] = useState(false);
   const [realistic, setRealistic] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -132,7 +140,34 @@ export default function TransitMap() {
   const [progress, setProgress] = useState<Progress>({ xp: 0, visits: {} });
   const [pops, setPops] = useState<{ id: number; text: string; sub?: string }[]>([]);
   const [levelUp, setLevelUp] = useState<number | null>(null);
-  useEffect(() => setProgress(loadProgress()), []);
+  // The quests on the map are the real ones (database), with your real visits and XP. Without a
+  // quests feed (offline artifact) Verna's sample spots show instead, saved in this browser.
+  const [mapQuests, setMapQuests] = useState<Quest[]>(SAMPLE_QUESTS);
+  const [gameVersion, setGameVersion] = useState(0);
+  // Explore Boston's Craving / Budget / Time also filter the map: quests and places that don't fit hide.
+  const filters = useExploreFilters();
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [qs, sts, me] = await Promise.all([data.getAllQuests(), data.getStations(), data.getCurrentUser()]);
+      if (!alive) return;
+      if (!qs.length) return setProgress(loadProgress());
+      const byId = new Map(sts.map((x) => [x.id, x]));
+      setMapQuests(qs.map((q) => toMapQuest(q, byId.get(q.station_id))));
+      const visits = me ? await data.getVisits(me.id) : [];
+      const v: Record<string, number[]> = {};
+      for (const x of visits) (v[x.quest_id] ??= []).push(new Date(x.checked_in_at).getTime());
+      if (alive) setProgress({ xp: me?.xp ?? 0, visits: v });
+    })().catch(() => alive && setProgress(loadProgress()));
+    return () => {
+      alive = false;
+    };
+  }, [gameVersion]);
+  // a restaurant or place from the basemap: points by kind, distance and cost (placePoints)
+  const [spot, setSpot] = useState<{ key: string; name: string; cls: string; lng: number; lat: number; minutes: number } | null>(null);
+  const [cardMsg, setCardMsg] = useState<{ text: string; ok?: boolean } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const rideMinRef = useRef<{ from: string; min: Record<string, number> } | null>(null);
 
   // ---------- map setup ----------
   useEffect(() => {
@@ -562,15 +597,15 @@ export default function TransitMap() {
     if (!ready || !stations.length) return null;
     const home = stations.find((s) => s.id === DEFAULT_HOME) ?? stations[0];
     const rides = new Map<string, Ride>();
-    for (const q of SAMPLE_QUESTS) {
+    for (const q of mapQuests) {
       const to = nearestStation(stations, q.lat, q.lng);
       if (to) rides.set(q.id, estimateRide(home, to));
     }
-    const expeditions = pickExpeditions(SAMPLE_QUESTS, rides);
+    const expeditions = pickExpeditions(mapQuests, rides);
     return { home, rides, expeditions };
-  }, [ready]);
+  }, [ready, mapQuests]);
 
-  const visitedSpots = useMemo(() => SAMPLE_QUESTS.filter((q) => progress.visits[q.id]?.length), [progress]);
+  const visitedSpots = useMemo(() => mapQuests.filter((q) => progress.visits[q.id]?.length), [progress, mapQuests]);
   const fog = useMemo(
     () => (game ? fogGeoJSON(game.home, visitedSpots.map((q) => ({ lat: q.lat, lon: q.lng }))) : null),
     [game, visitedSpots],
@@ -583,14 +618,15 @@ export default function TransitMap() {
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map || !game) return;
-    markersRef.current.quests = SAMPLE_QUESTS.map((q) => {
+    markersRef.current.quests = mapQuests.map((q) => {
       const ride = game.rides.get(q.id)!;
       const visited = !!progress.visits[q.id]?.length;
       const exp = game.expeditions.has(q.id);
-      const xp = spotXp(q, ride, visited, exp);
+      const xp = questXp(q, ride, visited, exp);
       const el = document.createElement("button");
       el.type = "button";
       el.dataset.xp = String(xp.total + (exp && !visited ? 1000 : 0)); // decluttering keeps the most valuable pin
+      el.dataset.qid = q.id;
       el.setAttribute("aria-label", `${exp && !visited ? "Expedition: " : ""}${q.title} at ${q.place}, ${xp.total} XP, about ${ride.minutes} minutes away`);
       el.className = `ob-quest${exp && !visited ? " ob-quest-exp" : ""}${visited ? " ob-quest-done" : ""}`;
       el.style.setProperty("--s", String(1 + (xp.mult - 1) * 0.25));
@@ -604,6 +640,8 @@ export default function TransitMap() {
       el.onclick = (ev) => {
         ev.stopPropagation();
         setFriend(null);
+        setSpot(null);
+        setCardMsg(null);
         setQuest(q);
         map.easeTo({ center: [q.lng, q.lat], zoom: Math.max(map.getZoom(), 15.6), duration: 1400 });
       };
@@ -611,10 +649,139 @@ export default function TransitMap() {
     });
     const markers = markersRef.current;
     return () => markers.quests.forEach((m) => m.remove());
-  }, [ready, game, progress]);
+  }, [ready, game, progress, mapQuests]);
+
+  // ---------- points on every restaurant and place on the basemap ----------
+  // XP labels over the map's own POIs (restaurants, cafes, parks, museums...): placePoints() from the
+  // kind of place, how long it takes to get there (from you, or BU Central) and roughly what it costs.
+  const originKey = userLoc ? `${userLoc[0].toFixed(3)},${userLoc[1].toFixed(3)}` : "bu";
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const poiLayer = map.getStyle().layers.find((l) => (l as { "source-layer"?: string })["source-layer"] === "poi") as
+      | { id: string; source: string; layout?: Record<string, unknown> }
+      | undefined;
+    if (!poiLayer) return; // offline basemap: no POIs
+    if (!map.getSource("poi-xp")) {
+      map.addSource("poi-xp", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "poi-xp",
+        type: "symbol",
+        source: "poi-xp",
+        minzoom: 15,
+        layout: {
+          "text-field": ["concat", "+", ["to-string", ["get", "xp"]], " XP"],
+          "text-font": (poiLayer.layout?.["text-font"] as string[] | undefined) ?? ["Noto Sans Regular"],
+          "text-size": 13,
+          "text-offset": [0, -2.1],
+          "text-allow-overlap": false,
+          "text-padding": 4,
+          "symbol-sort-key": ["-", 100, ["get", "xp"]],
+        },
+        paint: { "text-color": "#6b2e00", "text-halo-color": "#fde68a", "text-halo-width": 3 },
+      });
+      map.on("mouseenter", "poi-xp", () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", "poi-xp", () => (map.getCanvas().style.cursor = ""));
+    }
+    const origin: [number, number] = userLoc ?? [-71.107037, 42.350049];
+    let alive = true;
+    const rideMin = async () => {
+      if (rideMinRef.current?.from === originKey) return rideMinRef.current.min;
+      try {
+        const j = await (await fetch(`/api/ride-times?from=${origin[1]},${origin[0]}`)).json();
+        if (j.minutes) rideMinRef.current = { from: originKey, min: j.minutes };
+      } catch {}
+      return rideMinRef.current?.min ?? {};
+    };
+    const minutesTo = (lng: number, lat: number, ride: Record<string, number>) => {
+      const walkMin = (m: number) => (m * 1.3) / 80; // 80 m a minute, streets aren't straight
+      let best = walkMin(haversineM(origin[1], origin[0], lat, lng));
+      for (const st of stationsRef.current) {
+        const d = haversineM(st.lat, st.lon, lat, lng);
+        if (d < 900 && ride[st.id] != null) best = Math.min(best, ride[st.id] + walkMin(d));
+      }
+      return Math.round(best);
+    };
+    const update = async () => {
+      if (map.getZoom() < 14.5) return;
+      const ride = await rideMin();
+      if (!alive) return;
+      const seen = new Set<string>();
+      const c = map.getCenter();
+      const feats = map
+        .querySourceFeatures(poiLayer.source, { sourceLayer: "poi" })
+        .filter((f) => POINT_CLASSES.has(String(f.properties.class)) && (f.properties.name || f.properties["name:latin"]) && f.geometry.type === "Point")
+        .map((f) => {
+          const [lng, lat] = (f.geometry as GeoJSON.Point).coordinates;
+          const name = String(f.properties.name ?? f.properties["name:latin"]);
+          return { key: `${name}@${lng.toFixed(4)},${lat.toFixed(4)}`, name, cls: String(f.properties.class), lng, lat };
+        })
+        .filter((p) => !seen.has(p.key) && (seen.add(p.key), true))
+        .sort((a, b) => haversineM(c.lat, c.lng, a.lat, a.lng) - haversineM(c.lat, c.lng, b.lat, b.lng))
+        .slice(0, 160);
+      const fc: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: feats.map((p) => {
+          const minutes = minutesTo(p.lng, p.lat, ride);
+          return { type: "Feature", properties: { ...p, minutes, tier: placeTier(p.cls), xp: placePoints(p.cls, minutes).total }, geometry: { type: "Point", coordinates: [p.lng, p.lat] } };
+        }),
+      };
+      (map.getSource("poi-xp") as GeoJSONSource | undefined)?.setData(fc);
+    };
+    const onClick = (e: maplibregl.MapLayerMouseEvent) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      const p = f.properties as { key: string; name: string; cls: string; lng: number; lat: number; minutes: number };
+      setQuest(null);
+      setFriend(null);
+      setCardMsg(null);
+      setSpot({ key: p.key, name: p.name, cls: p.cls, lng: Number(p.lng), lat: Number(p.lat), minutes: Number(p.minutes) });
+    };
+    void update();
+    map.on("idle", update);
+    map.on("click", "poi-xp", onClick);
+    return () => {
+      alive = false;
+      map.off("idle", update);
+      map.off("click", "poi-xp", onClick);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, originKey]);
+
+  /** Real check-in: your location goes to the database, which says yes only within 75 m. */
+  async function checkInHere(send: (loc: { lat: number; lon: number }) => Promise<{ ok: true; xp: number; sub?: string } | { ok: false; error: Parameters<typeof errorCopy>[0] }>) {
+    setChecking(true);
+    setCardMsg(null);
+    try {
+      const loc = await locate();
+      if ("code" in loc) return setCardMsg({ text: errorCopy(loc).body });
+      const out = await send(loc);
+      if (!out.ok) return setCardMsg({ text: errorCopy(out.error).body });
+      setPops((p) => [...p, { id: Date.now(), text: `+${out.xp} XP`, sub: out.sub }]);
+      setCardMsg({ text: `Checked in. +${out.xp} XP`, ok: true });
+      notifyPlayerChanged();
+      setGameVersion((v) => v + 1);
+    } catch {
+      setCardMsg({ text: errorCopy({ code: "NETWORK" }).body });
+    } finally {
+      setChecking(false);
+    }
+  }
 
   const checkIn = (q: Quest) => {
+    if (q.real) {
+      void checkInHere(async (loc) => {
+        const out = await data.checkIn(q.id, loc);
+        return out.ok ? { ok: true, xp: out.result.xp_awarded, sub: q.title } : { ok: false, error: out.error };
+      });
+      return;
+    }
     if (!game || checkedInToday(progress, q.id)) return;
+    // sample spots (no quests feed): still only when you're there
+    if (!userLoc || haversineM(userLoc[1], userLoc[0], q.lat, q.lng) > CHECKIN_RADIUS_M) {
+      setCardMsg({ text: `Get within ${CHECKIN_RADIUS_M} m of ${q.place} to check in.` });
+      return;
+    }
     const ride = game.rides.get(q.id)!;
     const visited = !!progress.visits[q.id]?.length;
     const xp = spotXp(q, ride, visited, game.expeditions.has(q.id));
@@ -645,11 +812,20 @@ export default function TransitMap() {
       // Expedition pins show from the whole-network view; the rest once you zoom in a little
       // pins that would overlap on screen fold into the most valuable one, which shows "+N"
       const kept: { x: number; y: number; el: HTMLElement; extra: number }[] = [];
+      const byId = new Map(mapQuests.map((q) => [q.id, q]));
+      const fits = (q: Quest) => {
+        if (filters.craving !== "any" && q.qtype && q.qtype !== filters.craving) return false;
+        if (filters.budget !== null && q.price != null && q.price > filters.budget) return false;
+        const ride = game?.rides.get(q.id)?.minutes ?? 0;
+        if (filters.minutes !== null && 2 * ride + (q.duration ?? 30) > filters.minutes) return false;
+        return true;
+      };
       const byValue = [...markersRef.current.quests].sort((a, b) => Number(b.getElement().dataset.xp) - Number(a.getElement().dataset.xp));
       for (const m of byValue) {
         const el = m.getElement();
         const exp = el.classList.contains("ob-quest-exp");
-        let on = show.friends && z >= (exp ? 10 : 12.3);
+        const q = byId.get(el.dataset.qid ?? "");
+        let on = show.friends && z >= (exp ? 10 : 12.3) && (!q || fits(q));
         if (on) {
           const pt = map.project(m.getLngLat());
           const near = kept.find((k) => Math.abs(k.x - pt.x) < 64 && Math.abs(k.y - pt.y) < 30);
@@ -683,7 +859,20 @@ export default function TransitMap() {
       map.off("zoom", update);
       map.off("moveend", update);
     };
-  }, [ready, show.campuses, show.friends, progress, game]);
+  }, [ready, show.campuses, show.friends, progress, game, mapQuests, filters]);
+
+  // the same filters on the basemap places' XP labels
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map?.getLayer("poi-xp")) return;
+    const all: unknown[] = ["all"];
+    if (filters.craving === "food") all.push(["in", ["get", "cls"], ["literal", FOOD_CLASSES]]);
+    else if (filters.craving === "scenic") all.push(["in", ["get", "cls"], ["literal", SCENIC_CLASSES]]);
+    else if (filters.craving === "event") all.push(["==", 1, 0]); // events are quests only
+    if (filters.budget !== null) all.push(["<=", ["get", "tier"], filters.budget]);
+    if (filters.minutes !== null) all.push(["<=", ["+", ["*", 2, ["get", "minutes"]], 30], filters.minutes]);
+    map.setFilter("poi-xp", all.length > 1 ? (all as maplibregl.FilterSpecification) : null);
+  }, [ready, filters, originKey]);
 
   // ---------- 3D / 2D ----------
   useEffect(() => {
@@ -755,6 +944,41 @@ export default function TransitMap() {
     };
   }, [ready, orbit, is3D]);
 
+  // ---------- right-click: directions menu. A right-drag still turns the map, so the menu only
+  // opens when the right button goes up close to where it went down. ----------
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const el = map.getCanvasContainer();
+    let down: { x: number; y: number } | null = null;
+    const onDown = (e: MouseEvent) => {
+      if (e.button === 2) down = { x: e.clientX, y: e.clientY };
+      else setCtxMenu(null);
+    };
+    const onUp = (e: MouseEvent) => {
+      if (e.button !== 2 || !down) return;
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+      down = null;
+      if (moved > 6) return;
+      const r = map.getContainer().getBoundingClientRect();
+      const x = e.clientX - r.left, y = e.clientY - r.top;
+      const ll = map.unproject([x, y]);
+      setCtxMenu({ x, y, lng: ll.lng, lat: ll.lat });
+    };
+    const noMenu = (e: Event) => e.preventDefault();
+    const close = () => setCtxMenu(null);
+    el.addEventListener("mousedown", onDown);
+    window.addEventListener("mouseup", onUp);
+    el.addEventListener("contextmenu", noMenu);
+    map.on("movestart", close);
+    return () => {
+      el.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mouseup", onUp);
+      el.removeEventListener("contextmenu", noMenu);
+      map.off("movestart", close);
+    };
+  }, [ready]);
+
   // ---------- weather outside (light, clouds, rain/snow), refreshed every 15 min ----------
   useEffect(() => {
     if (!ready) return;
@@ -807,6 +1031,9 @@ export default function TransitMap() {
     };
     const qs = new URLSearchParams(window.location.search);
     const at = qs.get("go")?.split(",").map(Number);
+    // /?station=<id> (a station link from another page): show that station on the map
+    const st = stationsRef.current.find((x) => x.id === qs.get("station"));
+    if (st && at?.length !== 2) mapRef.current?.flyTo({ center: [st.lon, st.lat], zoom: 15.4, duration: 1600 });
     if (at?.length === 2) {
       const name = qs.get("name") || "Your destination";
       // wait a frame so the Explorer has the map
@@ -1006,7 +1233,7 @@ export default function TransitMap() {
       <WeatherFx weather={weather} active={loaded && is3D} />
       {/* top-left: search results and place cards (the search box itself sits in Explore's card).
           The page pushes the overlays down with --ob-map-top (Explore's filter card sits above them). */}
-      <div className="absolute left-3 top-[calc(var(--ob-map-top,0px)+12px)] flex max-w-[calc(100%-84px)] flex-col gap-2 sm:left-4 sm:top-[calc(var(--ob-map-top,0px)+16px)] desk:max-w-[calc(100%-224px)]">
+      <div className="absolute left-3 top-[calc(var(--ob-map-top,0px)+12px)] flex max-w-[calc(100%-84px)] flex-col gap-2 sm:left-4 sm:top-[calc(var(--ob-map-top,0px)+16px)] desk:top-4 desk:max-w-[calc(100%-520px)]">
         {(() => {
           const search = (
             <SearchBox
@@ -1060,12 +1287,11 @@ export default function TransitMap() {
           </button>
         </div>
         {/* Desktop: two columns (view on the left, layers on the right), as wide as the train list below. */}
-        <div className={`ob-panel w-[176px] flex-col gap-2 p-2.5 text-xs desk:flex desk:w-[340px] desk:flex-row desk:gap-3 ${controlsOpen ? "flex" : "hidden"}`}>
+        <div className={`ob-panel w-[176px] flex-col gap-2 p-2.5 text-xs desk:flex desk:w-[460px] desk:flex-row desk:gap-4 desk:p-3.5 desk:text-[14px] ${controlsOpen ? "flex" : "hidden"}`}>
           <div className="flex flex-col gap-2 desk:flex-1">
             <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
-            {is3D && <Seg options={[["Move", false], ["Rotate", true]]} value={orbit} onChange={setOrbit} />}
             {(GOOGLE_KEY || !offlineBasemap) && <Seg options={[["Illustrated", false], ["Realistic", true]]} value={realistic} onChange={setRealistic} />}
-            {is3D && <p className="-mt-1 text-[10px] leading-tight text-[var(--ob-muted)]">{orbit ? "Drag to turn and tilt" : "Right-drag or Rotate to turn"}</p>}
+            <p className="-mt-1 text-[11px] leading-snug text-[var(--ob-muted)]">Drag to move · right-drag to turn{is3D ? " and tilt" : ""} · right-click for directions</p>
           </div>
           <div className="flex flex-col gap-1 desk:flex-1">
             <Toggle label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
@@ -1082,13 +1308,13 @@ export default function TransitMap() {
           </div>
         </div>
         {/* Live status and the per-line train list, under the 3D/2D panel. */}
-        <div className="ob-panel flex w-[min(340px,calc(100vw-24px))] items-center justify-between gap-3 px-3 py-2">
+        <div className="ob-panel flex w-[min(340px,calc(100vw-24px))] items-center justify-between gap-3 px-3 py-2 desk:w-[460px] desk:px-4 desk:py-2.5">
           <button
             type="button"
             onClick={() => setShowService((v) => !v)}
             aria-expanded={showService}
             title="Every train running now, by line, and tonight's last trains"
-            className="flex items-center gap-1.5 text-left text-xs text-[var(--ob-ink-2)]"
+            className="flex items-center gap-1.5 text-left text-xs text-[var(--ob-ink-2)] desk:text-[14px]"
           >
             <span
               className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white ${feedMode === "live" && lastUpdate ? "bg-emerald-600" : feedMode === "replay" ? "bg-sky-600" : "bg-amber-500"}`}
@@ -1109,6 +1335,61 @@ export default function TransitMap() {
           />
         )}
       </div>
+
+      {/* right-click menu: directions to / from this point */}
+      {ctxMenu && (
+        <div
+          role="menu"
+          className="ob-panel absolute z-20 flex w-[220px] flex-col overflow-hidden p-1 text-[14px]"
+          style={{ left: Math.min(ctxMenu.x, (box.current?.clientWidth ?? 9999) - 230), top: Math.min(ctxMenu.y, (box.current?.clientHeight ?? 9999) - 150) }}
+        >
+          <button
+            role="menuitem"
+            className="rounded-lg px-3 py-2 text-left font-semibold text-[var(--ob-ink)] hover:bg-[var(--ob-cream)]"
+            onClick={() => {
+              explorer.current?.navigate({ name: "Dropped pin", category: "The spot you right-clicked", lat: ctxMenu.lat, lng: ctxMenu.lng }, routeStart ? { ...routeStart, label: "from your start point" } : undefined);
+              setRouteStart(null);
+              setCtxMenu(null);
+            }}
+          >
+            Directions to here
+            <span className="block text-[12px] font-normal text-[var(--ob-muted)]">{routeStart ? "from the start point you set" : userLoc ? "from where you are" : "from BU Central"}</span>
+          </button>
+          <button
+            role="menuitem"
+            className="rounded-lg px-3 py-2 text-left text-[var(--ob-ink)] hover:bg-[var(--ob-cream)]"
+            onClick={() => {
+              setRouteStart({ lng: ctxMenu.lng, lat: ctxMenu.lat });
+              setNotice("Start point set. Right-click where you want to go.");
+              setCtxMenu(null);
+            }}
+          >
+            Directions from here
+          </button>
+          <button role="menuitem" className="rounded-lg px-3 py-2 text-left text-[var(--ob-muted)] hover:bg-[var(--ob-cream)]" onClick={() => setCtxMenu(null)}>
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* back to where you are (desktop; phones have it under Layers) */}
+      <button
+        type="button"
+        aria-label="Back to my location"
+        title="Back to my location"
+        onClick={() => {
+          const map = mapRef.current;
+          if (!map) return;
+          if (userLoc) map.flyTo({ center: userLoc, zoom: Math.max(map.getZoom(), 15.5), duration: 1200 });
+          else {
+            map.flyTo({ center: [-71.107037, 42.350049], zoom: 15, duration: 1200 });
+            setNotice("Turn on location for Outbound to see where you are. Showing BU for now.");
+          }
+        }}
+        className="ob-panel absolute right-3 bottom-[168px] hidden size-12 items-center justify-center !rounded-full text-[var(--ob-ink)] hover:text-[var(--ob-maroon)] sm:right-4 desk:flex"
+      >
+        <LocateFixed size={22} strokeWidth={2} aria-hidden />
+      </button>
 
       {/* replay bar */}
       {feedMode === "replay" && replay && (
@@ -1205,12 +1486,59 @@ export default function TransitMap() {
         </Card>
       )}
 
+      {/* any restaurant or place: what it's worth (kind + distance + budget), directions, check in */}
+      {spot && (() => {
+        const pts = placePoints(spot.cls, spot.minutes);
+        return (
+          <Card onClose={() => setSpot(null)}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">{PLACE_LABEL[spot.cls] ?? "Place"} · +{pts.total} XP</p>
+            <h2 className="text-lg font-semibold text-[var(--ob-ink)]">{spot.name}</h2>
+            <div className="mt-2.5 rounded-xl bg-[var(--ob-cream)] p-3 text-[13px] text-[var(--ob-ink-2)]">
+              <dl className="space-y-1 tabular-nums">
+                <Row k={`Kind of place (${(PLACE_LABEL[spot.cls] ?? "place").toLowerCase()})`} v={`+${pts.base}`} />
+                <Row k={`Distance (${spot.minutes} min ${userLoc ? "from you" : "from BU Central"})`} v={`+${pts.distanceXp}`} />
+                <Row k={`Budget (${pts.spend.toLowerCase()})`} v={`+${pts.budgetXp}`} />
+                <div className="mt-1 flex justify-between border-t border-[var(--ob-line)] pt-1 font-semibold text-[var(--ob-ink)]">
+                  <dt>You earn</dt>
+                  <dd>+{pts.total} XP</dd>
+                </div>
+              </dl>
+              <p className="mt-1.5 text-[11px] text-[var(--ob-muted)]">Farther and cheaper pays more. Up to 8 places a day.</p>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                disabled={checking}
+                onClick={() =>
+                  void checkInHere(async (loc) => {
+                    const out = await data.checkInPlace({ key: spot.key, name: spot.name, category: spot.cls, lat: spot.lat, lon: spot.lng, minutes: spot.minutes }, loc);
+                    return out.ok ? { ok: true, xp: out.result.xp_awarded, sub: spot.name } : { ok: false, error: out.error };
+                  })
+                }
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--ob-maroon)] px-3 py-2.5 text-[15px] font-medium text-white hover:bg-[var(--ob-maroon-dark)] disabled:opacity-50"
+              >
+                <MapPin size={16} aria-hidden /> {checking ? "Checking where you are…" : "Check in"}
+              </button>
+              <button
+                onClick={() => {
+                  explorer.current?.navigate({ name: spot.name, category: `${PLACE_LABEL[spot.cls] ?? "Place"} · +${pts.total} XP`, lat: spot.lat, lng: spot.lng });
+                  setSpot(null);
+                }}
+                className="rounded-lg bg-[var(--ob-sand)] px-3 py-2.5 text-[15px] font-medium text-[var(--ob-ink-2)] hover:bg-[var(--ob-line)]"
+              >
+                Directions
+              </button>
+            </div>
+            {cardMsg && <p className={`mt-2 text-[13px] ${cardMsg.ok ? "font-semibold text-emerald-700" : "text-amber-800"}`}>{cardMsg.text}</p>}
+          </Card>
+        );
+      })()}
+
       {/* quest card: what it's worth from your home station, and check in */}
       {quest && game && (() => {
         const ride = game.rides.get(quest.id)!;
         const visited = !!progress.visits[quest.id]?.length;
         const exp = game.expeditions.has(quest.id);
-        const xp = spotXp(quest, ride, visited, exp);
+        const xp = questXp(quest, ride, visited, exp);
         const doneToday = checkedInToday(progress, quest.id);
         const near = userLoc ? haversineM(userLoc[1], userLoc[0], quest.lat, quest.lng) <= CHECKIN_RADIUS_M : false;
         const I = QUEST_ICONS[quest.icon];
@@ -1227,8 +1555,8 @@ export default function TransitMap() {
                 <h2 className="truncate text-base font-semibold text-[var(--ob-ink)]">{quest.title}</h2>
               </div>
             </div>
-            <p className="mt-2 text-[13px] text-[var(--ob-ink-2)]">
-              Go to <b>{quest.place}</b>. {quest.hint}.
+            <p className="mt-2 text-[14px] text-[var(--ob-ink-2)]">
+              {quest.real ? <>{quest.hint}. <span className="text-[var(--ob-muted)]">Near {quest.place}.</span></> : <>Go to <b>{quest.place}</b>. {quest.hint}.</>}
             </p>
             <div className="mt-2.5 rounded-xl bg-[var(--ob-cream)] p-2.5 text-[12px] text-[var(--ob-ink-2)]">
               <div className="flex items-center gap-1.5">
@@ -1241,7 +1569,11 @@ export default function TransitMap() {
               </div>
               <dl className="mt-2 space-y-0.5 tabular-nums">
                 <Row k="Base" v={`${xp.base}`} />
-                <Row k={`Distance (${ride.minutes >= 30 ? "30+ min" : ride.minutes >= 15 ? "15 to 30 min" : "under 15 min"})`} v={`${xp.mult}x`} />
+                {quest.real ? (
+                  !visited && <Row k="First visit" v="+25" />
+                ) : (
+                  <Row k={`Distance (${ride.minutes >= 30 ? "30+ min" : ride.minutes >= 15 ? "15 to 30 min" : "under 15 min"})`} v={`${xp.mult}x`} />
+                )}
                 {xp.expeditionBonus > 0 && <Row k="Expedition bonus" v={`+${xp.expeditionBonus}`} />}
                 {visited && <Row k="Repeat visit" v="a quarter" />}
                 <div className="mt-1 flex justify-between border-t border-[var(--ob-line)] pt-1 font-semibold text-[var(--ob-ink)]">
@@ -1252,24 +1584,29 @@ export default function TransitMap() {
             </div>
             <div className="mt-3 flex gap-2">
               <button
-                disabled={doneToday}
+                disabled={doneToday || checking}
                 onClick={() => checkIn(quest)}
-                title={near ? "You're here" : `Real check-ins need you within ${CHECKIN_RADIUS_M} m for about 10 minutes`}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--ob-maroon)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--ob-maroon-dark)] disabled:opacity-50"
+                title={near ? "You're here" : `Check-in needs you within ${CHECKIN_RADIUS_M} m`}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--ob-maroon)] px-3 py-2.5 text-[15px] font-medium text-white hover:bg-[var(--ob-maroon-dark)] disabled:opacity-50"
               >
-                {doneToday ? <><Check size={15} aria-hidden /> Checked in today</> : <><MapPin size={15} aria-hidden /> Check in{near ? "" : " (demo)"}</>}
+                {doneToday ? <><Check size={16} aria-hidden /> Checked in today</> : <><MapPin size={16} aria-hidden /> {checking ? "Checking where you are…" : "Check in"}</>}
               </button>
               <button
                 onClick={() => {
-                  explorer.current?.show({ id: `quest-${quest.id}`, name: quest.place, address: `Quest: ${quest.title}`, lng: quest.lng, lat: quest.lat, types: [], category: "", rating: null, ratings: 0, price: null, openNow: null, url: null });
+                  explorer.current?.navigate({ name: quest.title, category: `Quest · +${xp.total} XP`, lat: quest.lat, lng: quest.lng });
                   setQuest(null);
                 }}
-                className="rounded-lg bg-[var(--ob-sand)] px-3 py-2 text-sm font-medium text-[var(--ob-ink-2)] hover:bg-[var(--ob-line)]"
+                className="rounded-lg bg-[var(--ob-sand)] px-3 py-2.5 text-[15px] font-medium text-[var(--ob-ink-2)] hover:bg-[var(--ob-line)]"
               >
                 Directions
               </button>
             </div>
-            <p className="mt-1.5 text-[10px] uppercase tracking-wide text-[var(--ob-muted)]">sample places and XP until the quests feed is live</p>
+            {cardMsg && <p className={`mt-2 text-[13px] ${cardMsg.ok ? "font-semibold text-emerald-700" : "text-amber-800"}`}>{cardMsg.text}</p>}
+            {quest.real ? (
+              <a href={`/q/${quest.id}`} className="mt-1.5 block text-[13px] font-semibold text-[var(--ob-maroon)] hover:underline">Open the quest page</a>
+            ) : (
+              <p className="mt-1.5 text-[10px] uppercase tracking-wide text-[var(--ob-muted)]">sample places and XP until the quests feed is live</p>
+            )}
           </Card>
         );
       })()}
@@ -1296,40 +1633,6 @@ export default function TransitMap() {
         </Card>
       )}
 
-      {/* player HUD: level, XP bar, this week's Expedition, how much of the T you've uncovered */}
-      {game && loaded && (() => {
-        const lv = levelOf(progress.xp);
-        const stops = exploredStops(stationsRef.current, game.home, visitedSpots.map((q) => ({ lat: q.lat, lon: q.lng })));
-        const expDone = [...game.expeditions].filter((id) => progress.visits[id]?.some((t) => Date.now() - t < 7 * 86400000)).length;
-        return (
-          <div className="ob-panel ob-hud absolute bottom-3 left-3 hidden w-[min(300px,calc(100vw-196px))] px-3 py-2 text-xs sm:bottom-4 sm:left-4 sm:w-[300px] desk:bottom-6 desk:left-[196px] desk:block" style={{ display: quest || friend || train || crStation ? "none" : undefined }}>
-            <div className="flex items-center gap-2">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--ob-maroon)] text-[12px] font-bold text-white">{lv.level}</span>
-              <div className="min-w-0 flex-1">
-                <div className="flex justify-between text-[11px] text-[var(--ob-ink-2)]">
-                  <span className="font-semibold text-[var(--ob-ink)]">Level {lv.level}</span>
-                  <span className="tabular-nums">{lv.into}/{lv.need} XP</span>
-                </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--ob-sand)]">
-                  <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-[var(--ob-maroon)] transition-[width] duration-700" style={{ width: `${(100 * lv.into) / lv.need}%` }} />
-                </div>
-              </div>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--ob-ink-2)]">
-              <button
-                className="flex items-center gap-1 hover:text-[var(--ob-ink)]"
-                title="This week's 3 far-out spots: big XP and a stamp. New picks every Monday."
-                onClick={() => mapRef.current?.fitBounds(boundsOf([...game.expeditions].map((id) => SAMPLE_QUESTS.find((q) => q.id === id)!), game.home), { padding: 90, duration: 1600 })}
-              >
-                <Compass size={13} className="text-amber-600" aria-hidden /> Expedition {expDone}/3
-              </button>
-              <span className="flex items-center gap-1" title="Check in somewhere new to clear the fog around it">
-                <MapPin size={13} aria-hidden /> {stops.n}/{stops.total} stops explored
-              </span>
-            </div>
-          </div>
-        );
-      })()}
       <div className="pointer-events-none absolute left-1/2 top-[38%] z-20 -translate-x-1/2">
         {pops.map((p) => (
           <div key={p.id} className="ob-xp-pop text-center" onAnimationEnd={() => setPops((all) => all.filter((x) => x.id !== p.id))}>
@@ -1404,14 +1707,10 @@ function Row({ k, v }: { k: string; v: string }) {
   );
 }
 
-function boundsOf(qs: Quest[], home: { lat: number; lon: number }): [[number, number], [number, number]] {
-  const lngs = [home.lon, ...qs.map((q) => q.lng)], lats = [home.lat, ...qs.map((q) => q.lat)];
-  return [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]];
-}
 
 function Card({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="ob-panel absolute bottom-24 left-3 w-[min(300px,calc(100vw-24px))] p-3.5 text-sm sm:left-4">
+    <div className="ob-panel absolute bottom-24 left-3 z-10 w-[min(380px,calc(100vw-24px))] p-4 text-[15px] sm:left-4 desk:bottom-28">
       <button onClick={onClose} className="absolute right-2.5 top-2 text-lg leading-none text-[var(--ob-muted)] hover:text-[var(--ob-ink-2)]" aria-label="Close">
         ×
       </button>
@@ -1443,3 +1742,42 @@ function loadLocalFrames(): ReplayFrame[] {
     return [];
   }
 }
+
+/** A database quest as a map pin. */
+function toMapQuest(q: DbQuest, st: DbStation | undefined): Quest {
+  const tags = q.vibe_tags ?? [];
+  const has = (...t: string[]) => t.some((x) => tags.includes(x) || q.title.toLowerCase().includes(x));
+  const icon: Quest["icon"] =
+    q.type === "event" ? "Trophy"
+    : q.type === "food" ? (has("coffee", "cafe", "tea") ? "Coffee" : has("pizza") ? "Pizza" : "Soup")
+    : has("park", "nature", "garden", "trees") ? "Trees" : has("sunset", "view", "harbor", "water") ? "Sunset" : has("library", "book") ? "BookOpen" : "Landmark";
+  return {
+    id: q.id,
+    title: q.title,
+    place: st ? `${st.name} (${st.neighborhood})` : q.title,
+    lng: q.lon,
+    lat: q.lat,
+    points: q.xp,
+    hint: (q.description ?? "").replace(/\.$/, ""),
+    icon,
+    kind: q.type === "food" ? "food" : q.type === "event" ? "event" : "scenery",
+    real: true,
+    qtype: q.type,
+    price: q.price_tier,
+    duration: q.duration_min,
+  };
+}
+
+/** What a pin is worth. Real quests: the quest's XP plus the first-visit bonus check_in() adds.
+ *  Sample spots: Verna's distance multiplier and Expedition bonus (this browser only). */
+function questXp(q: Quest, ride: Ride, visited: boolean, exp: boolean) {
+  if (!q.real) return spotXp(q, ride, visited, exp);
+  return { base: q.points, mult: 1, distanceXp: q.points, expeditionBonus: 0, firstVisit: !visited, total: q.points + (visited ? 0 : 25) };
+}
+
+const PLACE_LABEL: Record<string, string> = {
+  restaurant: "Restaurant", fast_food: "Quick bite", cafe: "Cafe", bakery: "Bakery", ice_cream: "Ice cream", bar: "Bar", beer: "Bar", pub: "Pub",
+  museum: "Museum", attraction: "Attraction", art_gallery: "Gallery", theatre: "Theater", cinema: "Cinema", zoo: "Zoo", aquarium: "Aquarium",
+  castle: "Landmark", monument: "Monument", park: "Park", garden: "Garden", viewpoint: "Viewpoint", library: "Library", place_of_worship: "Landmark",
+  music: "Music venue", stadium: "Stadium",
+};

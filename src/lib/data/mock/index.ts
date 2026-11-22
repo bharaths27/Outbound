@@ -5,6 +5,7 @@
 // demos behave like the real thing. The backend stays the source of truth: if the schema
 // changes, update this file, and never import these rules into UI code.
 
+import { placePoints } from "@/components/map/gamify";
 import { parseCheckInError } from "../checkInErrors";
 import type { DataService } from "../service";
 import type {
@@ -40,6 +41,13 @@ const wait = (ms = DELAY_MS) =>
 const clone = <T>(v: T): T => structuredClone(v);
 
 /** Raised like a Postgres exception: supabase-js exposes `hint` on the error. */
+const placeVisits = new Set<string>();
+const haversine = (aLat: number, aLon: number, bLat: number, bLon: number) => {
+  const r = Math.PI / 180, dLat = (bLat - aLat) * r, dLon = (bLon - aLon) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * r) * Math.cos(bLat * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(h));
+};
+
 class RpcError extends Error {
   constructor(message: string, readonly hint: CheckInErrorHint) {
     super(message);
@@ -410,6 +418,25 @@ export const mockService: DataService = {
         xp_to_next_level: user.xp_to_next_level,
       };
       return { ok: true as const, result };
+    } catch (e) {
+      const err = e instanceof RpcError ? e : { message: e instanceof Error ? e.message : String(e) };
+      return { ok: false as const, error: parseCheckInError(err) };
+    }
+  },
+
+  async checkInPlace(place, location) {
+    await wait(CHECK_IN_DELAY_MS);
+    try {
+      const user = requireMe();
+      if (!location) throw new RpcError("location required", "LOCATION_REQUIRED");
+      const d = haversine(place.lat, place.lon, location.lat, location.lon);
+      if (d > 75) throw new RpcError(`too far: ${Math.round(d)} m away (need within 75 m)`, "TOO_FAR");
+      const key = `${user.id}:${place.key}:${new Date().toDateString()}`;
+      if (placeVisits.has(key)) throw new RpcError("already checked in to this place today", "ALREADY_CHECKED_IN_TODAY");
+      placeVisits.add(key);
+      const p = placePoints(place.category, place.minutes);
+      setXp(user, user.xp + p.total);
+      return { ok: true as const, result: { xp_awarded: p.total, base: p.base, distance_xp: p.distanceXp, budget_xp: p.budgetXp, total_xp: user.xp } };
     } catch (e) {
       const err = e instanceof RpcError ? e : { message: e instanceof Error ? e.message : String(e) };
       return { ok: false as const, error: parseCheckInError(err) };

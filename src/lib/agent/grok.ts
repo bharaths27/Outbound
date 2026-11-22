@@ -5,7 +5,7 @@
 import { Agent } from "@mastra/core/agent";
 import { z } from "zod";
 import { buildSystemPrompt, parseGuideReply, type GuideQuest, type GuideResult, type GuideTurn } from "@/lib/guide";
-import { geminiModels } from "./planner";
+import { geminiModels, markGrokDown } from "./planner";
 
 export const GROK_MODEL = process.env.GROK_MODEL || "grok-4.7";
 const clean = (v?: string) => v?.trim().replace(/^["']|["']$/g, "");
@@ -19,7 +19,10 @@ async function grok(input: unknown[], timeoutMs: number, temperature = 0.5): Pro
     body: JSON.stringify({ model: GROK_MODEL, input, temperature, store: false }),
     signal: AbortSignal.timeout(timeoutMs),
   });
-  if (!res.ok) throw new Error(`Grok ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) {
+    if (res.status === 429 || res.status >= 500) markGrokDown();
+    throw new Error(`Grok ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
   const data = await res.json();
   const text: string | undefined =
     data?.output_text ??
@@ -150,7 +153,7 @@ async function seeWithGemini(image: string, note: string): Promise<PhotoInfo> {
     id: "photo-checker",
     name: "Photo Checker",
     instructions: `${PHOTO_RULES}\n${PHOTO_JSON}`,
-    model: geminiModels(),
+    model: geminiModels({ grok: false }), // Grok vision already failed; only Gemini can help here
   });
   const [, mediaType, base64] = image.match(/^data:(image\/\w+);base64,(.*)$/) ?? [];
   if (!base64) throw new Error("photo is not a base64 data URL");

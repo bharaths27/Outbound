@@ -67,7 +67,8 @@ let grokFails = false;
 let visionPrompt: any = null;
 const PORT = { category: "other", label: "aerial view of a container port with cranes", details: "Ships and stacked containers at a busy port.", searchTerms: ["port", "harbor"], placeGuess: null, confidence: 0.8 };
 const fetchLog: string[] = [];
-beforeEach(() => {
+beforeEach(async () => {
+  (await import("./planner")).resetModelHealth();
   tripFails = false;
   deciderFails = false;
   deciderSays = null;

@@ -78,12 +78,28 @@ export function XpPill({ player, size = "md" }: { player: ShellPlayer | null | u
       </Link>
     );
   }
+  // Level and progress to the next one, next to the XP (250 XP a level, profiles.level).
+  const { level, xp, xp_to_next_level: toNext } = player.profile;
+  const into = Math.max(0, Math.min(250, 250 - (toNext ?? 250)));
   return (
-    <Link href="/leaderboard" className={base} aria-label={`${player.profile.xp.toLocaleString("en-US")} XP, see the leaderboard`}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-        <path d={STAR} />
-      </svg>
-      {player.profile.xp.toLocaleString("en-US")} XP
+    <Link
+      href="/leaderboard"
+      className={cn(base, "gap-2 pl-1.5")}
+      aria-label={`Level ${level}, ${xp.toLocaleString("en-US")} XP, ${toNext} XP to level ${level + 1}. See the leaderboard`}
+      title={`Level ${level} · ${toNext} XP to level ${level + 1}`}
+    >
+      <span className="grid size-[26px] shrink-0 place-items-center rounded-full bg-maroon text-[12px] font-extrabold text-white">{level}</span>
+      <span className="flex flex-col items-start leading-none">
+        <span className="flex items-center gap-1">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d={STAR} />
+          </svg>
+          {xp.toLocaleString("en-US")} XP
+        </span>
+        <span className="mt-1 h-[3px] w-full min-w-14 overflow-hidden rounded-full bg-gold-foreground/20" aria-hidden>
+          <span className="block h-full rounded-full bg-maroon" style={{ width: `${(100 * into) / 250}%` }} />
+        </span>
+      </span>
     </Link>
   );
 }

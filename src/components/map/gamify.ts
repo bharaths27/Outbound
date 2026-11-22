@@ -170,3 +170,35 @@ export function exploredStops(stations: GameStation[], home: GameStation, visite
   ).length;
   return { n, total: stations.length };
 }
+
+// ---------- points for every place on the map (same rules as place_points() in 009_place_points.sql) ----------
+const BASE_20 = ["museum", "attraction", "art_gallery", "theatre", "zoo", "aquarium", "castle", "monument"];
+const BASE_15 = ["park", "garden", "viewpoint", "library", "place_of_worship", "music", "stadium"];
+const BASE_10 = ["restaurant", "bar", "beer", "pub", "cinema"];
+const FREE = ["park", "garden", "viewpoint", "library", "place_of_worship", "monument", "castle"];
+const CHEAP = ["cafe", "fast_food", "bakery", "ice_cream"];
+const MID = ["restaurant", "museum", "art_gallery", "cinema", "music"];
+/** Explore's Craving filter for basemap places. */
+export const FOOD_CLASSES = ["restaurant", "fast_food", "cafe", "bakery", "ice_cream", "bar", "beer", "pub"];
+export const SCENIC_CLASSES = ["park", "garden", "viewpoint", "monument", "castle", "museum", "art_gallery", "attraction", "library", "place_of_worship"];
+/** Price tier (0 free .. 3 splurge) a kind of place usually costs, for the Budget filter. */
+export const placeTier = (category: string) => (FREE.includes(category) ? 0 : CHEAP.includes(category) ? 1 : MID.includes(category) ? 2 : 3);
+/** Basemap POI classes that earn points (OpenMapTiles `poi` class values). */
+export const POINT_CLASSES = new Set([...BASE_20, ...BASE_15, ...BASE_10, ...CHEAP]);
+
+export interface PlacePoints {
+  base: number;
+  distanceXp: number;
+  budgetXp: number;
+  total: number;
+  /** rough spend per person, for the card */
+  spend: string;
+}
+export function placePoints(category: string, minutes: number): PlacePoints {
+  const base = BASE_20.includes(category) ? 20 : BASE_15.includes(category) ? 15 : BASE_10.includes(category) ? 10 : 5;
+  const budgetXp = FREE.includes(category) ? 15 : CHEAP.includes(category) ? 10 : MID.includes(category) ? 5 : 0;
+  const distanceXp = Math.min(40, Math.round(Math.max(0, Math.min(minutes || 0, 90)) * 0.8));
+  const total = Math.min(75, Math.max(10, Math.round((base + distanceXp + budgetXp) / 5) * 5));
+  const spend = budgetXp === 15 ? "Free" : budgetXp === 10 ? "About $10" : budgetXp === 5 ? "About $25" : "$30+";
+  return { base, distanceXp, budgetXp, total, spend };
+}
