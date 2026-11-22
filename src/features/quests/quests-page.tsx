@@ -107,7 +107,7 @@ export function QuestsPage() {
                   aria-pressed={filter === f.id}
                   onClick={() => setFilter(f.id)}
                   className={cn(
-                    "h-10 shrink-0 rounded-full border px-4 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2 desk:h-11 desk:px-[18px] desk:text-[15px]",
+                    "h-11 shrink-0 rounded-full border px-4 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2 desk:h-11 desk:px-[18px] desk:text-[15px]",
                     filter === f.id
                       ? "border-maroon bg-maroon text-white"
                       : "border-border-strong bg-surface text-ink hover:bg-sand desk:bg-sand desk:hover:bg-cream",

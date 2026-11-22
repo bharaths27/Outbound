@@ -74,6 +74,14 @@ export default function GrokGuide({ hideLauncher = false }: { hideLauncher?: boo
     return () => window.removeEventListener(OPEN_GUIDE_EVENT, onOpen);
   }, []);
 
+  // Esc closes the panel (DESIGN.md §10).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   if (hideLauncher && !open) return null;
 
   async function pickPhoto(file: File | undefined) {
@@ -121,18 +129,26 @@ export default function GrokGuide({ hideLauncher = false }: { hideLauncher?: boo
   return (
     <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-4 z-[60] flex flex-col items-start gap-2 desk:bottom-6 desk:left-6">
       {open && (
-        <div className="flex h-[480px] max-h-[75vh] w-[340px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-white text-ink shadow-2xl">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div
+          role="dialog"
+          aria-labelledby="guide-title"
+          className="flex h-[480px] max-h-[75vh] w-[340px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-white text-ink shadow-2xl"
+        >
+          <div className="flex items-center justify-between border-b border-border py-1.5 pr-1.5 pl-4">
             <div>
-              <p className="text-sm font-semibold">Outbound Guide</p>
+              <p id="guide-title" className="text-sm font-semibold">Outbound Guide</p>
               <p className="text-xs text-muted-foreground">Powered by Grok</p>
             </div>
-            <button onClick={() => setOpen(false)} aria-label="Close guide" className="rounded-full px-2 text-lg text-muted-foreground hover:bg-sand">
+            <button
+              onClick={() => setOpen(false)}
+              aria-label="Close guide"
+              className="flex size-11 items-center justify-center rounded-full text-lg text-muted-foreground hover:bg-sand"
+            >
               ×
             </button>
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
+          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm" aria-live="polite">
             {msgs.map((m, i) => (
               <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
                 {m.image && (
@@ -176,7 +192,7 @@ export default function GrokGuide({ hideLauncher = false }: { hideLauncher?: boo
               {/* eslint-disable-next-line @next/next/no-img-element -- local data URL preview */}
               <img src={photo} alt="Photo to send" className="h-10 w-10 rounded-lg object-cover" />
               Photo ready. Add a note or just tap Ask.
-              <button type="button" onClick={() => setPhoto(null)} aria-label="Remove photo" className="ml-auto px-1 text-base">
+              <button type="button" onClick={() => setPhoto(null)} aria-label="Remove photo" className="ml-auto flex size-11 items-center justify-center text-base">
                 ×
               </button>
             </div>
