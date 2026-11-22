@@ -234,8 +234,8 @@ export function StationHub({
     <div ref={rootRef} className="flex flex-col gap-4">
       {/* Pinned while the rest scrolls (DESIGN.md §7). The scroll area has no top padding and
           the header carries it instead, so nothing scrolls into a gap above the header. A
-          24 px fade in the panel's color hangs under it, so content scrolls out softly. */}
-      <div className="sticky top-0 z-20 -mx-4 bg-background px-4 pt-3 pb-1 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-6 after:bg-linear-to-b after:from-background after:to-transparent desk:-mx-6 desk:px-6 desk:pt-6">
+          48 px eased fade in the panel's color hangs under it, so content scrolls out softly. */}
+      <div className="sticky top-0 z-20 -mx-4 bg-background px-4 pt-3 pb-1 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-12 after:ob-fade-down desk:-mx-6 desk:px-6 desk:pt-6">
         <HubHeader station={station} onClose={onClose} />
       </div>
 
