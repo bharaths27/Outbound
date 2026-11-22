@@ -8,7 +8,16 @@ import { readFileSync, existsSync } from "node:fs";
 const args = process.argv.slice(2);
 const base = /^https?:\/\//.test(args.at(-1) ?? "") ? args.pop().replace(/\/$/, "") : "http://localhost:3000";
 const [first = "cheap food near Kenmore, about an hour", note = ""] = args;
-const isPhoto = existsSync(first) && /\.(jpe?g|png)$/i.test(first);
+const looksLikePhoto = /\.(jpe?g|png|heic|webp)$/i.test(first);
+if (looksLikePhoto && !existsSync(first)) {
+  console.error(`\nNo file at ${first}. Use the real path, e.g. drag the photo from Finder into this terminal.\n`);
+  process.exit(1);
+}
+if (/\.(heic|webp)$/i.test(first)) {
+  console.error("\nUse a .jpg or .png here (the chat converts other formats, this script doesn't).\n");
+  process.exit(1);
+}
+const isPhoto = looksLikePhoto;
 const body = isPhoto
   ? { image: `data:image/${/\.png$/i.test(first) ? "png" : "jpeg"};base64,${readFileSync(first).toString("base64")}`, message: note, stream: true }
   : { message: first, stream: true };

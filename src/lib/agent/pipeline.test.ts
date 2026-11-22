@@ -41,6 +41,7 @@ function fakeGemini() {
       const who = system.includes("Food Researcher") ? "food" : system.includes("Trip Planner") ? "trip" : system.includes("Report Writer") || system.includes("structured answer") ? "report" : "other";
       calls[who] = (calls[who] ?? 0) + 1;
       if (who === "food") return calls.food === 1 ? tool("findFoodPlaces", { query: "croissant" }) : text("Croissant. Best: Flour Bakery 4.7, Kenmore 6 min walk. Quest: tatte-fenway-pastry");
+      if (who === "trip" && tripFails) throw Object.assign(new Error("429 RESOURCE_EXHAUSTED"), { statusCode: 429 });
       if (who === "trip") return calls.trip === 1 ? tool("nextTrains", { stationId: "place-kencl" }) : text("Ride Green B to Kenmore, next train in 3 min.\nQUESTS: tatte-fenway-pastry");
       if (who === "report" || options.responseFormat?.type === "json") return text(JSON.stringify(REPORT));
       return text(JSON.stringify(REPORT));
@@ -50,8 +51,10 @@ function fakeGemini() {
 vi.mock("@ai-sdk/google", () => ({ createGoogleGenerativeAI: () => () => fakeGemini() }));
 
 let photoCategory = "food";
+let tripFails = false;
 const fetchLog: string[] = [];
 beforeEach(() => {
+  tripFails = false;
   for (const k of Object.keys(calls)) delete calls[k];
   fetchLog.length = 0;
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
@@ -121,6 +124,36 @@ describe("photo pipeline", () => {
     expect(report.summary).toContain("a cat");
     expect(calls.food ?? 0).toBe(0);
     expect(calls.trip ?? 0).toBe(0);
+  });
+});
+
+describe("when an agent is rate limited", () => {
+  it("location still gets a plan from the backup quest search", async () => {
+    photoCategory = "location";
+    tripFails = true;
+    const events: string[] = [];
+    const report = await runWorkflow(
+      makePhotoWorkflow({ origin: "http://app", quests: QUESTS, emit: (e) => events.push(`${e.stage}:${e.status}`) }),
+      { image: IMG, note: "" },
+    );
+    expect(events).toContain("trip:error");
+    expect(report.kind).toBe("plan");
+    expect(report.picks.length).toBeGreaterThan(0);
+  });
+});
+
+describe("parsePhoto", async () => {
+  const { parsePhoto } = await import("./grok");
+  it("accepts loose model output", () => {
+    const p = parsePhoto({ category: "Landmark", label: "Chinatown Gate", details: "A gate", searchTerms: "chinatown, gate", placeGuess: "null", confidence: "90" }, "grok");
+    expect(p.category).toBe("location");
+    expect(p.searchTerms).toEqual(["chinatown", "gate"]);
+    expect(p.placeGuess).toBeNull();
+    expect(p.confidence).toBe(0.9);
+  });
+  it("treats unsure answers as other", () => {
+    expect(parsePhoto({ category: "food", label: "x", confidence: 0.1 }, "grok").category).toBe("other");
+    expect(parsePhoto({ category: "cat", label: "a cat", confidence: 0.9 }, "grok").category).toBe("other");
   });
 });
 

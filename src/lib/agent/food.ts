@@ -3,10 +3,9 @@
 // /api/places, each spot tagged with its closest T station). Its report goes to the Trip Planner.
 import { Agent } from "@mastra/core/agent";
 import { createTool } from "@mastra/core/tools";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { AGENT_MODEL, makeTools } from "./planner";
+import { geminiModels, makeTools } from "./planner";
 
 export interface StationRow {
   id: string;
@@ -111,8 +110,6 @@ export function makeFoodTools(origin: string) {
 }
 
 export function makeFoodResearcher(origin: string) {
-  const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
-  if (!key) throw new Error("GEMINI_API_KEY not set");
   return new Agent({
     id: "outbound-food-researcher",
     name: "Outbound Food Researcher",
@@ -124,7 +121,7 @@ You get a dish or drink that a student photographed. Research where to get it ne
 Then write a research report of at most 120 words: what the dish is; the 2 to 4 best spots (name, rating,
 price, open now, closest T station and walk); and the Outbound quest ids that match, if any.
 Prefer spots that are open now and close to a station. Never invent spots, ratings or quests.`,
-    model: createGoogleGenerativeAI({ apiKey: key })(AGENT_MODEL),
+    model: geminiModels(),
     tools: makeFoodTools(origin),
   });
 }

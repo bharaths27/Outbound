@@ -9,6 +9,20 @@ import { z } from "zod";
 import { bostonNow, type GuideQuest } from "@/lib/guide";
 
 export const AGENT_MODEL = process.env.MASTRA_MODEL || "gemini-2.5-flash";
+// Free-tier Gemini allows only a few requests a minute per model, and one photo answer makes 5 to 8
+// calls. So every agent falls back to a second model when the first is rate limited.
+export const FALLBACK_MODEL = process.env.MASTRA_FALLBACK_MODEL || "gemini-2.5-flash-lite";
+
+/** Gemini for Mastra agents, with a fallback model on errors such as 429 rate limits. */
+export function geminiModels() {
+  const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
+  if (!key) throw new Error("GEMINI_API_KEY not set");
+  const google = createGoogleGenerativeAI({ apiKey: key });
+  return [
+    { model: google(AGENT_MODEL), maxRetries: 1 },
+    { model: google(FALLBACK_MODEL), maxRetries: 2 },
+  ];
+}
 const PRICE = ["free", "under $10", "$10-25", "splurge"];
 const QUEST_FIELDS =
   "id,title,type,description,price_tier,vibe_tags,hours,xp,duration_min,walk_min,station_id,stations(name,lines,neighborhood)";
@@ -123,9 +137,6 @@ export function makeTools(origin: string) {
 }
 
 export function makePlanner(origin: string) {
-  const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
-  if (!key) throw new Error("GEMINI_API_KEY not set");
-  const google = createGoogleGenerativeAI({ apiKey: key });
   return new Agent({
     id: "outbound-trip-planner",
     name: "Outbound Trip Planner",
@@ -138,7 +149,7 @@ lineDelays and mention a delay only if that line is late.
 Reply in at most 5 short sentences: where to go, which line and how soon the next train is, and the XP.
 Never invent places, prices, times or quests. If nothing fits, say so and suggest the closest quest.
 End with one last line exactly like: QUESTS: id1, id2`,
-    model: google(AGENT_MODEL),
+    model: geminiModels(),
     tools: makeTools(origin),
   });
 }

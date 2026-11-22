@@ -10,12 +10,11 @@
 import { Agent } from "@mastra/core/agent";
 import { createTool } from "@mastra/core/tools";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { bostonNow, questLine, type GuideQuest, type GuideTurn } from "@/lib/guide";
 import { makeFoodResearcher } from "./food";
 import { askGrok, seePhoto, type PhotoInfo } from "./grok";
-import { AGENT_MODEL, makePlanner } from "./planner";
+import { AGENT_MODEL, filterQuests, geminiModels, makePlanner } from "./planner";
 import {
   GuideReportSchema, fallbackReport, finalizeReport, retryReport, type Detected, type FinalReport,
 } from "./report";
@@ -60,8 +59,6 @@ export function makeReportTool(quests: GuideQuest[]) {
     execute: async ({ kind, notes, research, detected }): Promise<FinalReport> => {
       const questIds = idsIn(`${notes}\n${research ?? ""}`, quests);
       try {
-        const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
-        if (!key) throw new Error("GEMINI_API_KEY not set");
         const writer = new Agent({
           id: "outbound-report-writer",
           name: "Outbound Report Writer",
@@ -70,7 +67,7 @@ Use ONLY facts in the notes. picks: Outbound quests mentioned in the notes, ids 
 places: real spots from the food research that are not Outbound quests (keep their rating, price, open now, closest T).
 transit: the station to ride to, with the next train minutes and line delay if the notes have them, else null.
 steps: the trip in order, short. Keep the friendly voice of the notes. Never invent anything.`,
-          model: createGoogleGenerativeAI({ apiKey: key })(AGENT_MODEL),
+          model: geminiModels(),
         });
         const shortlist = quests.filter((q) => questIds.includes(q.id));
         const prompt = [
@@ -115,6 +112,23 @@ const BriefOut = z.object({
 const PlanOut = BriefOut.extend({ plan: z.string() });
 const ReportOut = z.object({ report: z.any() });
 
+/** If the Trip Planner is down (e.g. rate limited), pick quests by keyword so the student still gets a plan. */
+export function backupPlan(p: PhotoInfo, quests: GuideQuest[]): string {
+  const words = [...p.searchTerms, ...p.label.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3)];
+  const place = p.placeGuess ?? undefined;
+  const type = p.category === "food" ? ("food" as const) : undefined;
+  const found =
+    (place && filterQuests(quests, { type, station: place.split(",")[0] }, 3)) ||
+    [];
+  const picks = found.length ? found : filterQuests(quests, { type, keywords: words }, 3);
+  const list = picks.length ? picks : filterQuests(quests, { type }, 3);
+  return [
+    `Here are Outbound quests that match ${p.label}:`,
+    ...list.map((q) => `- ${q.title} (${q.id}) at ${q.station} on the ${q.lines.join("/")} line, ${q.price}, +${q.xp} XP`),
+    `QUESTS: ${list.map((q) => q.id).join(", ")}`,
+  ].join("\n");
+}
+
 // ---------- Photo workflow ----------
 
 export function makePhotoWorkflow(ctx: Ctx) {
@@ -150,10 +164,12 @@ export function makePhotoWorkflow(ctx: Ctx) {
           { maxSteps: 5 },
         );
         return { value: r.text, detail: "research report ready" };
-      });
+      }).catch(() => "");
       return {
         retry: false, photo: p, note: inputData.note, research: report,
-        brief: `The student photographed food: ${p.label}. Here is the Food Researcher's report:\n${report}\nBuild the trip around the best open spot or a matching Outbound quest.`,
+        brief: report
+          ? `The student photographed food: ${p.label}. Here is the Food Researcher's report:\n${report}\nBuild the trip around the best open spot or a matching Outbound quest.`
+          : `The student photographed food: ${p.label}. Search Outbound food quests for ${p.searchTerms.join(", ") || p.label} and plan a trip to the best open one.`,
       };
     },
   });
@@ -199,7 +215,7 @@ export function makePhotoWorkflow(ctx: Ctx) {
           { maxSteps: 6 },
         );
         return { value: r.text, detail: "trip ready" };
-      });
+      }).catch(() => backupPlan(inputData.photo as PhotoInfo, ctx.quests));
       return { ...inputData, plan: text };
     },
   });

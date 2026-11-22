@@ -105,11 +105,10 @@ export function finalizeReport(
 
 /** Used when the Report tool is down: a plain report from the text and the quest ids we already have. */
 export function fallbackReport(text: string, questIds: string[], quests: GuideQuest[], detected: Detected | null): FinalReport {
-  const firstSentence = text.split(/(?<=[.!?])\s+/)[0] ?? "";
   return finalizeReport(
     {
-      title: detected ? `Your ${detected.kind === "food" ? "food" : "place"} pick: ${detected.label}` : firstSentence.slice(0, 60) || "Here's an idea",
-      summary: text.slice(0, 300),
+      title: detected ? `Your ${detected.kind === "food" ? "food" : "place"} plan: ${detected.label}` : questIds.length ? "Quest ideas for you" : "Here's an idea",
+      summary: text.replace(/\n?QUESTS:[\s\S]*$/i, "").replace(/\n?Quest ids:[\s\S]*$/i, "").trim().slice(0, 300),
       steps: [],
       picks: questIds.map((id) => ({ questId: id, why: "" })),
       places: [],

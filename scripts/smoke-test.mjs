@@ -132,6 +132,13 @@ await check("Mastra trip planner (/api/agent)", async () => {
   return `tools used: ${(j.tools ?? []).join(", ") || "none"}; picks: ${(j.quests ?? []).map((q) => q.title).join(", ") || "none"}`;
 });
 
+await check("Google Places (Food Researcher finds real restaurants)", async () => {
+  const j = await json("/api/places?text=" + encodeURIComponent("bubble tea near Boston"));
+  if (j.disabled) return { warn: "no GOOGLE_MAPS_KEY: the Food Researcher can only use our food quests" };
+  assert(j.places?.length, "no places returned");
+  return `${j.places.length} places, e.g. ${j.places[0].name}`;
+});
+
 // ---------- Share card + public quest page ----------
 console.log("\nShare card and QR page");
 await check("share card PNG", async () => {
