@@ -11,6 +11,9 @@ import {
   Search, Sparkles, Star, TrainFront, TriangleAlert, Utensils, X,
 } from "lucide-react";
 import type { FinalReport } from "@/lib/agent/report";
+import { data } from "@/lib/data";
+import type { Quest } from "@/lib/data/types";
+import { openState } from "@/features/hub/hours";
 import { OPEN_GUIDE_EVENT, type OpenGuideDetail } from "@/features/guide/open-guide";
 
 type StageId = "vision" | "decide" | "where" | "food" | "trip" | "grok" | "report";
@@ -104,6 +107,59 @@ export interface MapTarget {
   name: string;
   lat: number;
   lng: number;
+}
+
+/** A quest the Guide picked. Tap to open a small preview right here (photo, what to do, hours,
+ *  walk) with Directions on the map; the full quest page (to check in) is one more tap away. */
+function QuestPick({ q, onRoute }: { q: FinalReport["picks"][number]; onRoute: (t: MapTarget) => void }) {
+  const [open, setOpen] = useState(false);
+  const [full, setFull] = useState<Quest | null | "loading">(null);
+  useEffect(() => {
+    if (!open || full) return;
+    setFull("loading");
+    data.getQuest(q.id).then((x) => setFull(x), () => setFull(null));
+  }, [open, full, q.id]);
+  const quest = full && full !== "loading" ? full : null;
+  const state = quest ? openState(quest.hours, new Date()) : null;
+  const lat = quest?.lat ?? q.lat, lng = quest?.lon ?? q.lon;
+  return (
+    <div className={`rounded-xl border px-3 py-2 transition-colors ${open ? "border-maroon" : "border-border hover:border-maroon"}`}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="block w-full text-left">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-semibold leading-tight">{q.title}</p>
+          <span className="shrink-0 rounded-full bg-xp-chip px-2 py-0.5 text-[11px] font-bold text-xp-chip-ink">+{q.xp} XP</span>
+        </div>
+        <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+          <span className="size-2 rounded-full" style={{ background: lineColor(q.lines[0]) }} aria-hidden />
+          {q.station_name ?? q.station_id} · {PRICE[q.price_tier] ?? ""}
+          <span className="ml-auto text-[11px] font-semibold text-maroon">{open ? "Hide" : "Preview"}</span>
+        </p>
+        {q.why && <p className="mt-1 text-xs leading-snug">{q.why}</p>}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-1.5 border-t border-border pt-2">
+          {full === "loading" && <p className="text-xs text-muted-foreground">Loading…</p>}
+          {quest?.photo_url && (
+            // eslint-disable-next-line @next/next/no-img-element -- remote Commons photo, sized by the browser
+            <img src={quest.photo_url} alt="" className="h-28 w-full rounded-lg object-cover" loading="lazy" />
+          )}
+          {quest?.description && <p className="text-xs leading-snug">{quest.description}</p>}
+          {quest && (
+            <p className="text-[11px] text-muted-foreground">
+              {[`${quest.walk_min} min walk from the T`, `about ${quest.duration_min} min there`].join(" · ")}
+              {state && <span className={state.open ? "font-semibold text-success" : "text-closed"}> · {state.label}</span>}
+            </p>
+          )}
+          <div className="flex items-center gap-2">
+            {lat != null && lng != null && <RouteButton t={{ name: q.title, lat, lng }} onRoute={onRoute} big />}
+            <Link href={`/q/${q.id}`} className="shrink-0 text-xs font-semibold text-maroon underline-offset-2 hover:underline">
+              Quest page
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function RouteButton({ t, onRoute, big }: { t: MapTarget; onRoute: (t: MapTarget) => void; big?: boolean }) {
@@ -222,25 +278,7 @@ function ReportCard({ r, onRetryPhoto, onType, onRoute }: { r: FinalReport; onRe
           <div className="space-y-1.5">
             <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Quests</p>
             {r.picks.map((q) => (
-              <div key={q.id} className="relative">
-              <Link href={`/q/${q.id}`} className="block rounded-xl border border-border px-3 py-2 pb-2.5 transition-colors hover:border-maroon">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold leading-tight">{q.title}</p>
-                  <span className="shrink-0 rounded-full bg-xp-chip px-2 py-0.5 text-[11px] font-bold text-xp-chip-ink">+{q.xp} XP</span>
-                </div>
-                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                  <span className="size-2 rounded-full" style={{ background: lineColor(q.lines[0]) }} aria-hidden />
-                  {q.station_name ?? q.station_id} · {PRICE[q.price_tier] ?? ""}
-                </p>
-                {q.why && <p className="mt-1 text-xs leading-snug">{q.why}</p>}
-                {q.lat != null && q.lon != null && <span className="block h-6" aria-hidden />}
-              </Link>
-              {q.lat != null && q.lon != null && (
-                <span className="absolute right-2.5 bottom-2">
-                  <RouteButton t={{ name: q.title, lat: q.lat, lng: q.lon }} onRoute={onRoute} />
-                </span>
-              )}
-              </div>
+              <QuestPick key={q.id} q={q} onRoute={onRoute} />
             ))}
           </div>
         )}

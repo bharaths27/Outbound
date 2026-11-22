@@ -166,12 +166,15 @@ const walkStep = (from: LngLat, to: LngLat, text: string): RouteStep => {
   return { mode: "walk", text, minutes: Math.max(1, Math.round(d * WALK_MIN_PER_KM)), meters: Math.round(d * 1333) };
 };
 
-/** Dijkstra in minutes from `from`: walk to a nearby station, wait, ride, transfer. */
-function search(g: Graph, from: LngLat) {
+/** Dijkstra in minutes from `from`: walk to a nearby station, wait, ride, transfer. Lines in
+ *  `avoid` cost AVOID_FACTOR times more (to find a different route); `real` keeps true minutes. */
+const AVOID_FACTOR = 4;
+function search(g: Graph, from: LngLat, avoid?: Set<string>) {
   const starts = nearestStations(g, from);
   const dist = new Float64Array(g.nodes.length).fill(Infinity);
   const prev = new Int32Array(g.nodes.length).fill(-1);
   const via: (string | null)[] = new Array(g.nodes.length).fill(null);
+  const real = new Float64Array(g.nodes.length).fill(Infinity);
   // Tiny binary heap of [minutes, node].
   const heap: [number, number][] = [];
   const push = (x: [number, number]) => {
@@ -205,42 +208,43 @@ function search(g: Graph, from: LngLat) {
   for (const { s, d } of starts) {
     for (const id of g.stationNodes.get(s.id)!) {
       const t = d * WALK_MIN_PER_KM + WAIT_MIN;
-      if (t < dist[id]) { dist[id] = t; push([t, id]); }
+      if (t < dist[id]) { dist[id] = t; real[id] = t; push([t, id]); }
     }
   }
   while (heap.length) {
     const [t, u] = pop();
     if (t > dist[u]) continue;
     for (const e of g.adj[u]) {
-      const nt = t + e.min;
+      const nt = t + (e.line && avoid?.has(e.line) ? e.min * AVOID_FACTOR : e.min);
       if (nt < dist[e.to]) {
         dist[e.to] = nt;
+        real[e.to] = real[u] + e.min;
         prev[e.to] = u;
         via[e.to] = e.line;
         push([nt, e.to]);
       }
     }
   }
-  return { dist, prev, via };
+  return { dist, prev, via, real };
 }
 
 /** Best route from `from` to `to` (both [lng, lat]), by T if that beats walking. */
-export function planRoute(g: Graph, from: LngLat, to: LngLat, toName = "your destination"): TransitRoute {
+export function planRoute(g: Graph, from: LngLat, to: LngLat, toName = "your destination", avoid?: Set<string>, endAt?: string): TransitRoute {
   const walkOnly = (): TransitRoute => {
     const s = walkStep(from, to, `Walk to ${toName}`);
     return { minutes: s.minutes, distanceKm: Math.round(km(from, to) * 13.3) / 10, path: [from, to], segments: [{ mode: "walk", color: WALK_COLOR, path: [from, to] }], steps: [s], fare: 0, source: "outbound" };
   };
-  const goals = nearestStations(g, to);
-  const { dist, prev, via } = search(g, from);
-  let best = -1, bestT = Infinity;
+  const goals = nearestStations(g, to).filter((x) => !endAt || x.s.id === endAt);
+  const { dist, prev, via, real } = search(g, from, avoid);
+  let best = -1, bestT = Infinity, bestReal = Infinity;
   for (const { s, d } of goals) {
     for (const id of g.stationNodes.get(s.id)!) {
       const t = dist[id] + d * WALK_MIN_PER_KM;
-      if (t < bestT) { bestT = t; best = id; }
+      if (t < bestT) { bestT = t; best = id; bestReal = real[id] + d * WALK_MIN_PER_KM; }
     }
   }
   const direct = km(from, to) * WALK_MIN_PER_KM;
-  if (best < 0 || direct <= bestT) return walkOnly();
+  if (best < 0 || direct <= bestReal) return walkOnly();
 
   // Walk back through prev to get the node chain from the first station to the last.
   const chain: number[] = [];
@@ -294,7 +298,7 @@ export function planRoute(g: Graph, from: LngLat, to: LngLat, toName = "your des
   let distance = 0;
   for (let i = 1; i < path.length; i++) distance += km(path[i - 1], path[i]);
   return {
-    minutes: Math.round(bestT),
+    minutes: Math.round(bestReal),
     distanceKm: Math.round(distance * 10) / 10,
     path,
     segments,
@@ -302,6 +306,63 @@ export function planRoute(g: Graph, from: LngLat, to: LngLat, toName = "your des
     fare: fareFor(steps),
     source: "outbound",
   };
+}
+
+/** A route's headline numbers, for comparing options. */
+export function routeStats(r: TransitRoute) {
+  const rides = r.steps.filter((x) => x.mode === "transit");
+  return {
+    transfers: Math.max(0, rides.length - 1),
+    walkMin: r.steps.filter((x) => x.mode === "walk" && !x.text?.startsWith("Transfer")).reduce((n, x) => n + x.minutes, 0),
+    rideMin: rides.reduce((n, x) => n + x.minutes, 0),
+    lines: rides.map((x) => x.line!),
+  };
+}
+export type RouteOption = TransitRoute & ReturnType<typeof routeStats> & { label: string };
+
+/** Up to `k` different ways there: the fastest, then routes that avoid each line the fastest one
+ *  rides (so they use other lines or transfer points), and walking when it's under 40 min. */
+export function planRoutes(g: Graph, from: LngLat, to: LngLat, toName = "your destination", k = 4): RouteOption[] {
+  // Same lines and same stop to get off at = the same option for a rider.
+  const sig = (r: TransitRoute) => {
+    const rides = r.steps.filter((x) => x.mode === "transit");
+    return rides.length ? `${rides.map((x) => x.line).join(">")}@${rides.at(-1)!.to}` : "walk";
+  };
+  const found = new Map<string, TransitRoute>();
+  const add = (r: TransitRoute) => {
+    if (!found.has(sig(r))) found.set(sig(r), r);
+  };
+  const fastest = planRoute(g, from, to, toName);
+  add(fastest);
+  const lines = routeStats(fastest).lines;
+  for (const l of lines) add(planRoute(g, from, to, toName, new Set([l])));
+  if (lines.length > 1) add(planRoute(g, from, to, toName, new Set(lines)));
+  // Getting off at another nearby station (another line, less walking, or no transfer).
+  for (const { s } of nearestStations(g, to)) {
+    const r = planRoute(g, from, to, toName, undefined, s.id);
+    if (r.steps.length > 1) add(r);
+  }
+  const walkMin = Math.round(km(from, to) * WALK_MIN_PER_KM);
+  if (walkMin <= 40 && !found.has("walk")) {
+    found.set("walk", {
+      minutes: Math.max(1, walkMin), distanceKm: Math.round(km(from, to) * 13.3) / 10, path: [from, to],
+      segments: [{ mode: "walk", color: WALK_COLOR, path: [from, to] }],
+      steps: [walkStep(from, to, `Walk to ${toName}`)], fare: 0, source: "outbound",
+    });
+  }
+  const fastWalk = routeStats(fastest).walkMin;
+  const opts = [...found.values()]
+    // drop silly detours: much slower, or a long walk to save nothing
+    .filter((r) => r === fastest || (r.minutes <= fastest.minutes * 1.5 + 8 && (r.fare === 0 || routeStats(r).walkMin <= fastWalk + 12)))
+    .sort((a, b) => a.minutes - b.minutes)
+    .slice(0, k)
+    .map((r) => ({ ...r, ...routeStats(r), label: "" }));
+  const minWalk = Math.min(...opts.map((o) => o.walkMin));
+  const minTransfers = Math.min(...opts.map((o) => o.transfers));
+  opts.forEach((o, i) => {
+    o.label = i === 0 ? "Fastest" : o.fare === 0 ? "Walk, no fare" : o.transfers === minTransfers && o.transfers < opts[0].transfers ? "Fewer transfers" : o.walkMin === minWalk && o.walkMin < opts[0].walkMin ? "Less walking" : "Another way";
+  });
+  return opts;
 }
 
 /** BU Central (Green B): where routes start when we don't know where the student is. */

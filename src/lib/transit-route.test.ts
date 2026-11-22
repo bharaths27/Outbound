@@ -1,11 +1,27 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildGraph, planRoute } from "./transit-route";
+import { buildGraph, planRoute, planRoutes } from "./transit-route";
 
 const lines = JSON.parse(readFileSync("public/data/mbta-lines.geojson", "utf8")).features;
 const stations = JSON.parse(readFileSync("public/data/mbta-stations.json", "utf8"));
 const g = buildGraph(lines, stations);
 const BU: [number, number] = [-71.107037, 42.350049];
+
+describe("route options", () => {
+  it("gives several different ways from BU to Forest Hills, fastest first", () => {
+    const opts = planRoutes(g, BU, [-71.1139, 42.3007], "Arnold Arboretum");
+    for (const o of opts) console.log(o.label, o.minutes, "min", o.lines.join(">"), o.transfers, "transfers", o.walkMin, "min walk");
+    expect(opts.length).toBeGreaterThanOrEqual(2);
+    expect(opts[0].label).toBe("Fastest");
+    for (let i = 1; i < opts.length; i++) expect(opts[i].minutes).toBeGreaterThanOrEqual(opts[i - 1].minutes);
+    expect(new Set(opts.map((o) => o.lines.join(">") + o.steps.map((x) => x.from).join())).size).toBe(opts.length);
+  });
+  it("BU to Chinatown has more than one option", () => {
+    const opts = planRoutes(g, BU, [-71.0598, 42.3511], "Chinatown Gate");
+    for (const o of opts) console.log(o.label, o.minutes, "min", o.lines.join(">"), "fare", o.fare);
+    expect(opts.length).toBeGreaterThanOrEqual(2);
+  });
+});
 
 describe("our own T routing", () => {
   it("BU to Chinatown Gate rides the T with colored legs", () => {

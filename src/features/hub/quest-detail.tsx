@@ -8,7 +8,7 @@
 //   hours and time cards side by side) and a sticky side column (stamp, reward, Check in,
 //   distance note, student deals).
 
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Clock, Navigation } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { CheckInButton } from "@/features/checkin";
@@ -163,6 +163,13 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   );
   const actions = (
     <div className="flex flex-wrap gap-2">
+      {/* Opens the map with every MBTA way there (Explorer's route options), from you or BU Central. */}
+      <Link
+        href={`/?go=${quest.lat.toFixed(5)},${quest.lon.toFixed(5)}&name=${encodeURIComponent(quest.title)}`}
+        className="inline-flex h-11 items-center gap-1.5 rounded-full bg-maroon px-4 text-sm font-semibold text-white outline-none hover:bg-maroon-600 focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2"
+      >
+        <Navigation className="size-4" aria-hidden /> Directions
+      </Link>
       <ShareQuestButton questId={quest.id} questTitle={quest.title} />
       <RecommendButton questId={quest.id} visits={player.visits} />
     </div>

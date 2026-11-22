@@ -2,15 +2,17 @@
 // { minutes, distanceKm, path: [[lng,lat]...], steps: [{ mode, text, minutes, line?, color?, from?, to?, stops? }] }
 // Falls back to a walking route if there is no transit option. Env: GOOGLE_MAPS_KEY or NEXT_PUBLIC_GOOGLE_MAPS_KEY.
 // ?engine=outbound forces our own routing; &name= labels the last walk step.
+// ?alts=1 -> { options: [...] }: up to 4 different MBTA ways there (fastest first, each with label,
+// minutes, fare, transfers, walkMin, rideMin, lines, steps, segments), from our own routing.
 // With no Google key (or when Google fails) we route on our own MBTA track data instead (src/lib/transit-route.ts).
-import { fareFor, loadGraph, planRoute } from "@/lib/transit-route";
+import { fareFor, loadGraph, planRoute, planRoutes } from "@/lib/transit-route";
 
 export const dynamic = "force-dynamic";
 
 import { googleMapsKey } from "@/lib/google-places";
 import { computeRoutes, seconds } from "@/lib/google-routes";
 
-async function ourRoute(req: Request, from: string, to: string, name?: string | null) {
+async function ourRoute(req: Request, from: string, to: string, name?: string | null, alts = false) {
   const p = (s: string) => {
     const [lat, lng] = s.split(",").map(Number);
     return [lng, lat] as [number, number];
@@ -18,6 +20,7 @@ async function ourRoute(req: Request, from: string, to: string, name?: string | 
   const a = p(from), b = p(to);
   if (![...a, ...b].every(Number.isFinite)) return Response.json({ error: "from and to must be lat,lng" }, { status: 400 });
   const g = await loadGraph(new URL(req.url).origin);
+  if (alts) return Response.json({ options: planRoutes(g, a, b, name || undefined) });
   return Response.json(planRoute(g, a, b, name || undefined));
 }
 
@@ -47,9 +50,10 @@ export async function GET(req: Request) {
   const u = new URL(req.url);
   const from = u.searchParams.get("from"), to = u.searchParams.get("to"), name = u.searchParams.get("name");
   if (!from || !to) return Response.json({ error: "from and to are required" }, { status: 400 });
-  if (!googleMapsKey() || u.searchParams.get("engine") === "outbound") {
+  const alts = u.searchParams.get("alts") === "1";
+  if (alts || !googleMapsKey() || u.searchParams.get("engine") === "outbound") {
     try {
-      return await ourRoute(req, from, to, name);
+      return await ourRoute(req, from, to, name, alts);
     } catch (e) {
       return Response.json({ error: String((e as Error).message ?? e) }, { status: 502 });
     }
