@@ -169,7 +169,7 @@ else {
   db = createClient(sbUrl, sbKey, { auth: { persistSession: false, autoRefreshToken: false } });
   await check("content loaded", async () => {
     const [{ count: quests, error: e1 }, { count: stations, error: e2 }] = await Promise.all([
-      db.from("quests").select("*", { count: "exact", head: true }),
+      db.from("quests").select("id", { count: "exact", head: true }),
       db.from("stations").select("*", { count: "exact", head: true }),
     ]);
     if (e1 || e2) throw new Error((e1 ?? e2).message);

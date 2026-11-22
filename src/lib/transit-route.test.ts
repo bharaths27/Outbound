@@ -29,3 +29,15 @@ describe("our own T routing", () => {
     expect(r.steps[0].mode).toBe("walk");
   });
 });
+
+describe("ride times for the time filter", async () => {
+  const { rideTimes } = await import("./transit-route");
+  it("gives minutes from BU to every station, by T or on foot", () => {
+    const t = rideTimes(g, BU);
+    expect(Object.keys(t).length).toBe(stations.length);
+    expect(t["place-bucen"]).toBeLessThanOrEqual(2); // next door
+    expect(t["place-kencl"]).toBeGreaterThan(t["place-bucen"]);
+    expect(t["place-pktrm"]).toBeGreaterThan(10);
+    expect(t["place-pktrm"]).toBeLessThan(30);
+  });
+});

@@ -157,14 +157,9 @@ const walkStep = (from: LngLat, to: LngLat, text: string): RouteStep => {
   return { mode: "walk", text, minutes: Math.max(1, Math.round(d * WALK_MIN_PER_KM)), meters: Math.round(d * 1333) };
 };
 
-/** Best route from `from` to `to` (both [lng, lat]), by T if that beats walking. */
-export function planRoute(g: Graph, from: LngLat, to: LngLat, toName = "your destination"): TransitRoute {
-  const walkOnly = (): TransitRoute => {
-    const s = walkStep(from, to, `Walk to ${toName}`);
-    return { minutes: s.minutes, distanceKm: Math.round(km(from, to) * 13.3) / 10, path: [from, to], segments: [{ mode: "walk", color: WALK_COLOR, path: [from, to] }], steps: [s], source: "outbound" };
-  };
+/** Dijkstra in minutes from `from`: walk to a nearby station, wait, ride, transfer. */
+function search(g: Graph, from: LngLat) {
   const starts = nearestStations(g, from);
-  const goals = nearestStations(g, to);
   const dist = new Float64Array(g.nodes.length).fill(Infinity);
   const prev = new Int32Array(g.nodes.length).fill(-1);
   const via: (string | null)[] = new Array(g.nodes.length).fill(null);
@@ -217,6 +212,17 @@ export function planRoute(g: Graph, from: LngLat, to: LngLat, toName = "your des
       }
     }
   }
+  return { dist, prev, via };
+}
+
+/** Best route from `from` to `to` (both [lng, lat]), by T if that beats walking. */
+export function planRoute(g: Graph, from: LngLat, to: LngLat, toName = "your destination"): TransitRoute {
+  const walkOnly = (): TransitRoute => {
+    const s = walkStep(from, to, `Walk to ${toName}`);
+    return { minutes: s.minutes, distanceKm: Math.round(km(from, to) * 13.3) / 10, path: [from, to], segments: [{ mode: "walk", color: WALK_COLOR, path: [from, to] }], steps: [s], source: "outbound" };
+  };
+  const goals = nearestStations(g, to);
+  const { dist, prev, via } = search(g, from);
   let best = -1, bestT = Infinity;
   for (const { s, d } of goals) {
     for (const id of g.stationNodes.get(s.id)!) {
@@ -328,4 +334,19 @@ export function describeRoute(r: TransitRoute): string[] {
       ? `${s.text} (${s.minutes} min)`
       : `Ride the ${s.line} Line from ${s.from} to ${s.to} (${s.stops} stop${s.stops === 1 ? "" : "s"}, ${s.minutes} min)`,
   );
+}
+
+/**
+ * Minutes from `from` to each station by T (walk to a nearby station, wait, ride, transfers) or on foot,
+ * whichever is faster. For the hub's time filter: ride_min + 2 * walk_min + duration_min <= minutes.
+ */
+export function rideTimes(g: Graph, from: LngLat): Record<string, number> {
+  const { dist } = search(g, from);
+  const out: Record<string, number> = {};
+  for (const s of g.stations) {
+    const walk = km(from, [s.lon, s.lat]) * WALK_MIN_PER_KM;
+    const ride = Math.min(...(g.stationNodes.get(s.id) ?? []).map((id) => dist[id]));
+    out[s.id] = Math.max(0, Math.round(Math.min(walk, ride)));
+  }
+  return out;
 }
