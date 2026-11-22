@@ -133,10 +133,10 @@ export function StationHub({
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   // Starts from the Explore card's Craving / Budget / Time picks, if any.
-  const [filters, setFilters] = useState<HubFilters>(() => ({
-    ...EMPTY_FILTERS,
-    ...getExploreFilters(),
-  }));
+  const [filters, setFilters] = useState<HubFilters>(() => {
+    const { craving, budget, minutes } = getExploreFilters(); // the map-only extras stay on the map
+    return { ...EMPTY_FILTERS, craving, budget, minutes };
+  });
   const [openQuestId, setOpenQuestId] = useState<string | null>(null);
   const { player, reload } = usePlayer();
   const now = useNow();

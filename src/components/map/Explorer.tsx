@@ -399,7 +399,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
 
   if (!query && !place) return null;
   return (
-    <div className="ob-panel flex max-h-[min(72vh,640px)] w-[min(400px,calc(100vw-24px))] flex-col overflow-hidden text-[15px]">
+    <div className="ob-panel flex max-h-full min-h-0 w-full flex-col overflow-hidden text-[15px]">
       {/* header */}
       <div className="flex items-center gap-2 border-b border-[var(--ob-line)] px-3 py-2">
         {place && results && (

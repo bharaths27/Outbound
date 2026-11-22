@@ -4,7 +4,7 @@
 // a week. Its first check-in that week earns its base XP again, so cards show a gold
 // "2× XP" badge on it. The card leads Quests and floats over the map on Explore.
 
-import { Crown } from "lucide-react";
+import { Crown, X } from "lucide-react";
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -236,19 +236,59 @@ export function ExploreQuestOfTheWeek() {
   );
 }
 
+const HIDDEN_KEY = "outbound.qotw.hidden";
+
 function ExploreCard() {
   const hubOpen = useSearchParams().has("station");
   const { player } = usePlayer();
+  const { featured: loaded } = useFeaturedQuest();
+  // Hidden until next week: the key holds the week it was hidden in.
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    try {
+      setHidden(localStorage.getItem(HIDDEN_KEY) === thisWeek());
+    } catch {}
+  }, []);
+  const hide = (v: boolean) => {
+    setHidden(v);
+    try {
+      if (v) localStorage.setItem(HIDDEN_KEY, thisWeek());
+      else localStorage.removeItem(HIDDEN_KEY);
+    } catch {}
+  };
+  if (loaded.status !== "ready") return null;
   return (
-    // Phones: above the Ask Guide button, clear of the zoom buttons. Desktop: bottom right,
-    // left of the zoom buttons and clear of the Ask Guide button when the map is narrow.
+    // Phones: above the Ask Guide button, clear of the zoom buttons. Desktop: bottom middle, between
+    // Ask Guide (bottom left) and the zoom / locate buttons (bottom right), under the map's columns.
     <div
       className={cn(
-        "pointer-events-none absolute right-16 bottom-[84px] left-4 z-10 desk:right-14 desk:bottom-6 desk:left-auto desk:block desk:w-[min(380px,calc(100%-300px))]",
+        "pointer-events-none absolute right-16 bottom-[84px] left-4 z-10 flex justify-center desk:bottom-4 desk:left-1/2 desk:right-auto desk:w-[min(440px,calc(100%-440px))] desk:-translate-x-1/2",
         hubOpen && "hidden",
       )}
     >
-      <QuestOfTheWeekCard compact visits={player.visits} className="pointer-events-auto" />
+      {hidden ? (
+        <button
+          type="button"
+          onClick={() => hide(false)}
+          className="pointer-events-auto inline-flex h-10 items-center gap-1.5 rounded-full bg-maroon px-4 text-sm font-semibold text-white shadow-float hover:brightness-110"
+        >
+          <Crown className="size-4 text-gold" aria-hidden />
+          Quest of the Week
+        </button>
+      ) : (
+        <div className="pointer-events-auto relative w-full">
+          <QuestOfTheWeekCard compact visits={player.visits} className="pr-11" />
+          <button
+            type="button"
+            aria-label="Hide the Quest of the Week"
+            title="Hide"
+            onClick={() => hide(true)}
+            className="absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-full text-white/80 hover:bg-white/15 hover:text-white"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

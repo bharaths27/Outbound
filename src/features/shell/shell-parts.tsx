@@ -38,6 +38,8 @@ export const NAV = [
   { href: "/events", label: "Events", d: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4", desktopOnly: true },
   // Host (BU Spark! track): publish an event that shows on the map. Phones reach it from the map.
   { href: "/host", label: "Host", d: "M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8zM5 21h14", desktopOnly: true },
+  // Pipeline: how the app works (tracks, agents, tools), for the demo.
+  { href: "/pipeline", label: "Pipeline", d: "M4 6h5v4H4zM15 14h5v4h-5zM9 8h3a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2M4 18h5M6.5 10v8", desktopOnly: true },
 ] as const satisfies readonly { href: string; label: string; d: string; desktopOnly?: boolean }[];
 
 /** The phone tab bar keeps 5 items (DESIGN.md §4); Events and Host are desktop only (phones reach Host from the map). */

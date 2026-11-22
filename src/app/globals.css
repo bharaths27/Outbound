@@ -325,6 +325,14 @@
 /* Zoom/tilt buttons sit in the bottom-right corner; the Ask Guide button floats there too,
    so lift the controls clear of it. */
 .ob-map .maplibregl-ctrl-bottom-right { bottom: 76px; }
+/* Desktop: zoom / compass in a row in the bottom-right corner (the locate button sits beside it),
+   so the place card above them can run almost to the bottom. */
+@media (min-width: 64rem) {
+  .ob-map .maplibregl-ctrl-bottom-right { bottom: 6px; }
+  .ob-map .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { display: flex; border-radius: 999px; overflow: hidden; box-shadow: var(--ob-shadow); }
+  .ob-map .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button { width: 40px; height: 40px; }
+  .ob-map .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button + button { border-top: 0; border-left: 1px solid #ddd; }
+}
 .ob-pulse { animation: ob-pulse 2s ease-in-out infinite; }
 @keyframes ob-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
@@ -365,26 +373,29 @@
 .ob-place-pin-icon { display: grid; place-items: center; line-height: 0; }
 
 /* passport quest pins */
-.ob-quest { cursor: pointer; display: flex; align-items: center; gap: 3px; padding: 3px 7px 3px 4px; border-radius: 999px; background: #fffbeb; border: 2px solid #f59e0b; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.25); }
+/* A map pin's root element is positioned by MapLibre's transform: scaling it would also scale that
+   offset and the pin would slide away on hover. So the root (.ob-pin) stays put and only the pill inside scales. */
+.ob-pin { display: block; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; }
+.ob-pin:focus-visible { outline: none; }
+.ob-pin:focus-visible > span { outline: 3px solid #6b1f33; outline-offset: 2px; }
+.ob-quest { position: relative; cursor: pointer; display: flex; align-items: center; gap: 3px; padding: 3px 7px 3px 4px; border-radius: 999px; background: #fffbeb; border: 2px solid #f59e0b; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.25); }
 /* The simulated rider in "Preview the ride" (Explorer). */
 .ob-sim-train { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--c, #6b1f33); color: #fff; border: 3px solid #fff; box-shadow: 0 0 0 7px color-mix(in srgb, var(--c, #6b1f33) 30%, transparent), 0 4px 10px rgba(0, 0, 0, 0.4); animation: ob-train-bob .6s ease-in-out infinite alternate; }
 @keyframes ob-train-bob { from { translate: 0 0; } to { translate: 0 -2px; } }
 @media (prefers-reduced-motion: reduce) { .ob-sim-train { animation: none; } }
 .ob-sim-rider { width: 18px; height: 18px; border-radius: 999px; background: #6b1f33; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(107, 31, 51, 0.25), 0 2px 6px rgba(0, 0, 0, 0.35); }
-/* The train list (top-right) runs down to the Quest of the Week card; the zoom buttons step aside while it is open. */
-.ob-svc-open .maplibregl-ctrl-bottom-right { display: none; }
 .ob-quest-icon { display: grid; place-items: center; line-height: 0; color: #b45309; }
 .ob-quest-pts { font: 700 10px/1 var(--font-dm-sans, system-ui), system-ui, sans-serif; color: #b45309; }
 /* game layer: pins grow with distance (--s), show ride time in the line color (--lc), Expedition pins glow gold */
 .ob-quest { transform-origin: bottom center; scale: var(--s, 1); transition: scale .15s; }
-.ob-quest:hover { scale: calc(var(--s, 1) * 1.08); }
+.ob-pin:hover > .ob-quest { scale: calc(var(--s, 1) * 1.08); }
 .ob-quest-ride { display: flex; align-items: center; gap: 2px; margin-left: 2px; padding-left: 4px; border-left: 1px solid #f3d9a4; font: 600 9px/1 system-ui, sans-serif; color: #78716c; }
 .ob-quest-ride i { width: 6px; height: 6px; border-radius: 50%; background: var(--lc); }
 .ob-quest-exp { background: linear-gradient(135deg, #fde68a, #f59e0b); border-color: #fff7d6; animation: ob-exp-glow 2.2s ease-in-out infinite; }
 .ob-quest-exp .ob-quest-icon, .ob-quest-exp .ob-quest-pts { color: #6b2e00; }
 .ob-quest-exp .ob-quest-ride { color: #6b2e00; border-left-color: #fcd34d; }
 .ob-quest-tag { position: absolute; left: 50%; bottom: calc(100% + 3px); translate: -50% 0; white-space: nowrap; padding: 2px 6px; border-radius: 999px; background: #6b1f33; color: #fff; font: 700 8.5px/1.2 system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
-.ob-quest:focus-visible { outline: 3px solid #6b1f33; outline-offset: 2px; }
+
 .ob-quest-more { position: absolute; right: -8px; top: -9px; min-width: 18px; padding: 2px 4px; border-radius: 999px; background: #6b1f33; color: #fff; font: 700 9px/1.2 system-ui, sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
 .ob-quest-done { background: #f0fdf4; border-color: #86efac; opacity: .85; }
 .ob-quest-done .ob-quest-icon, .ob-quest-done .ob-quest-pts { color: #15803d; }
@@ -488,7 +499,7 @@
 
 /* Student-hosted events on the map (Host page). */
 .ob-hosted { cursor: pointer; position: relative; display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 4px 10px 4px 5px; border-radius: 14px; background: #fff; border: 2px solid #7c3aed; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3); text-align: left; transform-origin: bottom center; transition: scale .15s; }
-.ob-hosted:hover { scale: 1.06; }
+.ob-pin:hover > .ob-hosted { scale: 1.06; }
 .ob-hosted::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 10px; height: 10px; background: #fff; border-right: 2px solid #7c3aed; border-bottom: 2px solid #7c3aed; transform: translateX(-50%) rotate(45deg); }
 .ob-hosted-emoji { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 9px; background: #ede9fe; font-size: 16px; line-height: 1; }
 .ob-hosted-text { display: flex; min-width: 0; flex-direction: column; }
@@ -500,3 +511,4 @@
 .ob-hosted-live .ob-hosted-text small { color: #db2777; font-weight: 700; }
 .ob-hosted-live::before { content: ""; position: absolute; inset: -6px; border-radius: 18px; border: 2px solid #db2777; opacity: 0; animation: ob-hosted-ping 1.8s ease-out infinite; pointer-events: none; }
 @keyframes ob-hosted-ping { 0% { opacity: .7; scale: .95; } 100% { opacity: 0; scale: 1.15; } }
+@keyframes ob-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }

@@ -87,6 +87,8 @@ export interface Quest {
   qtype?: string;
   price?: number;
   duration?: number;
+  /** opening hours from the quest content ("Mon-Fri 08:00-18:00"), for "Open now" */
+  hours?: string | null;
 }
 export const SAMPLE_QUESTS: Quest[] = [
   { id: "q1", title: "Freedom Trail starter", place: "Massachusetts State House", lng: -71.0637, lat: 42.3581, points: 50, hint: "Find the gold dome, then walk the red-brick line", icon: "Landmark" },

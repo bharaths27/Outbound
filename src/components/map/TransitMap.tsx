@@ -6,6 +6,8 @@ import * as maplibregl from "maplibre-gl";
 import type { Map as MlMap, GeoJSONSource, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MAP_SEARCH_SLOT, useExploreFilters } from "@/features/explore/explore-card";
+import { servesLine } from "@/features/explore/explore-filters";
+import { openState } from "@/features/hub/hours";
 import { openStationHub } from "@/features/hub/open-hub";
 import { errorCopy } from "@/features/checkin/errors";
 import { locate } from "@/features/checkin/use-check-in";
@@ -24,11 +26,11 @@ import { CityBuildingsLayer, fetchBpdaManifest, fetchRegionManifest, inBpda, inR
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
 import SearchBox, { pointInRing } from "./SearchBox";
 import Explorer, { type ExplorerHandle } from "./Explorer";
-import ServicePanel from "./ServicePanel";
+import MapPanel, { type MapShow } from "./MapPanel";
 import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
-import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Layers, LocateFixed, Moon, Star, Sun } from "lucide-react";
+import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, LocateFixed, Moon, Star, Sun } from "lucide-react";
 import { createElement, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN, Trees as TreesN, Pizza as PizzaN, Coffee as CoffeeN, Check as CheckN } from "lucide";
 
 const QUEST_NODES = { Landmark: LandmarkN, Waves: WavesN, Soup: SoupN, BookOpen: BookOpenN, Sunset: SunsetN, Trophy: TrophyN, Trees: TreesN, Pizza: PizzaN, Coffee: CoffeeN };
@@ -116,20 +118,31 @@ export default function TransitMap() {
   const [realistic, setRealistic] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  // Phones: the controls panel folds into a Layers button (DESIGN.md §6 Explore map controls).
-  const [controlsOpen, setControlsOpen] = useState(false);
+  // The map panel (3D/2D, layers, lines) folds to one line; phones start folded. Remembered.
+  const [panelFolded, setPanelFolded] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("outbound.mapPanel.folded");
+      setPanelFolded(saved ? saved === "1" : window.matchMedia("(max-width: 63.99rem)").matches);
+    } catch {}
+  }, []);
+  const foldPanel = (v: boolean) => {
+    setPanelFolded(v);
+    try {
+      localStorage.setItem("outbound.mapPanel.folded", v ? "1" : "0");
+    } catch {}
+  };
   const [userLoc, setUserLoc] = useState<[number, number] | null>(null);
   const userLocRef = useRef<[number, number] | null>(null);
   const meMarker = useRef<maplibregl.Marker | null>(null);
   const explorer = useRef<ExplorerHandle>(null);
-  const [show, setShow] = useState({ trains: true, campuses: true, friends: true, delays: true });
+  const [show, setShow] = useState<MapShow>({ trains: true, campuses: true, friends: true, delays: true, events: true });
   const [delayColors, setDelayColors] = useState(false);
   const [feedMode, setFeedMode] = useState<FeedMode>("live");
   const [autoFallback, setAutoFallback] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
   const [trainCount, setTrainCount] = useState(0);
   const [trainList, setTrainList] = useState<Train[]>([]);
-  const [showService, setShowService] = useState(false);
   // Explore's card has a slot for the search box (explore-card.tsx); other pages keep it on the map.
   const [searchSlot, setSearchSlot] = useState<HTMLElement | null>(null);
   useEffect(() => setSearchSlot(document.getElementById(MAP_SEARCH_SLOT)), []);
@@ -633,15 +646,17 @@ export default function TransitMap() {
       el.dataset.xp = String(xp.total + (exp && !visited ? 1000 : 0)); // decluttering keeps the most valuable pin
       el.dataset.qid = q.id;
       el.setAttribute("aria-label", `${exp && !visited ? "Expedition: " : ""}${q.title} at ${q.place}, ${xp.total} XP, about ${ride.minutes} minutes away`);
-      el.className = `ob-quest${exp && !visited ? " ob-quest-exp" : ""}${visited ? " ob-quest-done" : ""}`;
+      el.className = `ob-pin${exp && !visited ? " ob-pin-exp" : ""}`; // MapLibre moves this one; the pill inside scales
       el.style.setProperty("--s", String(1 + (xp.mult - 1) * 0.25));
       el.style.setProperty("--lc", (LINE_COLORS as Record<string, string>)[ride.line] ?? "#888");
       el.title = `${q.title}: +${xp.total} XP`;
       el.innerHTML =
+        `<span class="ob-quest${exp && !visited ? " ob-quest-exp" : ""}${visited ? " ob-quest-done" : ""}">` +
         (exp && !visited ? `<span class="ob-quest-tag">Expedition</span>` : "") +
         `<span class="ob-quest-icon">${svgOf(visited ? CheckN : QUEST_NODES[q.icon], 15)}</span>` +
         `<span class="ob-quest-pts">+${xp.total}</span>` +
-        (ride.minutes ? `<span class="ob-quest-ride"><i></i>${ride.minutes}m</span>` : "");
+        (ride.minutes ? `<span class="ob-quest-ride"><i></i>${ride.minutes}m</span>` : "") +
+        `</span>`;
       el.onclick = (ev) => {
         ev.stopPropagation();
         openQuestRef.current(q);
@@ -686,18 +701,29 @@ export default function TransitMap() {
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    markersRef.current.hosted = hosted.map((e) => {
+    // Explore's filters and the Events layer toggle apply to student events too
+    const visible = (e: HostedEvent) => {
+      if (!show.events) return false;
+      if (filters.craving === "scenic" || (filters.craving === "food" && e.food === "none")) return false;
+      if (filters.budget === 0 && e.food === "paid") return false;
+      if (filters.freeFood && e.food !== "free") return false;
+      if (filters.openNow && eventStatus(e) !== "now") return false;
+      if (filters.line !== "any" && !servesLine(nearestStation(stationsRef.current, e.lat, e.lon)?.lines, filters.line)) return false;
+      return true;
+    };
+    markersRef.current.hosted = hosted.filter(visible).map((e) => {
       const k = kindInfo(e.kind);
       const live = eventStatus(e) === "now";
       const el = document.createElement("button");
       el.type = "button";
-      el.className = `ob-hosted${live ? " ob-hosted-live" : ""}`;
+      el.className = "ob-pin";
       el.dataset.eid = e.id;
       el.title = `${e.title} (${k.label})`;
       el.setAttribute("aria-label", `Student event: ${e.title}, ${k.label}, ${whenText(e)}${e.food === "free" ? ", free food" : ""}`);
       el.innerHTML =
-        `<span class="ob-hosted-emoji">${k.emoji}</span><span class="ob-hosted-text"><b></b><small></small></span>` +
-        (e.food === "free" ? `<span class="ob-hosted-tag">Free food</span>` : e.food === "cheap" ? `<span class="ob-hosted-tag">Cheap eats</span>` : "");
+        `<span class="ob-hosted${live ? " ob-hosted-live" : ""}"><span class="ob-hosted-emoji">${k.emoji}</span><span class="ob-hosted-text"><b></b><small></small></span>` +
+        (e.food === "free" ? `<span class="ob-hosted-tag">Free food</span>` : e.food === "cheap" ? `<span class="ob-hosted-tag">Cheap eats</span>` : "") +
+        `</span>`;
       el.querySelector("b")!.textContent = e.title; // user text: never innerHTML
       el.querySelector("small")!.textContent = live ? "Happening now" : whenText(e);
       el.onclick = (ev) => {
@@ -716,7 +742,7 @@ export default function TransitMap() {
     }
     const markers = markersRef.current;
     return () => markers.hosted.forEach((m) => m.remove());
-  }, [ready, hosted]);
+  }, [ready, hosted, show.events, filters]);
 
   // Anything else you click (a named place, a building, any spot): its card and directions.
   // Its own effect so it works on every basemap, including the offline one with no POIs.
@@ -819,7 +845,10 @@ export default function TransitMap() {
         type: "FeatureCollection",
         features: feats.map((p) => {
           const minutes = minutesTo(p.lng, p.lat, ride);
-          return { type: "Feature", properties: { ...p, minutes, tier: placeTier(p.cls), xp: placePoints(p.cls, minutes).total }, geometry: { type: "Point", coordinates: [p.lng, p.lat] } };
+          // "|Green-B|Red": the lines at the closest stop within a walk, for Explore's line filter
+          const st = nearestStation(stationsRef.current, p.lat, p.lng);
+          const lines = st && haversineM(p.lat, p.lng, st.lat, st.lon) < 900 ? st.lines.map((l) => `|${l === "Mattapan" ? "Red" : l}`).join("") : "";
+          return { type: "Feature", properties: { ...p, minutes, lines, tier: placeTier(p.cls), xp: placePoints(p.cls, minutes).total }, geometry: { type: "Point", coordinates: [p.lng, p.lat] } };
         }),
       };
       // only when the set of places changed, so labels don't jump around while you look at them
@@ -985,17 +1014,24 @@ export default function TransitMap() {
       // pins that would overlap on screen fold into the most valuable one, which shows "+N"
       const kept: { x: number; y: number; el: HTMLElement; extra: number }[] = [];
       const byId = new Map(mapQuests.map((q) => [q.id, q]));
+      const now = new Date();
       const fits = (q: Quest) => {
         if (filters.craving !== "any" && q.qtype && q.qtype !== filters.craving) return false;
         if (filters.budget !== null && q.price != null && q.price > filters.budget) return false;
-        const ride = game?.rides.get(q.id)?.minutes ?? 0;
-        if (filters.minutes !== null && 2 * ride + (q.duration ?? 30) > filters.minutes) return false;
+        const ride = game?.rides.get(q.id);
+        if (filters.minutes !== null && 2 * (ride?.minutes ?? 0) + (q.duration ?? 30) > filters.minutes) return false;
+        if (filters.line !== "any" && !servesLine(nearestStation(stationsRef.current, q.lat, q.lng)?.lines, filters.line)) return false;
+        const visited = !!progress.visits[q.id]?.length;
+        if (filters.hideVisited && visited) return false;
+        if (filters.freeFood && !(q.qtype === "food" && q.price === 0)) return false;
+        if (filters.openNow && q.hours && openState(q.hours, now)?.open === false) return false;
+        if (filters.minXp !== null && ride && questXp(q, ride, visited, !!game?.expeditions.has(q.id)).total < filters.minXp) return false;
         return true;
       };
       const byValue = [...markersRef.current.quests].sort((a, b) => Number(b.getElement().dataset.xp) - Number(a.getElement().dataset.xp));
       for (const m of byValue) {
         const el = m.getElement();
-        const exp = el.classList.contains("ob-quest-exp");
+        const exp = el.classList.contains("ob-pin-exp");
         const q = byId.get(el.dataset.qid ?? "");
         let on = show.friends && z >= (exp ? 10 : 12.3) && (!q || fits(q));
         if (on) {
@@ -1043,6 +1079,9 @@ export default function TransitMap() {
     else if (filters.craving === "event") all.push(["==", 1, 0]); // events are quests only
     if (filters.budget !== null) all.push(["<=", ["get", "tier"], filters.budget]);
     if (filters.minutes !== null) all.push(["<=", ["+", ["*", 2, ["get", "minutes"]], 30], filters.minutes]);
+    if (filters.line !== "any") all.push(["in", `|${filters.line}`, ["get", "lines"]]);
+    if (filters.minXp !== null) all.push([">=", ["get", "xp"], filters.minXp]);
+    if (filters.freeFood) all.push(["==", 1, 0]); // free food = quests and events only
     map.setFilter("poi-xp", all.length > 1 ? (all as maplibregl.FilterSpecification) : null);
   }, [ready, filters, originKey]);
 
@@ -1404,112 +1443,64 @@ export default function TransitMap() {
         : `Sample trains · MBTA feed unreachable`;
 
   return (
-    <div className={`ob-map absolute inset-0 overflow-hidden bg-[#dfe9f3] ${showService ? "ob-svc-open" : ""}`}>
+    <div className="ob-map absolute inset-0 overflow-hidden bg-[#dfe9f3]">
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
       <WeatherFx weather={weather} active={loaded && is3D} />
-      {/* top-left: search results and place cards (the search box itself sits in Explore's card).
-          The page pushes the overlays down with --ob-map-top (Explore's filter card sits above them). */}
-      <div className="absolute left-3 top-[calc(var(--ob-map-top,0px)+12px)] flex max-w-[calc(100%-84px)] flex-col gap-2 sm:left-4 sm:top-[calc(var(--ob-map-top,0px)+16px)] desk:top-4 desk:max-w-[calc(100%-520px)]">
-        {(() => {
-          const search = (
-            <SearchBox
-              inCard={!!searchSlot}
-              map={ready ? mapRef.current : null}
-              stations={stationsRef.current}
-              online={!offlineBasemap}
-              onStation={(id) => {
-                const s = stationsRef.current.find((x) => x.id === id);
-                if (!s) return;
-                setTrain(null);
-                openStationHub(s.id);
-              }}
-              onTextSearch={(q) => explorer.current?.search(q)}
-              onPlace={(p) => explorer.current?.show(p)}
-            />
-          );
-          return searchSlot ? createPortal(search, searchSlot) : search;
-        })()}
-        <Explorer ref={explorer} map={ready ? mapRef.current : null} userLoc={userLoc} />
-        {notice && (
-          <button className="ob-panel px-3 py-1.5 text-left text-xs text-amber-800" onClick={() => setNotice(null)}>
-            {notice}
-          </button>
-        )}
-      </div>
-
-      {/* top-right: controls, then the live status and train list. Phones get round Layers and Locate
-          buttons; Layers opens the panel. */}
-      <div className="absolute right-3 top-[calc(var(--ob-map-top,0px)+12px)] flex flex-col items-end gap-2 sm:right-4 sm:top-[calc(var(--ob-map-top,0px)+16px)]">
-        <div className="flex flex-col gap-2 desk:hidden">
-          <button
-            type="button"
-            aria-label="Map layers"
-            aria-expanded={controlsOpen}
-            onClick={() => setControlsOpen((o) => !o)}
-            className={`ob-panel flex size-12 items-center justify-center !rounded-full ${controlsOpen ? "!bg-[var(--ob-maroon)] !text-white" : "text-[var(--ob-ink)]"}`}
-          >
-            <Layers size={20} strokeWidth={2} aria-hidden />
-          </button>
-          <button
-            type="button"
-            aria-label="Show where I am"
-            onClick={() => {
-              if (userLoc) mapRef.current?.flyTo({ center: userLoc, zoom: Math.max(mapRef.current.getZoom(), 15), duration: 1200 });
-              else setNotice("Turn on location for Outbound to see where you are on the map.");
-            }}
-            className="ob-panel flex size-12 items-center justify-center !rounded-full text-[var(--ob-ink)]"
-          >
-            <LocateFixed size={20} strokeWidth={2} aria-hidden />
-          </button>
-        </div>
-        {/* Desktop: two columns (view on the left, layers on the right), as wide as the train list below. */}
-        <div className={`ob-panel w-[176px] flex-col gap-2 p-2.5 text-xs desk:flex desk:w-[460px] desk:flex-row desk:gap-4 desk:p-3.5 desk:text-[14px] ${controlsOpen ? "flex" : "hidden"}`}>
-          <div className="flex flex-col gap-2 desk:flex-1">
-            <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
-            {(GOOGLE_KEY || !offlineBasemap) && <Seg options={[["Illustrated", false], ["Realistic", true]]} value={realistic} onChange={setRealistic} />}
-            <p className="-mt-1 text-[11px] leading-snug text-[var(--ob-muted)]">Drag to move · right-drag to turn{is3D ? " and tilt" : ""} · right-click for directions</p>
-          </div>
-          <div className="flex flex-col gap-1 desk:flex-1">
-            <Toggle label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
-            <Toggle label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />
-            <Toggle label="Friends" on={show.friends} set={(v) => setShow({ ...show, friends: v })} />
-            <Toggle label="Delays" on={show.delays} set={(v) => setShow({ ...show, delays: v })} />
-            {show.delays && <Toggle label="Color lines by delay" on={delayColors} set={setDelayColors} small />}
-            <button
-              className="mt-1 rounded-lg bg-[var(--ob-maroon)] px-2 py-1.5 font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
-              onClick={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
-            >
-              {feedMode === "live" ? "Replay saved trains" : "Back to live"}
-            </button>
-          </div>
-        </div>
-        {/* Live status and the per-line train list, under the 3D/2D panel. */}
-        <div className="ob-panel flex w-[min(340px,calc(100vw-24px))] items-center justify-between gap-3 px-3 py-2 desk:w-[460px] desk:px-4 desk:py-2.5">
-          <button
-            type="button"
-            onClick={() => setShowService((v) => !v)}
-            aria-expanded={showService}
-            title="Every train running now, by line, and tonight's last trains"
-            className="flex items-center gap-1.5 text-left text-xs text-[var(--ob-ink-2)] desk:text-[14px]"
-          >
-            <span
-              className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white ${feedMode === "live" && lastUpdate ? "bg-emerald-600" : feedMode === "replay" ? "bg-sky-600" : "bg-amber-500"}`}
-              title={feedMode === "live" ? "Real MBTA positions" : "Not real-time: MBTA feed unreachable"}
-            >
-              {feedMode === "live" && lastUpdate ? "LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
-            </span>
-            {statusText}
-            <span className="ob-link ml-0.5 font-semibold text-[var(--ob-maroon)] underline-offset-2 hover:underline">{showService ? "Hide" : "Trains"}</span>
-          </button>
-          {weather && <WeatherChip w={weather} night={isNight} />}
-        </div>
-        {showService && (
-          <ServicePanel
+      {/* Overlays. Desktop: the map panel top left; the place card under the Explore card top right
+          (--ob-map-top is the card's bottom edge); zoom and locate bottom right; the Quest of the Week
+          bottom middle; Ask Guide bottom left. Nothing overlaps: each column stops above the corner
+          controls. Phones: one column under the Explore card (the wrapper is display: contents on desktop). */}
+      <div className="pointer-events-none absolute top-[calc(var(--ob-map-top,0px)+10px)] right-[64px] bottom-[150px] left-3 flex flex-col gap-2 desk:contents">
+        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 shrink-0 flex-col desk:absolute desk:top-4 desk:bottom-[100px] desk:left-4 desk:w-[clamp(380px,29vw,440px)] desk:shrink">
+          <MapPanel
+            collapsed={panelFolded}
+            setCollapsed={foldPanel}
+            is3D={is3D}
+            setIs3D={setIs3D}
+            realistic={realistic}
+            setRealistic={GOOGLE_KEY || !offlineBasemap ? setRealistic : null}
+            show={show}
+            setShow={setShow}
+            delayColors={delayColors}
+            setDelayColors={setDelayColors}
+            badge={feedMode === "live" && lastUpdate ? "LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
+            status={statusText}
+            replayLabel={feedMode === "live" ? "Replay" : "Live"}
+            onReplay={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
+            weather={weather ? <WeatherChip w={weather} night={isNight} /> : null}
             trains={trainList}
+            lateness={lateness?.lines ?? null}
             stationName={stationName}
             onTrain={(t) => mapRef.current?.flyTo({ center: [t.lon, t.lat], zoom: Math.max(mapRef.current.getZoom(), 15), duration: 1500 })}
           />
-        )}
+        </div>
+        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 flex-col gap-2 desk:absolute desk:top-[calc(var(--ob-map-top,0px)+12px)] desk:right-4 desk:bottom-[76px] desk:w-[clamp(380px,29vw,440px)]">
+          {(() => {
+            const search = (
+              <SearchBox
+                inCard={!!searchSlot}
+                map={ready ? mapRef.current : null}
+                stations={stationsRef.current}
+                online={!offlineBasemap}
+                onStation={(id) => {
+                  const s = stationsRef.current.find((x) => x.id === id);
+                  if (!s) return;
+                  setTrain(null);
+                  openStationHub(s.id);
+                }}
+                onTextSearch={(q) => explorer.current?.search(q)}
+                onPlace={(p) => explorer.current?.show(p)}
+              />
+            );
+            return searchSlot ? createPortal(search, searchSlot) : search;
+          })()}
+          <Explorer ref={explorer} map={ready ? mapRef.current : null} userLoc={userLoc} />
+          {notice && (
+            <button className="ob-panel px-3 py-2 text-left text-[13px] text-amber-800" onClick={() => setNotice(null)}>
+              {notice}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* right-click menu: directions to / from this point */}
@@ -1562,7 +1553,7 @@ export default function TransitMap() {
             setNotice("Turn on location for Outbound to see where you are. Showing BU for now.");
           }
         }}
-        className="ob-panel absolute right-3 bottom-[168px] hidden size-12 items-center justify-center !rounded-full text-[var(--ob-ink)] hover:text-[var(--ob-maroon)] sm:right-4 desk:flex"
+        className="ob-panel absolute right-[10px] bottom-[172px] flex size-11 items-center justify-center !rounded-full text-[var(--ob-ink)] hover:text-[var(--ob-maroon)] desk:right-[150px] desk:bottom-4"
       >
         <LocateFixed size={22} strokeWidth={2} aria-hidden />
       </button>
@@ -1702,31 +1693,6 @@ export default function TransitMap() {
   );
 }
 
-function Seg<T>({ options, value, onChange }: { options: [string, T][]; value: T; onChange: (v: T) => void }) {
-  return (
-    <div className="flex rounded-lg bg-[var(--ob-sand)] p-0.5">
-      {options.map(([label, v]) => (
-        <button
-          key={label}
-          onClick={() => onChange(v)}
-          className={`flex-1 rounded-md px-2 py-1 font-medium ${value === v ? "bg-white text-[var(--ob-ink)] shadow-sm" : "text-[var(--ob-muted)]"}`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Toggle({ label, on, set, small }: { label: string; on: boolean; set: (v: boolean) => void; small?: boolean }) {
-  return (
-    <label className={`flex cursor-pointer items-center justify-between gap-2 ${small ? "pl-3 text-[11px] text-[var(--ob-muted)]" : "text-[var(--ob-ink-2)]"}`}>
-      {label}
-      <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} className="accent-[var(--ob-maroon)]" />
-    </label>
-  );
-}
-
 function WeatherChip({ w, night }: { w: Weather; night: boolean }) {
   const Icon = { clear: night ? Moon : Sun, cloudy: w.cloud > 0.75 ? Cloud : CloudSun, fog: CloudFog, rain: CloudRain, snow: CloudSnow, storm: CloudLightning }[w.kind];
   const label = { clear: "Clear", cloudy: w.cloud > 0.75 ? "Cloudy" : "Partly cloudy", fog: "Fog", rain: "Rain", snow: "Snow", storm: "Storm" }[w.kind];
@@ -1808,6 +1774,7 @@ function toMapQuest(q: DbQuest, st: DbStation | undefined): Quest {
     qtype: q.type,
     price: q.price_tier,
     duration: q.duration_min,
+    hours: q.hours,
   };
 }
 
