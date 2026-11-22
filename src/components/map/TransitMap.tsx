@@ -60,6 +60,8 @@ interface StationData extends Pick<Station, "id" | "name" | "lat" | "lon"> {
   platforms: string[];
 }
 
+/** Span of the subway lines (from mbta-lines.geojson) with a little room around it. */
+const T_BOUNDS: [[number, number], [number, number]] = [[-71.275, 42.193], [-70.97, 42.452]];
 const VIEWS = {
   usa: { center: [-96.5, 39.2] as [number, number], zoom: 2.9, pitch: 0, bearing: 0 },
   mass: { center: [-71.55, 42.25] as [number, number], zoom: 7.6, pitch: 30, bearing: 0 },
@@ -146,6 +148,9 @@ export default function TransitMap() {
         pitch: 50,
         bearing: VIEWS.boston.bearing + 25,
         maxPitch: 85, // tilt almost to street level
+        // the map only covers the T network: Riverside/Alewife/Oak Grove/Wonderland/Braintree/Mattapan plus ~1.5 km
+        maxBounds: T_BOUNDS,
+        minZoom: 10,
         attributionControl: { compact: true },
         canvasContextAttributes: { antialias: true },
       });
