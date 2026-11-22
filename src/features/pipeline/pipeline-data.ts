@@ -1,6 +1,8 @@
 // What the Pipeline page shows: Outbound as one flow chart of six stages. Each stage opens to show
 // its steps, what to say about it in the demo, the tech, and the tracks it covers.
 
+import { Map as MapIcon, MapPin, PartyPopper, Sparkles, Ticket, TrainFront, type LucideIcon } from "lucide-react";
+
 export type StageId = "trains" | "app" | "guide" | "play" | "rewards" | "host";
 
 export interface Stage {
@@ -8,7 +10,7 @@ export interface Stage {
   title: string;
   short: string; // one line under the title in the chart
   color: string; // accent
-  emoji: string;
+  icon: LucideIcon; // drawn in the accent color
   say: string; // the demo line: what this part does, in plain words
   steps: { title: string; tech: string }[];
   tracks: string[];
@@ -21,7 +23,7 @@ export const STAGES: Stage[] = [
     title: "Live trains",
     short: "MBTA → Vultr → Tiger Data",
     color: "#00843d",
-    emoji: "🚇",
+    icon: TrainFront,
     say: "A tracker on Vultr reads every train from the MBTA every 15 seconds and stores it in Tiger Data, so we know where trains are and how late each line runs compared to normal.",
     steps: [
       { title: "MBTA V3 API", tech: "Train positions and predicted arrivals" },
@@ -37,7 +39,7 @@ export const STAGES: Stage[] = [
     title: "The map",
     short: "Next.js + MapLibre 3D, Supabase",
     color: "#6b1f33",
-    emoji: "🗺️",
+    icon: MapIcon,
     say: "Students sign in with their school email and see Boston in 3D with live trains, quests and every restaurant and place worth XP. Tap anything for a card with reviews, cost and every way to ride there.",
     steps: [
       { title: "Sign in", tech: "Supabase Auth, school email only" },
@@ -53,7 +55,7 @@ export const STAGES: Stage[] = [
     title: "AI Guide",
     short: "Grok + Mastra agents on Gemini",
     color: "#7c3aed",
-    emoji: "✨",
+    icon: Sparkles,
     say: "Ask anything or drop a photo. Grok sees the photo, then Mastra agents on Gemini decide if it's food or a place, find where to get it near the T, plan the ride, and write one answer card.",
     steps: [
       { title: "Photo checker", tech: "Grok vision (xAI)" },
@@ -70,7 +72,7 @@ export const STAGES: Stage[] = [
     title: "Check in & play",
     short: "Verified in the database",
     color: "#d97706",
-    emoji: "📍",
+    icon: MapPin,
     say: "When you get there, tap Check in. The database checks you're within 75 meters, then gives XP, a passport stamp, streaks and badges, and points for your school's weekly leaderboard.",
     steps: [
       { title: "Check in", tech: "Your location, or the QR code at an event" },
@@ -86,7 +88,7 @@ export const STAGES: Stage[] = [
     title: "Rewards",
     short: "OUT token on Solana",
     color: "#0e7490",
-    emoji: "🎟️",
+    icon: Ticket,
     say: "Every XP is worth 1 OUT, our token on Solana. Claim it to your Phantom wallet, then spend it for discount coupons at spots. It's on devnet, Solana's test network, so it's free to try.",
     steps: [
       { title: "Earn XP", tech: "Check-ins (above)" },
@@ -102,7 +104,7 @@ export const STAGES: Stage[] = [
     title: "Host an event",
     short: "Students put events on the map",
     color: "#db2777",
-    emoji: "🎉",
+    icon: PartyPopper,
     say: "Any student or club can publish an event: what it is, whether there's free food, and prizes. It shows up on everyone's map right away, so people from different schools actually meet.",
     steps: [
       { title: "Create an event", tech: "Host tab: type, description, food, prizes, time, T stop" },

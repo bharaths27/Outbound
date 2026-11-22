@@ -71,7 +71,7 @@ export function makeReportTool(quests: GuideQuest[]) {
 Use ONLY facts in the notes. picks: Outbound quests mentioned in the notes, ids copied exactly from the QUEST LIST.
 places: real spots from the food research that are not Outbound quests (keep their rating, price, open now, closest T).
 transit: the station to ride to, with the next train minutes and line delay if the notes have them, else null.
-steps: the trip in order, short. Keep the friendly voice of the notes. Never invent anything.
+steps: the trip in order, short. Keep the friendly voice of the notes, without emojis. Never invent anything.
 When WHERE IT IS is given: the title names that place, the summary says where in Boston it is and the clue from
 the photo, and the steps follow that route (closest T stop, line, walk).`,
           model: geminiModels(),

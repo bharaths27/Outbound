@@ -31,10 +31,10 @@ import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
 import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, LocateFixed, Moon, Star, Sun } from "lucide-react";
-import { createElement, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN, Trees as TreesN, Pizza as PizzaN, Coffee as CoffeeN, Check as CheckN } from "lucide";
+import { createElement, type IconNode, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN, Trees as TreesN, Pizza as PizzaN, Coffee as CoffeeN, Check as CheckN } from "lucide";
 
 const QUEST_NODES = { Landmark: LandmarkN, Waves: WavesN, Soup: SoupN, BookOpen: BookOpenN, Sunset: SunsetN, Trophy: TrophyN, Trees: TreesN, Pizza: PizzaN, Coffee: CoffeeN };
-const svgOf = (node: (typeof QUEST_NODES)[keyof typeof QUEST_NODES] | typeof CheckN, size: number) => {
+const svgOf = (node: IconNode, size: number) => {
   const el = createElement(node);
   el.setAttribute("width", String(size));
   el.setAttribute("height", String(size));
@@ -742,7 +742,7 @@ export default function TransitMap() {
       el.title = `${e.title} (${k.label})`;
       el.setAttribute("aria-label", `Student event: ${e.title}, ${k.label}, ${whenText(e)}${e.food === "free" ? ", free food" : ""}`);
       el.innerHTML =
-        `<span class="ob-hosted${live ? " ob-hosted-live" : ""}"><span class="ob-hosted-emoji">${k.emoji}</span><span class="ob-hosted-text"><b></b><small></small></span>` +
+        `<span class="ob-hosted${live ? " ob-hosted-live" : ""}"><span class="ob-hosted-icon">${svgOf(k.node, 16)}</span><span class="ob-hosted-text"><b></b><small></small></span>` +
         (e.food === "free" ? `<span class="ob-hosted-tag">Free food</span>` : e.food === "cheap" ? `<span class="ob-hosted-tag">Cheap eats</span>` : "") +
         `</span>`;
       el.querySelector("b")!.textContent = e.title; // user text: never innerHTML

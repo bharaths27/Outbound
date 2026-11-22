@@ -2,7 +2,7 @@
 // Outbound Rewards: earn OUT tokens on Solana devnet from your XP, then spend them on discounts.
 // Wallet and ledger logic: Bharath (backend). Look: the maroon/gold app style (DESIGN.md),
 // with the shell's title band, a gold balance card, and sample coupon cards.
-import { Check, ExternalLink, Loader2, Ticket, Wallet } from "lucide-react";
+import { Check, ExternalLink, Loader2, Ticket, TriangleAlert, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Connection, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
@@ -596,12 +596,12 @@ function SetupCheck() {
             <li key={label} className="flex items-start gap-3 px-4 py-3">
               <span
                 className={cn(
-                  "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-sm font-bold text-white",
+                  "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-white",
                   ok ? "bg-emerald-600" : "bg-amber-500",
                 )}
                 aria-label={ok ? "Ready" : "Missing"}
               >
-                {ok ? "✓" : "!"}
+                {ok ? <Check className="size-3.5" strokeWidth={3} aria-hidden /> : <TriangleAlert className="size-3.5" strokeWidth={2.5} aria-hidden />}
               </span>
               <span className="min-w-0">
                 <span className="block text-[15px] font-semibold text-ink">{label}</span>

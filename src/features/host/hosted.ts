@@ -1,17 +1,30 @@
 // Labels and small helpers for student-hosted events (010_hosted_events.sql). Shared by the Host
 // page and the map, so an event reads the same in both places.
 
+import { BookOpen, Hand, Music, PartyPopper, Pizza, Sparkles, Volleyball, Wrench, type LucideIcon } from "lucide-react";
+import {
+  type IconNode,
+  BookOpen as BookOpenNode,
+  Hand as HandNode,
+  Music as MusicNode,
+  PartyPopper as PartyPopperNode,
+  Pizza as PizzaNode,
+  Sparkles as SparklesNode,
+  Volleyball as VolleyballNode,
+  Wrench as WrenchNode,
+} from "lucide";
 import type { HostedEvent, HostedEventKind, HostedFood } from "@/lib/data/types";
 
-export const EVENT_KINDS: { id: HostedEventKind; label: string; emoji: string }[] = [
-  { id: "party", label: "Party", emoji: "🎉" },
-  { id: "social", label: "Social / mixer", emoji: "👋" },
-  { id: "food", label: "Food event", emoji: "🍕" },
-  { id: "study", label: "Study jam", emoji: "📚" },
-  { id: "sports", label: "Sports", emoji: "🏀" },
-  { id: "music", label: "Music / show", emoji: "🎵" },
-  { id: "workshop", label: "Workshop / talk", emoji: "🛠️" },
-  { id: "other", label: "Other", emoji: "✨" },
+// Each kind has a lucide icon: `icon` for React, `node` for the map's plain-DOM pins.
+export const EVENT_KINDS: { id: HostedEventKind; label: string; icon: LucideIcon; node: IconNode }[] = [
+  { id: "party", label: "Party", icon: PartyPopper, node: PartyPopperNode },
+  { id: "social", label: "Social / mixer", icon: Hand, node: HandNode },
+  { id: "food", label: "Food event", icon: Pizza, node: PizzaNode },
+  { id: "study", label: "Study jam", icon: BookOpen, node: BookOpenNode },
+  { id: "sports", label: "Sports", icon: Volleyball, node: VolleyballNode },
+  { id: "music", label: "Music / show", icon: Music, node: MusicNode },
+  { id: "workshop", label: "Workshop / talk", icon: Wrench, node: WrenchNode },
+  { id: "other", label: "Other", icon: Sparkles, node: SparklesNode },
 ];
 
 export const FOOD_OPTIONS: { id: HostedFood; label: string; spend: string }[] = [

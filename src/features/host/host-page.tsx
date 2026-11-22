@@ -5,7 +5,7 @@
 // shows on the map for everyone right away (TransitMap loads data.getHostedEvents()) and in the
 // list here. Signed-in players can publish; only the host can delete their own event.
 
-import { CalendarPlus, LocateFixed, MapPin, Sparkles, Trash2, X } from "lucide-react";
+import { CalendarPlus, LocateFixed, MapPin, Sparkles, Trash2, Trophy, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { data } from "@/lib/data";
@@ -261,7 +261,7 @@ export function HostPage() {
               <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Kind of event">
                 {EVENT_KINDS.map((k) => (
                   <Chip key={k.id} on={draft.kind === k.id} onClick={() => set("kind", k.id)}>
-                    <span aria-hidden>{k.emoji}</span> {k.label}
+                    <k.icon className="size-4 shrink-0" aria-hidden /> {k.label}
                   </Chip>
                 ))}
               </div>
@@ -412,8 +412,8 @@ export function HostPage() {
               const live = eventStatus(e, now) === "now";
               return (
                 <li key={e.id} className={`flex gap-3 rounded-2xl border bg-surface p-4 ${live ? "border-pink-500/60" : "border-border"}`}>
-                  <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-violet-100 text-3xl dark:bg-violet-950" aria-hidden>
-                    {k.emoji}
+                  <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-200" aria-hidden>
+                    <k.icon className="size-7" strokeWidth={1.75} />
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -434,7 +434,7 @@ export function HostPage() {
                       >
                         {f.label}
                       </span>
-                      {e.prizes && <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[13px] font-semibold text-violet-800">🏆 {e.prizes}</span>}
+                      {e.prizes && <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-[13px] font-semibold text-violet-800"><Trophy className="size-3.5 shrink-0" aria-hidden /> {e.prizes}</span>}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Link
