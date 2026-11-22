@@ -790,7 +790,7 @@ export default function TransitMap() {
         : `Sample trains · MBTA feed unreachable`;
 
   return (
-    <div className="fixed inset-0 bg-[#dfe9f3]">
+    <div className="absolute inset-0 bg-[#dfe9f3]">
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
       <WeatherFx weather={weather} active={loaded && is3D} />
       {/* top-left: brand, feed status, Tiger Data badges */}
