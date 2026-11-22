@@ -13,7 +13,7 @@ export interface Campus {
 export const CAMPUSES: Campus[] = [
   { name: "MIT", short: "MIT", color: "#A31F34", lng: -71.0946, lat: 42.3590 },
   { name: "Harvard University", short: "Harvard", color: "#A51C30", lng: -71.1162, lat: 42.3744 },
-  { name: "Boston University", short: "BU", color: "#CC0000", lng: -71.1033, lat: 42.3494 },
+  { name: "Boston University", short: "BU", color: "#CC0000", lng: -71.1091, lat: 42.3502 },
   { name: "Northeastern University", short: "Northeastern", color: "#C8102E", lng: -71.0886, lat: 42.3388 },
   { name: "Tufts University", short: "Tufts", color: "#3E8EDE", lng: -71.1185, lat: 42.4068 },
   { name: "Boston College", short: "BC", color: "#8A100B", lng: -71.1668, lat: 42.3379 },

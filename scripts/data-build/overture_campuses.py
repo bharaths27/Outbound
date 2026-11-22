@@ -26,17 +26,19 @@ SCHOOLS=[("Massachusetts Institute of Technology","MIT","MIT","#A31F34"),("Harva
 ("Tufts University","Tufts University","Tufts","#3E8EDE"),("University of Massachusetts Boston","UMass Boston","UMass Boston","#005A8B"),
 ("Simmons University","Simmons University","Simmons","#00205B")]
 import shapely
-def outline(g):
+# campuses spread along a main street get a wider join, so they still read as one area (BU along Comm Ave)
+JOIN = {"BU": 0.0025}
+def outline(g, j=0.0005):
     # group pieces closer than ~80 m into one area, wrap each group in one snug outline (no inner rings)
     parts=list(g.geoms) if isinstance(g,MultiPolygon) else [g]
     groups=[]
     for p in parts:
-        hit=[x for x in groups if x.distance(p)<0.001]
+        hit=[x for x in groups if x.distance(p)<max(0.001, j)]
         for x in hit: groups.remove(x)
         groups.append(unary_union(hit+[p]))
     out=[]
     for x in groups:
-        h=x.buffer(0.0005, join_style=2).buffer(-0.00045, join_style=2)  # close ~40 m gaps (streets) and keep the real edge
+        h=x.buffer(j, join_style=2).buffer(-j * 0.9, join_style=2)  # close ~40 m gaps (streets) and keep the real edge
         if isinstance(h,MultiPolygon): h=max(h.geoms,key=lambda q:q.area)
         out.append(Polygon(h.exterior).simplify(0.00003))
     big=max(p.area for p in out)
@@ -47,7 +49,7 @@ for src,name,short,color in SCHOOLS:
     if src: g=unary_union([gg.buffer(0) for c,n,gg in rows if n==src])
     else:
         from shapely.geometry import shape; g=shape(old[short]["geometry"]).buffer(0)
-    o=outline(g); b=o.bounds
+    o=outline(g, JOIN.get(short, 0.0005)); b=o.bounds
     print(short, o.geom_type, len(getattr(o,'geoms',[o])), [round(v,4) for v in b])
     feats.append({"type":"Feature","properties":{"name":name,"short":short,"color":color},"geometry":json.loads(json.dumps(mapping(o)))})
 def rnd(c): return [rnd(x) for x in c] if isinstance(c[0],(list,tuple)) else [round(c[0],5),round(c[1],5)]
