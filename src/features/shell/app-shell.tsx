@@ -72,7 +72,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
       )}
 
-      <main className="relative min-h-0 flex-1 overflow-y-auto">{children}</main>
+      {/* Bottom padding keeps the floating Ask Guide button off the last row of every page. */}
+      <main className="relative min-h-0 flex-1 overflow-y-auto pb-20">{children}</main>
 
       {/* Mobile tab bar */}
       <nav

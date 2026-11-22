@@ -309,7 +309,8 @@ function LiveRewards() {
       {checked && token && (
         <div className="flex flex-wrap items-start gap-6">
           <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-5">
-            {!mintAddr && <Notice>Rewards aren’t set up on this server yet (NEXT_PUBLIC_OUT_MINT is missing).</Notice>}
+            {/* Shown when NEXT_PUBLIC_OUT_MINT isn't set; the variable name isn't shown to players. */}
+            {!mintAddr && <Notice>Rewards aren’t available here yet. Check back soon.</Notice>}
 
             {/* Balance */}
             <section className="rounded-xl bg-maroon p-5 text-white">
