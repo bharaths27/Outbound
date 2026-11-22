@@ -33,6 +33,7 @@ interface PhantomProvider {
   connect: () => Promise<{ publicKey: PublicKey }>;
   disconnect: () => Promise<void>;
   signAndSendTransaction: (tx: Transaction) => Promise<{ signature: string }>;
+  signTransaction?: (tx: Transaction) => Promise<Transaction>;
 }
 interface Summary {
   earned: number;
@@ -63,6 +64,21 @@ const phantom = (): PhantomProvider | null => {
 };
 
 // Poll instead of using websockets (some campus networks block them). Up to ~30 s.
+/** Turn wallet and Solana errors into something a player can act on. */
+function friendlyRedeemError(e: unknown): string {
+  const msg = String((e as Error)?.message ?? e ?? "");
+  const logs = ((e as { logs?: string[] })?.logs ?? []).join(" ");
+  const all = `${msg} ${logs}`;
+  if (/reject|cancel|declined/i.test(all)) return "Redeem was cancelled.";
+  if (/blockhash not found|block height exceeded|expired/i.test(all))
+    return "Phantom waited too long, so Solana dropped the transaction. Nothing was spent. Tap Redeem again and confirm right away.";
+  if (/insufficient (funds|lamports)|0x1\b|no record of a prior credit/i.test(all))
+    return "Your wallet needs a little devnet SOL for the fee. Tap Redeem again (we top it up automatically).";
+  if (/unexpected error/i.test(all))
+    return "Phantom couldn't send it. Check that Phantom is on Solana Devnet (Settings → Developer Settings → Testnet mode), then try again. Nothing was spent.";
+  return msg.slice(0, 160) || "Redeem failed. Nothing was spent.";
+}
+
 async function waitForConfirm(conn: Connection, signature: string) {
   for (let i = 0; i < 30; i++) {
     const { value } = await conn.getSignatureStatuses([signature]);
@@ -227,6 +243,14 @@ function LiveRewards() {
     setBusy(`redeem-${tier.percent}`);
     setNote(null);
     try {
+      // A redeem costs a tiny devnet SOL fee; top the wallet up first if it's nearly empty.
+      if ((await conn.getBalance(wallet)) < 2_000_000) {
+        await fetch("/api/rewards/gas", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+          body: JSON.stringify({ wallet: wallet.toBase58() }),
+        });
+      }
       const mint = new PublicKey(mintAddr);
       const from = getAssociatedTokenAddressSync(mint, wallet, false, TOKEN_2022_PROGRAM_ID);
       const tx = new Transaction().add(
@@ -247,9 +271,16 @@ function LiveRewards() {
         }),
       );
       tx.feePayer = wallet;
-      const { blockhash } = await conn.getLatestBlockhash();
+      const { blockhash } = await conn.getLatestBlockhash("confirmed");
       tx.recentBlockhash = blockhash;
-      const { signature } = await p.signAndSendTransaction(tx);
+      // Phantom signs; we send it ourselves through our devnet RPC, so the error (if any) is a real one.
+      let signature: string;
+      if (p.signTransaction) {
+        const signed = await p.signTransaction(tx);
+        signature = await conn.sendRawTransaction(signed.serialize(), { preflightCommitment: "confirmed", maxRetries: 3 });
+      } else {
+        ({ signature } = await p.signAndSendTransaction(tx));
+      }
       await waitForConfirm(conn, signature);
       const res = await fetch("/api/rewards/redeem", {
         method: "POST",
@@ -278,10 +309,8 @@ function LiveRewards() {
         link: data.explorer,
       });
     } catch (e) {
-      setNote({
-        text: (e as Error).message?.slice(0, 160) || "Redeem was cancelled.",
-        error: true,
-      });
+      console.warn("[rewards] redeem failed:", e);
+      setNote({ text: friendlyRedeemError(e), error: true });
     } finally {
       setBusy(null);
       await Promise.all([refresh(), refreshBalance()]);

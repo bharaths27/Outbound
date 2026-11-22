@@ -15,6 +15,8 @@ export interface Located {
 }
 export interface Destination extends Located {
   why: string | null; // what in the photo gave the place away
+  /** false when the photo isn't Boston and this is the closest Boston match. */
+  inBoston?: boolean | null;
   station: { id: string; name: string; lines: string[]; walkMin: number } | null;
   ride: { minutes: number; from: string; steps: string[] } | null;
 }
@@ -23,6 +25,9 @@ export interface Destination extends Located {
 const LANDMARKS: [string[], string, number, number, string][] = [
   [["chinatown gate", "paifang", "chinatown arch", "friendship gate"], "Chinatown Gate", 42.35123, -71.05975, "Beach St & Surface Rd, Chinatown"],
   [["chinatown"], "Chinatown", 42.3505, -71.0618, "Chinatown, Boston"],
+  [["container port", "container terminal", "cargo port", "shipping containers", "container ship", "container ships", "conley terminal", "conley", "gantry cranes", "ship to shore cranes"], "Conley Terminal (Boston's container port)", 42.3398, -71.0306, "940 E 1st St, South Boston"],
+  [["cruise terminal", "cruise ship", "black falcon"], "Flynn Cruiseport Boston", 42.3432, -71.0345, "1 Black Falcon Ave, South Boston"],
+  [["beach", "carson beach", "l street beach"], "Carson Beach, South Boston", 42.3283, -71.0459, "William J Day Blvd, South Boston"],
   [["long wharf", "boston harbor", "boston harbour", "harbor", "harbour", "waterfront", "port of boston", "port"], "Long Wharf, Boston Harbor", 42.3606, -71.0493, "Long Wharf, Boston"],
   [["rowes wharf", "harborwalk", "harbor walk"], "Rowes Wharf Harborwalk", 42.3567, -71.0505, "Rowes Wharf, Boston"],
   [["new england aquarium", "aquarium"], "New England Aquarium", 42.3590, -71.0496, "1 Central Wharf, Boston"],

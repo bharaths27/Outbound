@@ -184,7 +184,17 @@ describe("Photo Decider", () => {
     expect(calls.trip).toBe(2);
     expect(report.kind).toBe("plan");
     expect(report.detected?.kind).toBe("location");
-    expect(report.destination?.name).toBe("Long Wharf, Boston Harbor");
+    expect(report.destination?.name).toBe("Conley Terminal (Boston's container port)");
+  });
+
+  it("a photo that isn't Boston says so and gives the closest Boston match, with quests near it", async () => {
+    grokPhoto = { ...PORT, category: "location", inBoston: false, placeGuess: "Conley Terminal, South Boston" };
+    deciderSays = { category: "location", reason: "port" };
+    tripFails = true; // backup plan path
+    const { report } = await run();
+    expect(report.destination?.inBoston).toBe(false);
+    expect(report.destination?.name).toContain("Conley Terminal");
+    expect(report.steps.length).toBeGreaterThan(0);
   });
 
   it("overrides Grok when Grok said food but it's a place", async () => {
@@ -239,7 +249,7 @@ describe("Photo Decider", () => {
 describe("decideByRules", async () => {
   const { decideByRules } = await import("./decider");
   const photo = (label: string, details = "", placeGuess: string | null = null) =>
-    ({ category: "other" as const, label, details, searchTerms: [], placeGuess, confidence: 0.8, by: "grok" as const });
+    ({ category: "other" as const, label, details, searchTerms: [], placeGuess, confidence: 0.8, inBoston: null, by: "grok" as const });
   it("sorts food from places", () => {
     expect(decideByRules(photo("tonkotsu ramen", "A bowl of noodles")).category).toBe("food");
     expect(decideByRules(photo("Chinatown dumplings")).category).toBe("food");
@@ -307,6 +317,7 @@ describe("geo helpers", async () => {
   it("finds landmarks from Grok's guess, most specific first", () => {
     expect(matchLandmark("Chinatown Gate, Chinatown")?.name).toBe("Chinatown Gate");
     expect(matchLandmark("a port with boats", "harbor")?.name).toBe("Long Wharf, Boston Harbor");
+    expect(matchLandmark("aerial view of a container port")?.name).toContain("Conley Terminal");
     expect(matchLandmark("somewhere sunny")).toBeNull();
   });
   it("reads JSON wrapped in fences or text", () => {

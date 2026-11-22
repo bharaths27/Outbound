@@ -441,3 +441,4 @@
 :root[data-theme="dark"] .text-maroon,
 :root[data-theme="dark"] .text-primary,
 :root[data-theme="dark"] .text-maroon-600 { color: #f4b4c3; }
+:root[data-theme="dark"] .ob-link { color: #f4b4c3 !important; }

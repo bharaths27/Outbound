@@ -15,6 +15,7 @@ import { CityBuildingsLayer, fetchBpdaManifest, fetchRegionManifest, inBpda, inR
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
 import SearchBox, { pointInRing } from "./SearchBox";
 import Explorer, { type ExplorerHandle } from "./Explorer";
+import ServicePanel from "./ServicePanel";
 import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
@@ -112,6 +113,8 @@ export default function TransitMap() {
   const [autoFallback, setAutoFallback] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
   const [trainCount, setTrainCount] = useState(0);
+  const [trainList, setTrainList] = useState<Train[]>([]);
+  const [showService, setShowService] = useState(false);
   const [lateness, setLateness] = useState<{ lines: LineLateness[]; sample: boolean } | null>(null);
   const [train, setTrain] = useState<TrainNow | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -705,6 +708,7 @@ export default function TransitMap() {
   const pushFrame = (trains: Train[], durationMs: number) => {
     animRef.current?.ingest(trains, durationMs);
     setTrainCount(trains.length);
+    setTrainList(trains);
     setLastUpdate(Date.now());
   };
 
@@ -848,7 +852,13 @@ export default function TransitMap() {
           push the overlays down with --ob-map-top (Explore's filter card sits above them). */}
       <div className="absolute left-3 top-[calc(var(--ob-map-top,0px)+12px)] flex max-w-[calc(100%-84px)] flex-col gap-2 sm:left-4 sm:top-[calc(var(--ob-map-top,0px)+16px)] desk:max-w-[calc(100%-224px)]">
         <div className="ob-panel flex items-center gap-3 px-3 py-2">
-          <span className="flex items-center gap-1.5 text-xs text-[var(--ob-ink-2)]">
+          <button
+            type="button"
+            onClick={() => setShowService((v) => !v)}
+            aria-expanded={showService}
+            title="Every train running now, by line, and tonight's last trains"
+            className="flex items-center gap-1.5 text-left text-xs text-[var(--ob-ink-2)]"
+          >
             <span
               className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white ${feedMode === "live" && lastUpdate ? "bg-emerald-600" : feedMode === "replay" ? "bg-sky-600" : "bg-amber-500"}`}
               title={feedMode === "live" ? "Real MBTA positions" : "Not real-time: MBTA feed unreachable"}
@@ -856,9 +866,17 @@ export default function TransitMap() {
               {feedMode === "live" && lastUpdate ? "LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
             </span>
             {statusText}
-          </span>
+            <span className="ob-link ml-0.5 font-semibold text-[var(--ob-maroon)] underline-offset-2 hover:underline">{showService ? "Hide" : "Trains"}</span>
+          </button>
           {weather && <WeatherChip w={weather} night={isNight} />}
         </div>
+        {showService && (
+          <ServicePanel
+            trains={trainList}
+            stationName={stationName}
+            onTrain={(t) => mapRef.current?.flyTo({ center: [t.lon, t.lat], zoom: Math.max(mapRef.current.getZoom(), 15), duration: 1500 })}
+          />
+        )}
         <SearchBox
           map={ready ? mapRef.current : null}
           stations={stationsRef.current}

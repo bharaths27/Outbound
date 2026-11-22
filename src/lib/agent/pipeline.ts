@@ -132,17 +132,28 @@ export function backupPlan(p: PhotoInfo, quests: GuideQuest[], dest?: Destinatio
   const found =
     (place && filterQuests(quests, { type, station: place.split(",")[0] }, 3)) ||
     [];
-  const picks = found.length ? found : filterQuests(quests, { type, keywords: words }, 3);
+  const near = dest
+    ? quests
+        .filter((q) => typeof q.lat === "number" && typeof q.lon === "number" && q.xp > 0)
+        .map((q) => ({ q, d: (q.lat! - dest.lat) ** 2 + ((q.lon! - dest.lng) * Math.cos((dest.lat * Math.PI) / 180)) ** 2 }))
+        .sort((a, b) => a.d - b.d)
+        .slice(0, 3)
+        .map(({ q }) => filterQuests([q], {}, 1)[0])
+        .filter(Boolean)
+    : [];
+  const picks = near.length ? near : found.length ? found : filterQuests(quests, { type, keywords: words }, 3);
   const list = picks.length ? picks : filterQuests(quests, { type }, 3);
   return [
     ...(dest
       ? [
-          `This looks like ${dest.name}${dest.address ? ` (${dest.address})` : ""}.${dest.why ? ` ${dest.why}` : ""}`,
+          dest.inBoston === false
+            ? `This photo isn't Boston. The closest Boston match is ${dest.name}${dest.address ? ` (${dest.address})` : ""}.`
+            : `This looks like ${dest.name}${dest.address ? ` (${dest.address})` : ""}.`,
           dest.station ? `Closest T stop: ${dest.station.name} on the ${dest.station.lines.join("/")} Line, ${dest.station.walkMin} min walk.` : "",
           dest.ride ? `From BU Central it's about ${dest.ride.minutes} min: ${dest.ride.steps.join("; ")}.` : "",
         ].filter(Boolean)
       : []),
-    `Here are Outbound quests that match ${p.label}:`,
+    dest ? `Outbound quests near there:` : `Here are Outbound quests that match ${p.label}:`,
     ...list.map((q) => `- ${q.title} (${q.id}) at ${q.station} on the ${q.lines.join("/")} line, ${q.price}, +${q.xp} XP`),
     `QUESTS: ${list.map((q) => q.id).join(", ")}`,
   ].join("\n");
@@ -156,8 +167,19 @@ export async function placeOnMap(report: FinalReport, dest: Destination | null, 
     const s = byName.get(key(pl.name)) ?? spots.find((x) => key(x.name).includes(key(pl.name)) || key(pl.name).includes(key(x.name)));
     return s ? { ...pl, lat: s.lat, lng: s.lng, address: s.address } : pl;
   });
-  if (dest) report.destination = dest;
-  else {
+  if (dest) {
+    report.destination = dest;
+    // The Report Writer was down (fallback report): write the headline from what we located.
+    if (/^Your (place|food) plan:/.test(report.title) || !report.summary) {
+      report.title = dest.inBoston === false ? `Closest Boston match: ${dest.name}` : `Trip to ${dest.name}`;
+      report.summary = [
+        dest.inBoston === false ? "This photo isn't Boston, so here's the closest Boston match." : `This looks like ${dest.name}.`,
+        dest.station ? `Closest T: ${dest.station.name} (${dest.station.lines.join("/")} Line), ${dest.station.walkMin} min walk.` : "",
+        dest.ride ? `About ${dest.ride.minutes} min from BU Central.` : "",
+      ].filter(Boolean).join(" ");
+    }
+    if (!report.steps.length && dest.ride) report.steps = dest.ride.steps.slice(0, 5);
+  } else {
     const spot = report.places.find((pl) => typeof pl.lat === "number");
     const quest = report.picks.find((q) => q.lat != null && q.lon != null);
     const target = spot
@@ -243,8 +265,9 @@ export function makePhotoWorkflow(ctx: Ctx) {
       const destination = await runStage(ctx, "where", async () => {
         const hit = await locate([p.placeGuess, p.label, inputData.note, p.searchTerms.join(" ")], ctx.origin);
         if (!hit) throw new Error(`couldn't pin "${p.placeGuess ?? p.label}" on the map`);
-        const d = await toDestination(hit, p.details || null, ctx.origin);
-        return { value: d, detail: d.station ? `${d.name} · closest T: ${d.station.name}` : d.name };
+        const d = { ...(await toDestination(hit, p.details || null, ctx.origin)), inBoston: p.inBoston };
+        const name = p.inBoston === false ? `not Boston; closest match ${d.name}` : d.name;
+        return { value: d, detail: d.station ? `${name} · closest T: ${d.station.name}` : name };
       }).catch(() => null);
       return {
         retry: false, photo: p, note: inputData.note, research: "", destination,

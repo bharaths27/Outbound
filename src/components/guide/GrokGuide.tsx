@@ -164,7 +164,7 @@ function ReportCard({ r, onRetryPhoto, onType, onRoute }: { r: FinalReport; onRe
         {d && (
           <div className="rounded-xl border border-maroon/30 bg-maroon/5 px-3 py-2.5">
             <p className="text-[11px] font-bold tracking-wide text-maroon uppercase">
-              {r.detected?.kind === "location" ? "Where this is" : "Where to go"}
+              {d.inBoston === false ? "Not Boston · closest Boston match" : r.detected?.kind === "location" ? "Where this is" : "Where to go"}
             </p>
             <p className="mt-0.5 flex items-start gap-1.5 font-semibold leading-tight">
               <MapPin className="mt-0.5 size-4 shrink-0 text-maroon" aria-hidden /> {d.name}

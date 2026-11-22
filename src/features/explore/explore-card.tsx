@@ -62,7 +62,7 @@ function Chip({
         <span className="truncate">{label}</span>
         <ChevronDown className="hidden size-4 shrink-0 desk:block" aria-hidden />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-52 rounded-xl p-1.5">
+      <DropdownMenuContent align="start" className="max-h-80 w-52 overflow-y-auto rounded-xl p-1.5">
         <DropdownMenuLabel className="type-eyebrow text-muted-foreground">{menuLabel}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
           {options.map((o) => (
