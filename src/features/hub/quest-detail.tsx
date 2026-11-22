@@ -77,6 +77,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
       questId={quest.id}
       title={quest.title}
       neighborhood={station.neighborhood}
+      stationId={quest.station_id}
       tier={tier ?? "bronze"}
       crossSchool={visit.cross_school}
       size={page ? 96 : 64}

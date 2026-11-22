@@ -392,6 +392,7 @@ function Neighborhood({ n }: { n: NeighborhoodView }) {
                 questId={e.quest.id}
                 title={e.quest.title}
                 neighborhood={n.neighborhood}
+                stationId={e.quest.station_id}
                 type={e.quest.type}
                 tier={n.tier}
                 crossSchool={e.crossSchool}
@@ -411,7 +412,7 @@ function Neighborhood({ n }: { n: NeighborhoodView }) {
               href={`/q/${q.id}`}
               className="group flex flex-col items-center gap-1.5 rounded-xl p-1 text-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              <Stamp questId={q.id} title={q.title} neighborhood={n.neighborhood} type={q.type} tier={n.tier} locked size={88} />
+              <Stamp questId={q.id} title={q.title} neighborhood={n.neighborhood} stationId={q.station_id} type={q.type} tier={n.tier} locked size={88} />
               <span className="type-small line-clamp-2 text-muted-foreground group-hover:underline">{q.title}</span>
             </Link>
           </li>

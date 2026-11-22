@@ -132,6 +132,7 @@ export function Celebration({ quest, result, prevTier, squadName, actions, rende
             questId={quest.id}
             title={quest.title}
             neighborhood={result.neighborhood}
+            stationId={quest.station_id}
             tier={result.tier}
             crossSchool={result.cross_school}
             size={128}
