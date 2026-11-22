@@ -37,27 +37,36 @@ export function LoginPage() {
       <section className="relative overflow-hidden bg-maroon px-6 pt-7 pb-[52px] text-white desk:flex desk:flex-1 desk:flex-col desk:px-14 desk:py-12">
         {/* eslint-disable-next-line @next/next/no-img-element -- static SVG wordmark */}
         <img src="/outbound-wordmark.svg" alt="Outbound" className="block h-[26px] w-auto self-start desk:h-8" />
-        {/* T-line art behind the stamp: Green, Orange and Red lines meeting at a gold hub (design handoff login). */}
-        <svg
+        {/* T-line art with the stamp over its gold hub (design handoff login), centered in the panel just above
+            the headline. The hub sits at x=405 of the 640 px art, so the art is shifted to put it at the centre. */}
+        <div
           aria-hidden
-          viewBox="0 0 600 420"
-          preserveAspectRatio="xMidYMid slice"
-          className="pointer-events-none absolute top-[90px] right-[-40px] hidden h-[440px] w-[640px] opacity-90 desk:block"
+          className="pointer-events-none relative mt-auto mb-6 hidden h-[440px] desk:block [@media(max-height:820px)]:h-[330px]"
         >
-          <g fill="none" strokeWidth={12} strokeLinecap="round">
-            <path d="M-20 300 C140 290 280 250 380 230 S560 200 640 190" stroke="#00843D" />
-            <path d="M220 -20 C250 100 320 190 380 230 S420 360 400 460" stroke="#ED8B00" />
-            <path d="M560 -20 L470 120 L430 180 L420 300 L450 460" stroke="#DA291C" />
-          </g>
-          <circle cx="380" cy="230" r="20" fill="#F2C14E" stroke="#FFFFFF" strokeWidth={7} />
-          <circle cx="120" cy="293" r="11" fill="#FFFFFF" stroke="#00843D" strokeWidth={6} />
-          <circle cx="430" cy="180" r="11" fill="#FFFFFF" stroke="#DA291C" strokeWidth={6} />
-          <circle cx="300" cy="140" r="11" fill="#FFFFFF" stroke="#ED8B00" strokeWidth={6} />
-        </svg>
-        <div aria-hidden className="pointer-events-none absolute top-[150px] right-[120px] hidden rotate-[-8deg] rounded-full bg-page shadow-[0_12px_30px_rgb(0_0_0/0.25)] desk:block">
-          <Stamp questId="login-hero" title="Kenmore" neighborhood="Fenway-Kenmore" stationId="place-kencl" type="scenic" tier="gold" size={150} />
+          {/* Shrinks on short screens so it never runs into the wordmark or pushes the copy off screen. */}
+          <div className="absolute inset-x-0 bottom-0 h-[440px] origin-bottom [@media(max-height:820px)]:scale-75">
+            <svg
+              aria-hidden
+              viewBox="0 0 600 420"
+              preserveAspectRatio="xMidYMid slice"
+              className="absolute top-0 left-[calc(50%-405px)] h-[440px] w-[640px] max-w-none opacity-90"
+            >
+              <g fill="none" strokeWidth={12} strokeLinecap="round">
+                <path d="M-20 300 C140 290 280 250 380 230 S560 200 640 190" stroke="#00843D" />
+                <path d="M220 -20 C250 100 320 190 380 230 S420 360 400 460" stroke="#ED8B00" />
+                <path d="M560 -20 L470 120 L430 180 L420 300 L450 460" stroke="#DA291C" />
+              </g>
+              <circle cx="380" cy="230" r="20" fill="#F2C14E" stroke="#FFFFFF" strokeWidth={7} />
+              <circle cx="120" cy="293" r="11" fill="#FFFFFF" stroke="#00843D" strokeWidth={6} />
+              <circle cx="430" cy="180" r="11" fill="#FFFFFF" stroke="#DA291C" strokeWidth={6} />
+              <circle cx="300" cy="140" r="11" fill="#FFFFFF" stroke="#ED8B00" strokeWidth={6} />
+            </svg>
+            <div className="absolute top-[60px] left-1/2 -ml-[75px] rotate-[-8deg] rounded-full bg-page shadow-[0_12px_30px_rgb(0_0_0/0.25)]">
+              <Stamp questId="login-hero" title="Kenmore" neighborhood="Fenway-Kenmore" stationId="place-kencl" type="scenic" tier="gold" size={150} />
+            </div>
+          </div>
         </div>
-        <div className="relative desk:mt-auto">
+        <div className="relative">
           <h1 className="mt-[22px] font-display text-[30px] leading-[1.1] font-semibold text-gold desk:mt-0 desk:text-[56px] desk:leading-[1.05]">
             Explore Boston via T
           </h1>
