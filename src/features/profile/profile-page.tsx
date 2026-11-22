@@ -15,6 +15,7 @@ import { Stamp } from "@/features/passport/stamp";
 import { privacyLabel } from "@/features/settings/privacy-choice";
 import { data } from "@/lib/data";
 import type { Profile, School, SquadWithMembers, Tier } from "@/lib/data/types";
+import { PlayerAvatar } from "@/features/shell/shell-parts";
 import { PageHeader } from "@/features/shell/page-header";
 
 type Ready = {
@@ -103,33 +104,53 @@ function ProfileView({ load, onSignOut }: { load: Ready; onSignOut: () => void }
   return (
     <>
       <header className="flex items-center gap-4">
-        <Avatar
-          size="lg"
-          className="size-20 ring-3 ring-offset-2 ring-offset-background"
-          // School colors appear only as small marks, like this ring (DESIGN.md).
-          style={{ ["--tw-ring-color" as string]: school?.color ?? "var(--border)" }}
-        >
-          {profile.avatar_url && <AvatarImage src={profile.avatar_url} alt="" />}
-          <AvatarFallback className="type-title">{initials(profile.display_name)}</AvatarFallback>
-        </Avatar>
+        {profile.avatar_url ? (
+          <Avatar
+            size="lg"
+            className="size-20 ring-3 ring-offset-2 ring-offset-background"
+            // School colors appear only as small marks, like this ring (DESIGN.md).
+            style={{ ["--tw-ring-color" as string]: school?.color ?? "var(--border)" }}
+          >
+            <AvatarImage src={profile.avatar_url} alt="" />
+            <AvatarFallback className="type-title">{initials(profile.display_name)}</AvatarFallback>
+          </Avatar>
+        ) : (
+          <PlayerAvatar player={{ profile, school: school ?? null }} size={76} />
+        )}
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="type-title truncate">{profile.display_name ?? "New player"}</h2>
           <p className="type-body text-muted-foreground">{school?.name ?? "Your school"}</p>
-          {profile.is_demo && <p className="type-small text-muted-foreground">Demo account</p>}
+          {profile.is_demo && (
+            <span className="mt-0.5 w-fit rounded-full bg-sample px-2 py-0.5 text-[11px] font-bold tracking-wide text-sample-foreground uppercase">
+              Demo account
+            </span>
+          )}
         </div>
       </header>
 
-      <section aria-label="Level" className="flex items-end justify-between gap-3 rounded-xl bg-muted p-4">
-        <div className="flex flex-col">
-          <p className="type-small text-muted-foreground">Level</p>
-          <p className="type-display tabular-nums">{profile.level}</p>
-        </div>
-        <div className="flex flex-col items-end">
-          <p className="type-heading text-xp tabular-nums">{profile.xp.toLocaleString("en-US")} XP</p>
-          <p className="type-small text-muted-foreground tabular-nums">
-            {profile.xp_to_next_level} XP to level {profile.level + 1}
+      <section aria-label="Level" className="rounded-xl border border-border bg-surface p-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="font-display text-xl font-semibold text-maroon">Lv. {profile.level} Explorer</p>
+          <p className="shrink-0 rounded-full bg-gold px-2.5 py-0.5 text-sm font-bold text-gold-foreground tabular-nums">
+            {profile.xp.toLocaleString("en-US")} XP
           </p>
         </div>
+        <div
+          role="progressbar"
+          aria-label={`Progress to level ${profile.level + 1}`}
+          aria-valuemin={0}
+          aria-valuemax={250}
+          aria-valuenow={250 - profile.xp_to_next_level}
+          className="mt-3 h-2.5 overflow-hidden rounded-full bg-sand"
+        >
+          <div
+            className="h-full rounded-full bg-gold-500"
+            style={{ width: `${Math.max(0, Math.min(100, ((250 - profile.xp_to_next_level) / 250) * 100))}%` }}
+          />
+        </div>
+        <p className="mt-1.5 text-[13px] text-muted-foreground tabular-nums">
+          {profile.xp_to_next_level} XP to level {profile.level + 1}
+        </p>
       </section>
 
       <section aria-labelledby="stamps-heading" className="flex flex-col gap-3">
@@ -137,7 +158,7 @@ function ProfileView({ load, onSignOut }: { load: Ready; onSignOut: () => void }
           <h2 id="stamps-heading" className="type-heading">
             Latest stamps <span className="type-small text-muted-foreground tabular-nums">· {stampCount} total</span>
           </h2>
-          <Link href="/passport" className="type-small text-accent underline-offset-4 hover:underline">
+          <Link href="/passport" className="type-small font-semibold text-maroon underline-offset-4 hover:underline">
             Your passport
           </Link>
         </div>
@@ -170,16 +191,16 @@ function ProfileView({ load, onSignOut }: { load: Ready; onSignOut: () => void }
           <h2 id="squads-heading" className="type-heading">
             Your squads
           </h2>
-          <Link href="/leaderboard?tab=squads" className="type-small text-accent underline-offset-4 hover:underline">
+          <Link href="/leaderboard?tab=squads" className="type-small font-semibold text-maroon underline-offset-4 hover:underline">
             Manage
           </Link>
         </div>
         {squads.length === 0 ? (
-          <p className="type-body text-muted-foreground">Not in a squad yet. Start one from Compete.</p>
+          <p className="type-body text-muted-foreground">Not in a squad yet. Start one from the Leaderboard.</p>
         ) : (
           <ul className="flex flex-wrap gap-2">
             {squads.map((s) => (
-              <li key={s.id} className="type-small rounded-full border px-3 py-1.5">
+              <li key={s.id} className="type-small rounded-full border border-border bg-surface px-3 py-1.5 font-semibold">
                 {squadName(s)} <span className="text-muted-foreground tabular-nums">· {s.members.length}</span>
               </li>
             ))}

@@ -300,7 +300,7 @@ function ListSkeleton() {
   return (
     <ul className="grid grid-cols-1 gap-2.5 desk:grid-cols-[repeat(auto-fill,minmax(min(100%,360px),1fr))]" aria-hidden>
       {Array.from({ length: DAILY_COUNT }, (_, i) => (
-        <li key={i} className="h-[86px] animate-pulse rounded-[18px] border border-border bg-surface desk:h-[106px]" />
+        <li key={i} className="h-[86px] animate-pulse rounded-[18px] bg-sand motion-reduce:animate-none desk:h-[106px] desk:rounded-xl" />
       ))}
     </ul>
   );
