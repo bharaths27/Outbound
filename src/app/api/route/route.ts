@@ -1,7 +1,22 @@
 // GET /api/route?from=42.36,-71.09&to=42.346,-71.097 -> directions by T + walking (Google Routes API, transit)
 // { minutes, distanceKm, path: [[lng,lat]...], steps: [{ mode, text, minutes, line?, color?, from?, to?, stops? }] }
 // Falls back to a walking route if there is no transit option. Env: GOOGLE_MAPS_KEY or NEXT_PUBLIC_GOOGLE_MAPS_KEY.
+// ?engine=outbound forces our own routing; &name= labels the last walk step.
+// With no Google key (or when Google fails) we route on our own MBTA track data instead (src/lib/transit-route.ts).
+import { loadGraph, planRoute } from "@/lib/transit-route";
+
 export const dynamic = "force-dynamic";
+
+async function ourRoute(req: Request, from: string, to: string, name?: string | null) {
+  const p = (s: string) => {
+    const [lat, lng] = s.split(",").map(Number);
+    return [lng, lat] as [number, number];
+  };
+  const a = p(from), b = p(to);
+  if (![...a, ...b].every(Number.isFinite)) return Response.json({ error: "from and to must be lat,lng" }, { status: 400 });
+  const g = await loadGraph(new URL(req.url).origin);
+  return Response.json(planRoute(g, a, b, name || undefined));
+}
 
 const KEY = process.env.GOOGLE_MAPS_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "";
 
@@ -48,10 +63,16 @@ async function compute(from: string, to: string, mode: "TRANSIT" | "WALK") {
 }
 
 export async function GET(req: Request) {
-  if (!KEY) return Response.json({ disabled: true });
   const u = new URL(req.url);
-  const from = u.searchParams.get("from"), to = u.searchParams.get("to");
+  const from = u.searchParams.get("from"), to = u.searchParams.get("to"), name = u.searchParams.get("name");
   if (!from || !to) return Response.json({ error: "from and to are required" }, { status: 400 });
+  if (!KEY || u.searchParams.get("engine") === "outbound") {
+    try {
+      return await ourRoute(req, from, to, name);
+    } catch (e) {
+      return Response.json({ error: String((e as Error).message ?? e) }, { status: 502 });
+    }
+  }
   try {
     const route = (await compute(from, to, "TRANSIT")) ?? (await compute(from, to, "WALK"));
     if (!route) return Response.json({ error: "No route found" }, { status: 404 });
@@ -98,6 +119,11 @@ export async function GET(req: Request) {
       steps,
     });
   } catch (e) {
-    return Response.json({ error: String((e as Error).message ?? e) }, { status: 502 });
+    console.warn("[route] Google Routes failed, using our own T routing:", (e as Error).message);
+    try {
+      return await ourRoute(req, from, to, name);
+    } catch {
+      return Response.json({ error: String((e as Error).message ?? e) }, { status: 502 });
+    }
   }
 }

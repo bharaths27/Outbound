@@ -592,6 +592,27 @@ export default function TransitMap() {
     } else meMarker.current.setLngLat(userLoc);
   }, [ready, userLoc]);
 
+  // The Outbound Guide's "Show route on map": ?go=lat,lng&name=... when coming from another page,
+  // or an "outbound:go" event when the map is already open. Draws the T + walking route there.
+  useEffect(() => {
+    if (!ready) return;
+    const go = (t: { name: string; lat: number; lng: number }) => {
+      if (Number.isFinite(t.lat) && Number.isFinite(t.lng)) explorer.current?.navigate(t);
+    };
+    const qs = new URLSearchParams(window.location.search);
+    const at = qs.get("go")?.split(",").map(Number);
+    if (at?.length === 2) {
+      // wait a frame so the Explorer has the map
+      requestAnimationFrame(() => go({ name: qs.get("name") || "Your destination", lat: at[0], lng: at[1] }));
+      qs.delete("go");
+      qs.delete("name");
+      window.history.replaceState(null, "", `${window.location.pathname}${qs.size ? `?${qs}` : ""}`);
+    }
+    const onGo = (e: Event) => go((e as CustomEvent<{ name: string; lat: number; lng: number }>).detail);
+    window.addEventListener("outbound:go", onGo);
+    return () => window.removeEventListener("outbound:go", onGo);
+  }, [ready]);
+
   // ---------- illustrated / realistic ----------
   useEffect(() => {
     if (!ready) return;

@@ -44,7 +44,10 @@ interface Route {
 export interface ExplorerHandle {
   search: (q: string) => void;
   show: (p: Place) => void;
+  /** Open a place card and draw the route there (from you, or from BU Central if we don't know where you are). */
+  navigate: (t: { name: string; lat: number; lng: number; address?: string }) => void;
 }
+const BU_CENTRAL: [number, number] = [-71.107037, 42.350049];
 
 type IconC = typeof MapPin;
 const CRAVINGS: [string, IconC | null, string[], IconNode | null][] = [
@@ -82,6 +85,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
   const [place, setPlace] = useState<Place | null>(null);
   const [route, setRoute] = useState<Route | null>(null);
   const [routing, setRouting] = useState(false);
+  const [fromLabel, setFromLabel] = useState("from the map center");
   const pins = useRef<maplibregl.Marker[]>([]);
 
   const filtered = useMemo(() => {
@@ -98,6 +102,17 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
       setPlace(p);
       setRoute(null);
       map?.flyTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 16.2), pitch: map.getPitch(), duration: 1800 });
+    },
+    navigate: (t) => {
+      const p: Place = {
+        id: `guide-${t.lat},${t.lng}`, name: t.name, address: t.address ?? "", lng: t.lng, lat: t.lat,
+        types: [], category: "From the Outbound Guide", rating: null, ratings: 0, price: null, openNow: null, url: null,
+      };
+      setQuery(null);
+      setResults(null);
+      setPlace(p);
+      setRoute(null);
+      void directions(p, userLoc ?? BU_CENTRAL, userLoc ? "from you" : "from BU Central");
     },
   }));
 
@@ -165,13 +180,14 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
     }
   }, [map, route]);
 
-  async function directions(p: Place) {
+  async function directions(p: Place, start?: [number, number], label?: string) {
     if (!map) return;
-    const from = userLoc ?? [map.getCenter().lng, map.getCenter().lat];
+    const from = start ?? userLoc ?? [map.getCenter().lng, map.getCenter().lat];
+    setFromLabel(label ?? (userLoc ? "from you" : "from the map center"));
     setRouting(true);
     setError(null);
     try {
-      const r = await fetch(`/api/route?from=${from[1]},${from[0]}&to=${p.lat},${p.lng}`);
+      const r = await fetch(`/api/route?from=${from[1]},${from[0]}&to=${p.lat},${p.lng}&name=${encodeURIComponent(p.name)}`);
       const j = await r.json();
       if (j.disabled) throw new Error("Directions need the Google key (works in the app, not the artifact).");
       if (!r.ok) throw new Error(j.error ?? "No route found");
@@ -282,7 +298,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
           {route && (
             <div className="mt-3">
               <div className="text-xs font-medium text-slate-900">
-                {route.minutes} min · {route.distanceKm} km {userLoc ? "from you" : "from the map center"}
+                {route.minutes} min · {route.distanceKm} km {fromLabel}
               </div>
               <ol className="mt-1.5 flex flex-col gap-1.5">
                 {route.steps.map((s, i) => (

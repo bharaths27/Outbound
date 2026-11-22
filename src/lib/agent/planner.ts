@@ -6,6 +6,7 @@ import { createTool } from "@mastra/core/tools";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { destinationBrief, locate, toDestination, type Destination } from "./geo";
 import { bostonNow, type GuideQuest } from "@/lib/guide";
 
 export const AGENT_MODEL = process.env.MASTRA_MODEL || "gemini-2.5-flash";
@@ -25,7 +26,7 @@ export function geminiModels() {
 }
 const PRICE = ["free", "under $10", "$10-25", "splurge"];
 const QUEST_FIELDS =
-  "id,title,type,description,price_tier,vibe_tags,hours,xp,duration_min,walk_min,station_id,stations(name,lines,neighborhood)";
+  "id,title,type,description,price_tier,vibe_tags,hours,xp,duration_min,walk_min,station_id,lat,lon,stations(name,lines,neighborhood)";
 
 // Quests are public data, so the publishable key is enough. Cached for 5 minutes.
 let cache: { at: number; quests: GuideQuest[] } | null = null;
@@ -92,7 +93,8 @@ async function getJson(url: string) {
 }
 
 /** Tools are built per request so they can call this deployment's own APIs. */
-export function makeTools(origin: string) {
+/** `located` collects places the locatePlace tool found, so the app can put them on the map. */
+export function makeTools(origin: string, located: Destination[] = []) {
   const searchQuests = createTool({
     id: "searchQuests",
     description:
@@ -133,10 +135,24 @@ export function makeTools(origin: string) {
     },
   });
 
-  return { searchQuests, nextTrains, lineDelays };
+  const locatePlace = createTool({
+    id: "locatePlace",
+    description:
+      "Find where a Boston place is (landmark, street, neighborhood or business): address, coordinates, the closest T stop and the ride there from BU Central.",
+    inputSchema: z.object({ place: z.string().describe("e.g. 'Chinatown Gate' or 'Long Wharf, Boston Harbor'") }),
+    execute: async ({ place }) => {
+      const hit = await locate([place], origin);
+      if (!hit) return { found: false, note: `Couldn't find ${place} in Boston.` };
+      const d = await toDestination(hit, null, origin);
+      located.push(d);
+      return { found: true, about: destinationBrief(d) };
+    },
+  });
+
+  return { searchQuests, nextTrains, lineDelays, locatePlace };
 }
 
-export function makePlanner(origin: string) {
+export function makePlanner(origin: string, located: Destination[] = []) {
   return new Agent({
     id: "outbound-trip-planner",
     name: "Outbound Trip Planner",
@@ -148,9 +164,13 @@ open at the current time (check the hours); 3) call nextTrains for the station o
 lineDelays and mention a delay only if that line is late.
 Reply in at most 5 short sentences: where to go, which line and how soon the next train is, and the XP.
 Never invent places, prices, times or quests. If nothing fits, say so and suggest the closest quest.
+When the brief has a DESTINATION (a place from a photo), the trip goes THERE: first say where in Boston it is and
+which clue in the photo shows it, then the closest T stop and the ride (use the route given), call nextTrains with
+that stop's station id, and add 1 or 2 Outbound quests at or near that stop as bonus XP (searchQuests by station).
+If the student names a place and there is no DESTINATION, call locatePlace first.
 End with one last line exactly like: QUESTS: id1, id2`,
     model: geminiModels(),
-    tools: makeTools(origin),
+    tools: makeTools(origin, located),
   });
 }
 

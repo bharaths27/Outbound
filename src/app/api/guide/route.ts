@@ -22,11 +22,11 @@ export const maxDuration = 60;
 const IMAGE_RE = /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/;
 const MAX_IMAGE_CHARS = 4_000_000; // ~3 MB of base64; Vercel's request limit is 4.5 MB
 
-function photoDown(): FinalReport {
+function photoDown(reason: string): FinalReport {
   return {
     kind: "retry", detected: null, title: "I couldn't look at that photo just now",
     summary: "Try the photo again in a moment, or type what you're craving and I'll find a quest.",
-    steps: [], picks: [], places: [], transit: null, tips: [],
+    steps: [], picks: [], places: [], transit: null, tips: [], debug: reason.slice(0, 300),
   };
 }
 
@@ -52,7 +52,7 @@ async function answer(origin: string, message: string, history: GuideTurn[], ima
   } catch (e) {
     console.warn("[guide] pipeline failed, using fallback:", (e as Error).message);
     source = "fallback";
-    if (image) report = photoDown();
+    if (image) report = photoDown((e as Error).message);
     else {
       const fb = fallbackGuide(message, quests);
       report = fallbackReport(fb.reply, fb.quests.map((q) => q.id), quests, null);

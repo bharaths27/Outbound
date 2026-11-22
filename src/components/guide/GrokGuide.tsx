@@ -4,15 +4,15 @@
 // structures every answer. Progress streams in from /api/guide as each agent works.
 // It can be put away (minimized) without losing the chat. Drop <GrokGuide /> anywhere.
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import {
-  ArrowUp, Camera, Check, ChevronDown, Clock, ImagePlus, Keyboard, Lightbulb, Loader2, MapPin, RotateCcw,
-  Sparkles, Star, TrainFront, TriangleAlert, Utensils, X,
+  ArrowUp, Camera, Check, ChevronDown, Clock, ImagePlus, Keyboard, Lightbulb, Loader2, MapPin, Navigation, RotateCcw,
+  Search, Sparkles, Star, TrainFront, TriangleAlert, Utensils, X,
 } from "lucide-react";
 import type { FinalReport } from "@/lib/agent/report";
 
-type StageId = "vision" | "food" | "trip" | "grok" | "report";
+type StageId = "vision" | "where" | "food" | "trip" | "grok" | "report";
 type StageStatus = "running" | "done" | "skipped" | "error";
 interface Stage {
   stage: StageId;
@@ -29,12 +29,13 @@ interface Msg {
 
 const STAGE_TEXT: Record<StageId, { label: string; who: string }> = {
   vision: { label: "Looking at your photo", who: "Grok" },
+  where: { label: "Finding where it is in Boston", who: "Trip Planner" },
   food: { label: "Researching food spots", who: "Food Researcher · Mastra" },
   trip: { label: "Planning your ride", who: "Trip Planner · Mastra" },
   grok: { label: "Finding quests", who: "Grok" },
   report: { label: "Writing your plan", who: "Report tool" },
 };
-const PHOTO_FLOW: StageId[] = ["vision", "food", "trip", "report"];
+const PHOTO_FLOW: StageId[] = ["vision", "where", "food", "trip", "report"];
 const TEXT_FLOW: StageId[] = ["grok", "report"];
 const PRICE = ["Free", "$", "$$", "$$$"];
 const STARTERS = ["Cheap eats open now", "Photo spot on the Green Line", "Date night, about 2 hours"];
@@ -84,6 +85,8 @@ function StageList({ stages, photo }: { stages: Stage[]; photo: boolean }) {
               <span className="font-semibold">{STAGE_TEXT[id].label}</span>
               <span className="text-muted-foreground"> · {STAGE_TEXT[id].who}</span>
               {s?.detail && status === "done" && id === "vision" && <span className="block text-muted-foreground">Saw: {s.detail}</span>}
+              {s?.detail && status === "done" && id === "where" && <span className="block text-muted-foreground">Found: {s.detail}</span>}
+              {s?.detail && status === "error" && <span className="block break-words text-[11px] text-danger">{s.detail}</span>}
             </span>
           </li>
         );
@@ -92,7 +95,34 @@ function StageList({ stages, photo }: { stages: Stage[]; photo: boolean }) {
   );
 }
 
-function ReportCard({ r, onRetryPhoto, onType }: { r: FinalReport; onRetryPhoto: () => void; onType: () => void }) {
+export interface MapTarget {
+  name: string;
+  lat: number;
+  lng: number;
+}
+
+function RouteButton({ t, onRoute, big }: { t: MapTarget; onRoute: (t: MapTarget) => void; big?: boolean }) {
+  return big ? (
+    <button
+      onClick={() => onRoute(t)}
+      className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-maroon px-3 py-2 text-[13px] font-semibold text-white hover:bg-maroon-600"
+    >
+      <Navigation className="size-4" aria-hidden /> Show route on map
+    </button>
+  ) : (
+    <button
+      onClick={() => onRoute(t)}
+      aria-label={`Show the route to ${t.name} on the map`}
+      title="Show route on map"
+      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-white px-2.5 py-1 text-[11px] font-semibold text-maroon hover:border-maroon"
+    >
+      <Navigation className="size-3" aria-hidden /> Route
+    </button>
+  );
+}
+
+function ReportCard({ r, onRetryPhoto, onType, onRoute }: { r: FinalReport; onRetryPhoto: () => void; onType: () => void; onRoute: (t: MapTarget) => void }) {
+  const d = r.destination;
   if (r.kind === "retry") {
     return (
       <div className="rounded-2xl border border-gold-500/60 bg-gold/15 p-3.5">
@@ -100,6 +130,7 @@ function ReportCard({ r, onRetryPhoto, onType }: { r: FinalReport; onRetryPhoto:
           <TriangleAlert className="size-4 text-gold-600" aria-hidden /> {r.title}
         </p>
         <p className="mt-1 text-[13px] leading-snug">{r.summary}</p>
+        {r.debug && <p className="mt-1.5 break-words text-[11px] text-muted-foreground">Why: {r.debug}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
           <button onClick={onRetryPhoto} className="inline-flex items-center gap-1.5 rounded-full bg-maroon px-3 py-1.5 text-xs font-semibold text-white hover:bg-maroon-600">
             <Camera className="size-3.5" aria-hidden /> Try another photo
@@ -125,6 +156,32 @@ function ReportCard({ r, onRetryPhoto, onType }: { r: FinalReport; onRetryPhoto:
       </div>
 
       <div className="space-y-3 px-3.5 py-3">
+        {d && (
+          <div className="rounded-xl border border-maroon/30 bg-maroon/5 px-3 py-2.5">
+            <p className="text-[11px] font-bold tracking-wide text-maroon uppercase">
+              {r.detected?.kind === "location" ? "Where this is" : "Where to go"}
+            </p>
+            <p className="mt-0.5 flex items-start gap-1.5 font-semibold leading-tight">
+              <MapPin className="mt-0.5 size-4 shrink-0 text-maroon" aria-hidden /> {d.name}
+            </p>
+            {d.address && d.address !== d.name && <p className="ml-5.5 text-xs text-muted-foreground">{d.address}</p>}
+            {d.why && (
+              <p className="mt-1.5 flex gap-1.5 text-xs leading-snug">
+                <Search className="mt-px size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                <span><span className="font-semibold">Clues:</span> {d.why}</span>
+              </p>
+            )}
+            {d.station && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-xs">
+                <TrainFront className="size-3.5 shrink-0" style={{ color: lineColor(d.station.lines[0]) }} aria-hidden />
+                Closest T: <span className="font-semibold">{d.station.name}</span>
+                <span className="text-muted-foreground">({d.station.lines.join("/")}) · {d.station.walkMin} min walk</span>
+              </p>
+            )}
+            {d.ride && <p className="mt-1 ml-5 text-xs text-muted-foreground">About {d.ride.minutes} min from {d.ride.from} by T</p>}
+            <RouteButton t={{ name: d.name, lat: d.lat, lng: d.lng }} onRoute={onRoute} big />
+          </div>
+        )}
         {r.transit && (
           <div className="flex items-center gap-2 rounded-xl border border-border px-2.5 py-2 text-[13px]">
             <TrainFront className="size-4 shrink-0" style={{ color: lineColor(r.transit.line) }} aria-hidden />
@@ -160,7 +217,8 @@ function ReportCard({ r, onRetryPhoto, onType }: { r: FinalReport; onRetryPhoto:
           <div className="space-y-1.5">
             <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Quests</p>
             {r.picks.map((q) => (
-              <Link key={q.id} href={`/q/${q.id}`} className="block rounded-xl border border-border px-3 py-2 transition-colors hover:border-maroon">
+              <div key={q.id} className="relative">
+              <Link href={`/q/${q.id}`} className="block rounded-xl border border-border px-3 py-2 pb-2.5 transition-colors hover:border-maroon">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-semibold leading-tight">{q.title}</p>
                   <span className="shrink-0 rounded-full bg-xp-chip px-2 py-0.5 text-[11px] font-bold text-xp-chip-ink">+{q.xp} XP</span>
@@ -170,7 +228,14 @@ function ReportCard({ r, onRetryPhoto, onType }: { r: FinalReport; onRetryPhoto:
                   {q.station_name ?? q.station_id} · {PRICE[q.price_tier] ?? ""}
                 </p>
                 {q.why && <p className="mt-1 text-xs leading-snug">{q.why}</p>}
+                {q.lat != null && q.lon != null && <span className="block h-6" aria-hidden />}
               </Link>
+              {q.lat != null && q.lon != null && (
+                <span className="absolute right-2.5 bottom-2">
+                  <RouteButton t={{ name: q.title, lat: q.lat, lng: q.lon }} onRoute={onRoute} />
+                </span>
+              )}
+              </div>
             ))}
           </div>
         )}
@@ -197,6 +262,11 @@ function ReportCard({ r, onRetryPhoto, onType }: { r: FinalReport; onRetryPhoto:
                   {p.openNow === true && <span className="font-semibold text-success"> · Open now</span>}
                   {p.openNow === false && <span className="text-closed"> · Closed now</span>}
                 </p>
+                {typeof p.lat === "number" && typeof p.lng === "number" && (
+                  <div className="mt-1.5 flex justify-end">
+                    <RouteButton t={{ name: p.name, lat: p.lat, lng: p.lng }} onRoute={onRoute} />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -220,7 +290,14 @@ const WELCOME: Msg = { role: "assistant", content: "" };
 
 export default function GrokGuide() {
   const pathname = usePathname();
+  const router = useRouter();
   const onMap = pathname === "/";
+  // Put the guide away and let the map draw the route (TransitMap listens for "outbound:go").
+  const showOnMap = (t: MapTarget) => {
+    setOpen(false);
+    if (onMap) window.dispatchEvent(new CustomEvent<MapTarget>("outbound:go", { detail: t }));
+    else router.push(`/?go=${t.lat.toFixed(6)},${t.lng.toFixed(6)}&name=${encodeURIComponent(t.name)}`);
+  };
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([WELCOME]);
@@ -407,10 +484,10 @@ export default function GrokGuide() {
                 <div key={i} className="space-y-2">
                   {m.stages && !m.report && !m.content && (
                     <div className="rounded-2xl rounded-tl-md bg-white px-3.5 py-3 shadow-sm">
-                      <StageList stages={m.stages} photo={!!msgs[i]?.image} />
+                      <StageList stages={m.stages} photo={m.stages.some((s) => s.stage === "vision")} />
                     </div>
                   )}
-                  {m.report && <ReportCard r={m.report} onRetryPhoto={openPicker} onType={focusInput} />}
+                  {m.report && <ReportCard r={m.report} onRetryPhoto={openPicker} onType={focusInput} onRoute={showOnMap} />}
                   {m.content && <div className="max-w-[92%] rounded-2xl rounded-tl-md bg-white px-3.5 py-2.5 shadow-sm">{m.content}</div>}
                   {m.report && m.report.kind !== "retry" && (
                     <p className="px-1 text-[11px] text-muted-foreground">

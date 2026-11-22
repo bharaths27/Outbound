@@ -64,7 +64,15 @@ export function rankPlaces(places: Place[]) {
   return [...places].sort((a, b) => score(b) - score(a));
 }
 
-export function makeFoodTools(origin: string) {
+export interface FoundSpot {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
+
+/** `found` collects every spot the tool returned (with coordinates), so the app can route to them. */
+export function makeFoodTools(origin: string, found: FoundSpot[] = []) {
   const findFoodPlaces = createTool({
     id: "findFoodPlaces",
     description:
@@ -93,6 +101,7 @@ export function makeFoodTools(origin: string) {
           .slice(0, 5)
           .map((p) => {
             const near = nearestStation(p.lat, p.lng, stations);
+            found.push({ name: p.name, address: p.address, lat: p.lat, lng: p.lng });
             return {
               name: p.name,
               address: p.address,
@@ -109,7 +118,7 @@ export function makeFoodTools(origin: string) {
   return { findFoodPlaces, searchQuests: makeTools(origin).searchQuests };
 }
 
-export function makeFoodResearcher(origin: string) {
+export function makeFoodResearcher(origin: string, found: FoundSpot[] = []) {
   return new Agent({
     id: "outbound-food-researcher",
     name: "Outbound Food Researcher",
@@ -122,6 +131,6 @@ Then write a research report of at most 120 words: what the dish is; the 2 to 4 
 price, open now, closest T station and walk); and the Outbound quest ids that match, if any.
 Prefer spots that are open now and close to a station. Never invent spots, ratings or quests.`,
     model: geminiModels(),
-    tools: makeFoodTools(origin),
+    tools: makeFoodTools(origin, found),
   });
 }

@@ -14,6 +14,8 @@ export interface GuideQuest {
   duration_min: number | null;
   walk_min: number | null;
   station_id: string;
+  lat?: number;
+  lon?: number;
   stations: { name: string; lines: string[]; neighborhood: string } | null;
 }
 

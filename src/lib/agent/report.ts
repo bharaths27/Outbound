@@ -3,6 +3,7 @@
 // UI never shows an invented quest. Pure functions here so they are unit-tested.
 import { z } from "zod";
 import type { GuideQuest } from "@/lib/guide";
+import type { Destination } from "./geo";
 
 export const GuideReportSchema = z.object({
   title: z.string().describe("Short headline, at most 60 characters, e.g. 'Ramen run on the Green Line'"),
@@ -46,12 +47,21 @@ export interface QuestCard {
   xp: number;
   price_tier: number;
   why: string;
+  lat: number | null;
+  lon: number | null;
 }
 
-export interface FinalReport extends Omit<GuideReport, "picks"> {
+export type PlaceCard = GuideReport["places"][number] & { lat?: number; lng?: number; address?: string | null };
+
+export interface FinalReport extends Omit<GuideReport, "picks" | "places"> {
   kind: "plan" | "chat" | "retry";
   detected: Detected | null;
   picks: QuestCard[];
+  places: PlaceCard[];
+  /** Where the trip goes, located by our code (never by the model), so the map can route there. */
+  destination?: Destination | null;
+  /** Why a photo couldn't be read (shown small, for testing). */
+  debug?: string;
 }
 
 const clip = (s: unknown, n: number) => String(s ?? "").trim().slice(0, n);
@@ -73,6 +83,7 @@ export function finalizeReport(
     picks.push({
       id: q.id, title: q.title, station_id: q.station_id, station_name: q.stations?.name ?? null,
       lines: q.stations?.lines ?? [], xp: q.xp, price_tier: q.price_tier, why: clip(p.why, 100),
+      lat: typeof q.lat === "number" ? q.lat : null, lon: typeof q.lon === "number" ? q.lon : null,
     });
   }
   const t = raw.transit;

@@ -1,5 +1,6 @@
 // End-to-end test of the Guide pipeline with fake Grok, fake Gemini and fake APIs:
 // real Mastra workflows, agents, tool calls and the Report tool run for real.
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GuideQuest } from "@/lib/guide";
 
@@ -68,10 +69,14 @@ beforeEach(() => {
       const body = JSON.parse(String(init?.body));
       const isPhoto = JSON.stringify(body.input).includes("input_image");
       const out = isPhoto
-        ? { category: photoCategory, label: photoCategory === "other" ? "a cat" : "croissant", details: "A flaky croissant.", searchTerms: ["croissant", "pastry"], placeGuess: null, confidence: 0.9 }
+        ? photoCategory === "location"
+          ? { category: "location", label: "Chinatown Gate", details: "A green paifang gate with Chinese characters over Beach St.", searchTerms: ["chinatown", "gate"], placeGuess: "Chinatown Gate, Chinatown", confidence: 0.9 }
+          : { category: photoCategory, label: photoCategory === "other" ? "a cat" : "croissant", details: "A flaky croissant.", searchTerms: ["croissant", "pastry"], placeGuess: null, confidence: 0.9 }
         : { reply: "Try Fenway Pastry Pick at Kenmore!", quest_ids: ["tatte-fenway-pastry"] };
       return json({ output_text: JSON.stringify(out) });
     }
+    const data = String(url).match(/\/data\/([\w.-]+)$/);
+    if (data) return new Response(readFileSync(`public/data/${data[1]}`, "utf8"), { status: 200 });
     if (String(url).includes("/api/places")) return json({ places: [{ name: "Flour Bakery", address: "1 Main St", lat: 42.349, lng: -71.095, rating: 4.7, ratings: 900, price: 2, openNow: true, category: "Bakery" }] });
     if (String(url).includes("/api/trains")) return json({ arrivals: [{ route: "Green-B", minutes: 3, status: null }] });
     if (String(url).includes("/api/lateness")) return json({ lines: [{ badge: "Green Line +4 min" }] });
@@ -91,7 +96,7 @@ describe("photo pipeline", () => {
       { image: IMG, note: "" },
     );
     expect(events).toEqual([
-      "vision:running", "vision:done", "food:running", "food:done", "trip:running", "trip:done", "report:running", "report:done",
+      "vision:running", "vision:done", "where:skipped", "food:running", "food:done", "trip:running", "trip:done", "report:running", "report:done",
     ]);
     expect(calls.food).toBe(2);
     expect(calls.trip).toBe(2);
@@ -102,6 +107,8 @@ describe("photo pipeline", () => {
     expect(report.picks.map((p) => p.id)).toEqual(["tatte-fenway-pastry"]); // made-up id dropped
     expect(report.transit?.nextTrainMin).toBe(3);
     expect(report.places[0].name).toBe("Flour Bakery");
+    expect(report.places[0].lat).toBe(42.349); // coordinates from the place search, for "Route"
+    expect(report.destination?.name).toBe("Flour Bakery");
   });
 
   it("location: skips the Food Researcher", async () => {
@@ -112,9 +119,16 @@ describe("photo pipeline", () => {
       { image: IMG, note: "" },
     );
     expect(events).toContain("food:skipped");
+    expect(events).toContain("where:done");
     expect(calls.food).toBeUndefined();
     expect(calls.trip).toBe(2);
     expect(report.detected?.kind).toBe("location");
+    // Located by our code, with the closest T stop and a ride from campus, so the map can draw it.
+    expect(report.destination?.name).toBe("Chinatown Gate");
+    expect(report.destination?.station?.name).toBe("Chinatown");
+    expect(report.destination?.why).toContain("paifang");
+    expect(report.destination?.ride?.minutes).toBeGreaterThan(5);
+    expect(report.destination?.ride?.steps.some((s) => s.startsWith("Ride the Green Line"))).toBe(true);
   });
 
   it("other: asks for another photo, no agents run", async () => {
@@ -139,6 +153,7 @@ describe("when an agent is rate limited", () => {
     expect(events).toContain("trip:error");
     expect(report.kind).toBe("plan");
     expect(report.picks.length).toBeGreaterThan(0);
+    expect(report.destination?.name).toBe("Chinatown Gate"); // still located without the Trip Planner
   });
 });
 
@@ -174,5 +189,19 @@ describe("text pipeline", () => {
     const report = await runWorkflow(makeChatWorkflow({ origin: "http://app", quests: QUESTS, emit: () => {} }), { message: "pastry", history: [] });
     expect(report.summary).toContain("Fenway Pastry Pick");
     expect(report.picks[0].id).toBe("tatte-fenway-pastry");
+  });
+});
+
+describe("geo helpers", async () => {
+  const { matchLandmark } = await import("./geo");
+  const { readJson } = await import("./grok");
+  it("finds landmarks from Grok's guess, most specific first", () => {
+    expect(matchLandmark("Chinatown Gate, Chinatown")?.name).toBe("Chinatown Gate");
+    expect(matchLandmark("a port with boats", "harbor")?.name).toBe("Long Wharf, Boston Harbor");
+    expect(matchLandmark("somewhere sunny")).toBeNull();
+  });
+  it("reads JSON wrapped in fences or text", () => {
+    expect(readJson('Sure!\n```json\n{"category":"location","label":"Gate"}\n```').label).toBe("Gate");
+    expect(readJson('{"category":"food","label":"x"} {"extra":1}').category).toBe("food");
   });
 });
