@@ -60,6 +60,10 @@ frontend-derived shapes.
   codes? The frontend can take a typed code without adding a scanner library.
 - [ ] **Vercel env var.** Set `NEXT_PUBLIC_DATA_SOURCE=supabase` in the Vercel project. The
   Supabase data service is done; `mock` stays the local default.
+- [ ] **Public site URL (optional).** Share-card QR codes now link to the public site, not
+  to the preview or host that drew the card. With nothing set they use Vercel's production
+  domain (`VERCEL_PROJECT_PRODUCTION_URL`, which Vercel sets itself). If the demo uses a
+  custom domain, set `NEXT_PUBLIC_SITE_URL=https://<that domain>` in Vercel.
 - [ ] **Level size.** The level bars (Quests, Passport, Profile) need the XP a level spans
   to draw progress, and `profiles` only has `xp_to_next_level`. The app uses one constant,
   `XP_PER_LEVEL = 250` in `src/lib/data/levels.ts`, to match `check_in()`. If levels will

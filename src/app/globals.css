@@ -77,6 +77,12 @@
   --color-success: var(--success);
   --color-closed: var(--closed);
   --color-danger: var(--danger);
+  --color-delay-severe: var(--delay-severe-bg);
+  --color-delay-severe-ink: var(--delay-severe-ink);
+  --color-delay-minor: var(--delay-minor-bg);
+  --color-delay-minor-ink: var(--delay-minor-ink);
+  --color-badge-earned: var(--badge-earned-bg);
+  --color-badge-locked-ink: var(--badge-locked-ink);
 
   /* Tiers and stamps */
   --color-tier-bronze: var(--tier-bronze);
@@ -175,6 +181,14 @@
   --success: #2f6b4f;
   --closed: #8a2a44;
   --danger: #b3121f;
+  /* Line delay pills in the hub: red = severe, amber = minor (src/features/hub/line-delays.tsx) */
+  --delay-severe-bg: #fbe3e3;
+  --delay-severe-ink: #9b1c1c;
+  --delay-minor-bg: #fdf0d8;
+  --delay-minor-ink: #8a5300;
+  /* Passport badges: earned card fill, locked icon */
+  --badge-earned-bg: #fff4d6;
+  --badge-locked-ink: #b7aba4;
 
   /* Tiers and stamps */
   --tier-bronze: #a8643a;

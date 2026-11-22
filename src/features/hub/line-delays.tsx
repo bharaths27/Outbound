@@ -61,7 +61,7 @@ export function LineDelays({ routes }: { routes: string[] }) {
           key={l.line}
           className={cn(
             "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold",
-            l.color === "red" ? "bg-[#FBE3E3] text-[#9B1C1C]" : "bg-[#FDF0D8] text-[#8A5300]",
+            l.color === "red" ? "bg-delay-severe text-delay-severe-ink" : "bg-delay-minor text-delay-minor-ink",
           )}
         >
           <Clock className="size-3.5" aria-hidden />

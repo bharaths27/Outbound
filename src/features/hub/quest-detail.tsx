@@ -123,10 +123,12 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   const titleBlock = (
     <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1">
-        <h2 className={cn("font-display leading-[1.1] font-bold text-maroon", page ? "text-[30px] desk:text-[44px]" : "text-[28px]")}>
+        {/* leading goes last: tailwind-merge drops a line-height that comes before a font size. */}
+        <h2 className={cn("font-display font-bold text-maroon", page ? "text-[30px] desk:text-[44px]" : "text-[28px]", "leading-[1.15]")}>
           {quest.title}
         </h2>
-        <StationLine station={station} href={stationHref} />
+        {/* Title-to-station gap: 12 px in the hub, 16 px on the full page (bigger title). */}
+        <StationLine station={station} href={stationHref} className={page ? "mt-3 desk:mt-4" : "mt-3"} />
       </div>
       {/* On the desktop page the stamp lives in the side column. */}
       <div className={cn("flex flex-col items-center gap-1", page && "desk:hidden")}>
@@ -250,10 +252,10 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   );
 }
 
-function StationLine({ station, href }: { station: Station; href?: string }) {
+function StationLine({ station, href, className }: { station: Station; href?: string; className?: string }) {
   const lines = groupLines(station.lines);
   return (
-    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-sm text-ink-2">
+    <div className={cn("flex flex-wrap items-center gap-1.5 text-sm text-ink-2", className)}>
       {lines.map((g) => (
         <LineLetter key={g.line} line={g.line} />
       ))}
