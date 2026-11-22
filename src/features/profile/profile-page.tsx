@@ -152,6 +152,7 @@ function ProfileView({ load, onSignOut }: { load: Ready; onSignOut: () => void }
                     questId={e.quest.id}
                     title={e.quest.title}
                     neighborhood={e.neighborhood}
+                    stationId={e.quest.station_id}
                     type={e.quest.type}
                     tier={e.tier}
                     crossSchool={e.crossSchool}
