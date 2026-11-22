@@ -59,6 +59,7 @@ function fallbackStyle(manifest: BpdaManifest | null): StyleSpecification {
     earth: EARTH_SOURCE(url("base/earth.jpg")),
     "ma-roads": { type: "geojson", data: url("base/ma-roads.json"), maxzoom: 12 },
     "ma-water": { type: "geojson", data: url("base/ma-water.json"), maxzoom: 12 },
+    sea: { type: "geojson", data: url("base/sea.json"), maxzoom: 13 },
   };
   const layers: LayerSpecification[] = [
     { id: "background", type: "background", paint: { "background-color": PALETTE.water } },
@@ -67,6 +68,8 @@ function fallbackStyle(manifest: BpdaManifest | null): StyleSpecification {
     EARTH_LAYER, // under the Boston-area layers, so outside them the land still shows real terrain colors
     // a soft land tint over the blurry space photo when zoomed in, then lakes and main roads for all of MA (Overture Maps)
     { id: "land-tint", type: "fill", source: "states", minzoom: 7, paint: { "fill-color": PALETTE.land, "fill-opacity": ["interpolate", ["linear"], ["zoom"], 7, 0, 10, 0.6] } },
+    // real coastline around Boston (the state outline is too coarse there): harbor, islands and open sea
+    { id: "sea", type: "fill", source: "sea", paint: { "fill-color": PALETTE.water } },
     { id: "ma-water", type: "fill", source: "ma-water", minzoom: 7, paint: { "fill-color": PALETTE.water } },
     { id: "ma-roads-casing", type: "line", source: "ma-roads", minzoom: 7, layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": "#d6d3cc", "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 7, ["*", 0.6, ["+", 1, ["get", "r"]]], 13, ["*", 4, ["+", 1, ["get", "r"]]]] } },
     { id: "ma-roads", type: "line", source: "ma-roads", minzoom: 7, layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": ["match", ["get", "r"], 3, "#7d8086", 2, "#878a90", "#9a9da3"], "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 7, ["*", 0.35, ["+", 1, ["get", "r"]]], 13, ["*", 2.8, ["+", 1, ["get", "r"]]]] } },

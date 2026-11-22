@@ -103,6 +103,15 @@ for line, v in tm.items():
         for b in st.get("branches") or []:
             if b not in s["branches"]: s["branches"].append(b)
 
+# Mattapan Trolley (part of the Red Line on MBTA maps; TransitMatters lists it separately). Coordinates are MBTA's stops.
+for sid, nm, lat, lon in [("place-cedgr", "Cedar Grove", 42.279629, -71.060394), ("place-butlr", "Butler", 42.272429, -71.062519),
+                          ("place-miltt", "Milton", 42.270349, -71.067266), ("place-cenav", "Central Avenue", 42.270027, -71.073443),
+                          ("place-valrd", "Valley Road", 42.268347, -71.081343), ("place-capst", "Capen Street", 42.267563, -71.087338),
+                          ("place-matt", "Mattapan", 42.26762, -71.092486)]:
+    stations.setdefault(sid, {"id": sid, "name": nm, "lines": ["Red"], "branches": ["M"], "platforms": [], "lat": lat, "lon": lon})
+if "place-asmnl" in stations and "M" not in stations["place-asmnl"]["branches"]:
+    stations["place-asmnl"]["branches"].append("M")
+
 json.dump(sorted(stations.values(), key=lambda s: s["name"]),
           open(os.path.join(out, "mbta-stations.json"), "w"), separators=(",", ":"))
 print(len(stations), "stations")

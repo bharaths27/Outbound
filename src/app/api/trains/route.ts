@@ -10,7 +10,7 @@
 export const dynamic = "force-dynamic";
 
 const MBTA = "https://api-v3.mbta.com";
-const ROUTES = "Red,Orange,Blue,Green-B,Green-C,Green-D,Green-E";
+const ROUTES = "Red,Mattapan,Orange,Blue,Green-B,Green-C,Green-D,Green-E";
 
 async function mbta(path: string) {
   const res = await fetch(`${MBTA}${path}`, {
@@ -21,7 +21,7 @@ async function mbta(path: string) {
   return res.json();
 }
 
-const lineOf = (route: string) => route.split("-")[0];
+const lineOf = (route: string) => (route === "Mattapan" ? "Red" : route.split("-")[0]); // the Mattapan Trolley is drawn as part of the Red Line
 
 export async function GET(req: Request) {
   try {

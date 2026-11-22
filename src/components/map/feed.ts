@@ -73,6 +73,7 @@ const DEST: Record<string, [string, string]> = {
   Red: ["Ashmont/Braintree", "Alewife"],
   Orange: ["Forest Hills", "Oak Grove"],
   Blue: ["Bowdoin", "Wonderland"],
+  Mattapan: ["Mattapan", "Ashmont"],
   "Green-B": ["Boston College", "Government Center"],
   "Green-C": ["Cleveland Circle", "Government Center"],
   "Green-D": ["Riverside", "Union Square"],

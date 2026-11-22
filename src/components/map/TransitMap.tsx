@@ -60,8 +60,6 @@ interface StationData extends Pick<Station, "id" | "name" | "lat" | "lon"> {
   platforms: string[];
 }
 
-/** Span of the subway lines (from mbta-lines.geojson) with a little room around it. */
-const T_BOUNDS: [[number, number], [number, number]] = [[-71.275, 42.193], [-70.97, 42.452]];
 /** The subway lines themselves, end to end. */
 const T_LINES: [[number, number], [number, number]] = [[-71.2526, 42.2075], [-70.9914, 42.439]];
 const VIEWS = {
@@ -151,21 +149,44 @@ export default function TransitMap() {
         bearing: VIEWS.boston.bearing + 25,
         maxPitch: 85, // tilt almost to street level
         // the map only covers the T network: Riverside/Alewife/Oak Grove/Wonderland/Braintree/Mattapan plus ~1.5 km
-        maxBounds: T_BOUNDS,
-        minZoom: 10,
+        minZoom: 10, // fitLimits() below sets the real zoom and pan limits for this screen size
         attributionControl: { compact: true },
         canvasContextAttributes: { antialias: true },
       });
       mapRef.current = map;
-      // the farthest you can zoom out is the whole T network filling the screen
+      // The farthest you can zoom out is the whole T network on screen (Alewife to Braintree, Riverside to Wonderland).
+      // The panning limit is that same view plus a little, so nothing past the network can be dragged into view.
       const m0 = map;
-      const fitMinZoom = () => {
-        const cam = m0.cameraForBounds(T_LINES, { padding: 24, bearing: 0 });
-        if (cam?.zoom != null) m0.setMinZoom(Math.max(9, Math.min(12, cam.zoom)));
+      const T_CENTER: [number, number] = [(T_LINES[0][0] + T_LINES[1][0]) / 2, (T_LINES[0][1] + T_LINES[1][1]) / 2];
+      const mercY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+      const latOf = (y: number) => (360 / Math.PI) * Math.atan(Math.exp(y)) - 90;
+      const fitLimits = () => {
+        const { clientWidth: w, clientHeight: h } = m0.getCanvas();
+        if (!w || !h) return;
+        // zoom that fits the lines north-up, computed directly so the current limits can't skew it
+        const pad = 48;
+        const spanX = ((T_LINES[1][0] - T_LINES[0][0]) / 360) * 2 * Math.PI;
+        const spanY = mercY(T_LINES[1][1]) - mercY(T_LINES[0][1]);
+        const scale = Math.min((w - 2 * pad) / spanX, (h - 2 * pad) / spanY); // px per mercator radian
+        const zoom = Math.log2((scale * 2 * Math.PI) / 512);
+        const halfX = ((w / 2) * 1.08) / scale, halfY = ((h / 2) * 1.08) / scale;
+        const cy = mercY(T_CENTER[1]);
+        m0.setMaxBounds(null);
+        m0.setMinZoom(Math.max(9, Math.min(12, zoom)));
+        m0.setMaxBounds([
+          [T_CENTER[0] - (halfX * 180) / Math.PI, latOf(cy - halfY)],
+          [T_CENTER[0] + (halfX * 180) / Math.PI, latOf(cy + halfY)],
+        ]);
       };
-      fitMinZoom();
-      map.on("resize", fitMinZoom);
-      map.on("zoomend", () => { if (m0.getZoom() < m0.getMinZoom() - 0.01) m0.easeTo({ zoom: m0.getMinZoom(), duration: 200 }); });
+      fitLimits();
+      map.on("resize", fitLimits);
+      // fully zoomed out = the whole network, north up and centered, so no end of a line is off screen
+      map.on("moveend", () => {
+        if (m0.getZoom() > m0.getMinZoom() + 0.15) return;
+        const c = m0.getCenter();
+        const off = Math.abs(c.lng - T_CENTER[0]) > 0.003 || Math.abs(c.lat - T_CENTER[1]) > 0.003 || Math.abs(m0.getBearing()) > 0.5 || m0.getPitch() > 10.5;
+        if (off) m0.easeTo({ zoom: m0.getMinZoom(), center: T_CENTER, bearing: 0, pitch: Math.min(m0.getPitch(), 10), duration: 500 });
+      });
       if (process.env.NODE_ENV !== "production") (window as unknown as { __obMap: MlMap }).__obMap = map; // for tests
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
       map.on("error", (e) => console.warn("[map]", e.error?.message ?? e)); // e.g. a tile or font that failed to load
@@ -551,7 +572,7 @@ export default function TransitMap() {
     const pitchCap = () => {
       if (!is3D) return map.setMaxPitch(0);
       const t = Math.min(1, Math.max(0, (map.getZoom() - map.getMinZoom()) / 2.5));
-      const cap = 25 + t * 60;
+      const cap = 10 + t * 75;
       if (Math.abs(map.getMaxPitch() - cap) > 0.5) map.setMaxPitch(cap);
     };
     pitchCap();
