@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { XP_PER_LEVEL, data, levelProgress } from "@/lib/data";
 import type { Quest, QuestType, Station, Visit } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
-import { CATEGORY, QuestThumb } from "@/features/hub/category";
+import { CATEGORY, CategoryIcon, QuestThumb } from "@/features/hub/category";
 import { LineLetter, groupLines } from "@/features/hub/line-badge";
 import { XpChip } from "@/features/hub/quest-card";
 import { usePlayer } from "@/features/hub/use-player";
@@ -27,7 +27,6 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "scenic", label: "Scenery" },
 ];
 
-const DOT: Record<QuestType, string> = { food: "bg-cat-food-ink", event: "bg-cat-event-ink", scenic: "bg-cat-scenery-ink" };
 
 interface Loaded {
   quests: Quest[];
@@ -301,7 +300,7 @@ function QuestRow({
         )}
         <div className="mt-1.5 flex gap-1.5 desk:mt-2">
           <span className="inline-flex items-center gap-[5px] rounded-full bg-sand px-2.5 py-[3px] text-xs font-semibold text-ink-2">
-            <span aria-hidden className={cn("size-2 rounded-full", DOT[quest.type])} />
+            <CategoryIcon type={quest.type} size={14} className="shrink-0" />
             {cat.label}
           </span>
           <XpChip xp={quest.xp} className="text-xs" />

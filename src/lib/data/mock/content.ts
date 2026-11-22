@@ -1447,7 +1447,7 @@ export const quests: Quest[] = [
       "photo"
     ],
     "hours": "always",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Charles_River_BU_Sailing_Pavilion.jpg?width=960",
     "xp": 50,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1490,7 +1490,7 @@ export const quests: Quest[] = [
       "outdoors"
     ],
     "hours": "always",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2017_Citgo_sign_Kenmore_Square_Boston.jpg?width=960",
     "xp": 50,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1577,7 +1577,7 @@ export const quests: Quest[] = [
       "outdoors"
     ],
     "hours": "always",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Boston_Commonwealth_Avenue.jpg?width=960",
     "xp": 50,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1620,7 +1620,7 @@ export const quests: Quest[] = [
       "outdoors"
     ],
     "hours": "06:30-23:00",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2017_Boston_Common_Frog_Pond_from_east.jpg?width=960",
     "xp": 50,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1642,7 +1642,7 @@ export const quests: Quest[] = [
       "photo"
     ],
     "hours": "always",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Lagoon_bridge_in_the_Boston_Public_Garden,_Boston,_Massachusetts.jpg?width=960",
     "xp": 50,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1685,7 +1685,7 @@ export const quests: Quest[] = [
       "outdoors"
     ],
     "hours": "always",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Boston_City_Hall_(8616991888).jpg?width=960",
     "xp": 50,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1729,7 +1729,7 @@ export const quests: Quest[] = [
       "indoors"
     ],
     "hours": "Mon-Sat 10:00-21:00; Sun 11:00-19:00",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Quincy_Market_1.JPG?width=960",
     "xp": 60,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1751,7 +1751,7 @@ export const quests: Quest[] = [
       "indoors"
     ],
     "hours": "Sun-Tue 08:00-18:00; Wed-Sat 08:00-20:00",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Stillman%27s_Farm_stand_at_Boston_Public_market.jpg?width=960",
     "xp": 60,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1773,7 +1773,7 @@ export const quests: Quest[] = [
       "outdoors"
     ],
     "hours": "always",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2008_Greenway_Boston_2739303146.jpg?width=960",
     "xp": 50,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1795,7 +1795,7 @@ export const quests: Quest[] = [
       "indoors"
     ],
     "hours": "10:00-16:15",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/2017_Paul_Revere_House_from_east.jpg?width=960",
     "xp": 80,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1817,7 +1817,7 @@ export const quests: Quest[] = [
       "outdoors"
     ],
     "hours": "always",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Johnston_Gate_(Harvard_Yard)_-_IMG_8974.JPG?width=960",
     "xp": 50,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1839,7 +1839,7 @@ export const quests: Quest[] = [
       "indoors"
     ],
     "hours": "Tue-Sun 10:00-17:00",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fogg_Art_Museum_-_Harvard_Art_Museums_(54941056523).jpg?width=960",
     "xp": 80,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1949,7 +1949,7 @@ export const quests: Quest[] = [
       "photo"
     ],
     "hours": "always",
-    "photo_url": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Boston_Chinatown_Paifang.jpg?width=960",
     "xp": 50,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -1999,5 +1999,356 @@ export const quests: Quest[] = [
     "requires_qr": false,
     "duration_min": 35,
     "walk_min": 4
+  },
+  {
+    "id": "bu-bridge-view",
+    "station_id": "place-bucen",
+    "type": "scenic",
+    "title": "Cross the BU Bridge",
+    "description": "Walk onto the BU Bridge sidewalk and look downriver. Find the Back Bay skyline and pick the boat, building, or bridge you’d point out to a friend. Best in daylight.",
+    "lat": 42.35165,
+    "lon": -71.11125,
+    "price_tier": 0,
+    "vibe_tags": [
+      "river",
+      "photo",
+      "outdoors"
+    ],
+    "hours": "always",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Bu-bridge.jpg?width=960",
+    "xp": 50,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 15,
+    "walk_min": 6
+  },
+  {
+    "id": "fens-mothers-rest",
+    "station_id": "place-kencl",
+    "type": "scenic",
+    "title": "Stroll the Back Bay Fens",
+    "description": "Follow the paths south of Kenmore into the Back Bay Fens. Find a bench by the water and note one plant or bird you spotted on the way. Best in daylight.",
+    "lat": 42.3433,
+    "lon": -71.0943,
+    "price_tier": 0,
+    "vibe_tags": [
+      "park",
+      "walk",
+      "nature"
+    ],
+    "hours": "always",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Back_Bay_Fens_near_Mothers_Rest,_November_2019.jpg?width=960",
+    "xp": 50,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 20,
+    "walk_min": 9
+  },
+  {
+    "id": "trinity-church-reflection",
+    "station_id": "place-coecl",
+    "type": "scenic",
+    "title": "Trinity in the Glass",
+    "description": "Stand in Copley Square and find the spot where Trinity Church shows up reflected in the glass tower behind it. Best in daylight.",
+    "lat": 42.3499,
+    "lon": -71.0756,
+    "price_tier": 0,
+    "vibe_tags": [
+      "architecture",
+      "photo",
+      "outdoors"
+    ],
+    "hours": "always",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Trinity_Church_in_the_City_of_Boston_and_its_reflection_in_the_Hancock_Tower.jpg?width=960",
+    "xp": 50,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 10,
+    "walk_min": 2
+  },
+  {
+    "id": "marathon-finish-line",
+    "station_id": "place-coecl",
+    "type": "scenic",
+    "title": "Find the Marathon Finish Line",
+    "description": "On Boylston Street in front of the Central Library, find the painted Boston Marathon finish line. Check in from the sidewalk, not the street.",
+    "lat": 42.34976,
+    "lon": -71.07815,
+    "price_tier": 0,
+    "vibe_tags": [
+      "sports",
+      "history",
+      "photo"
+    ],
+    "hours": "always",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Boston_Marathon_2011_finishing_line_pavillion_looking_west.JPG?width=960",
+    "xp": 50,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 10,
+    "walk_min": 2
+  },
+  {
+    "id": "granary-burying-ground",
+    "station_id": "place-pktrm",
+    "type": "event",
+    "title": "Walk the Granary Burying Ground",
+    "description": "Enter the Granary Burying Ground on Tremont Street and find the markers for Paul Revere and Samuel Adams. Stay on the paths. Closes at dusk in winter.",
+    "lat": 42.35733,
+    "lon": -71.062,
+    "price_tier": 0,
+    "vibe_tags": [
+      "history",
+      "quiet",
+      "outdoors"
+    ],
+    "hours": "09:00-17:00",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Granary_Burying_Ground,_Boston_A.jpg?width=960",
+    "xp": 80,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 20,
+    "walk_min": 2
+  },
+  {
+    "id": "state-house-dome",
+    "station_id": "place-pktrm",
+    "type": "scenic",
+    "title": "Spot the Gold Dome",
+    "description": "Walk up the Common toward Beacon Street and find a view of the State House’s gold dome framed by the trees. Best in daylight.",
+    "lat": 42.358,
+    "lon": -71.06368,
+    "price_tier": 0,
+    "vibe_tags": [
+      "architecture",
+      "history",
+      "park"
+    ],
+    "hours": "always",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Massachusetts_State_House,_Boston,_Massachusetts.jpg?width=960",
+    "xp": 50,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 10,
+    "walk_min": 4
+  },
+  {
+    "id": "old-state-house-balcony",
+    "station_id": "place-gover",
+    "type": "scenic",
+    "title": "Find the Lion and Unicorn",
+    "description": "Walk to the Old State House at Washington and State Streets. Look up for the lion and unicorn on the roofline and the balcony above the street. Best in daylight.",
+    "lat": 42.35868,
+    "lon": -71.05747,
+    "price_tier": 0,
+    "vibe_tags": [
+      "history",
+      "architecture",
+      "photo"
+    ],
+    "hours": "always",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Old_State_House_Boston.jpg?width=960",
+    "xp": 50,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 10,
+    "walk_min": 4
+  },
+  {
+    "id": "holocaust-memorial-walk",
+    "station_id": "place-gover",
+    "type": "scenic",
+    "title": "Walk Through the Glass Towers",
+    "description": "Walk the path through the six glass towers of the New England Holocaust Memorial on Congress Street. Take it slowly and read one inscription.",
+    "lat": 42.36096,
+    "lon": -71.05661,
+    "price_tier": 0,
+    "vibe_tags": [
+      "history",
+      "quiet",
+      "outdoors"
+    ],
+    "hours": "always",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/New_England_Holocaust_Memorial_in_Boston,_Massachusetts.JPG?width=960",
+    "xp": 50,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 15,
+    "walk_min": 4
+  },
+  {
+    "id": "haymarket-pushcarts",
+    "station_id": "place-haecl",
+    "type": "event",
+    "title": "Shop the Haymarket Pushcarts",
+    "description": "On Friday or Saturday, walk the open-air produce stalls on Blackstone Street. Compare two vendors’ prices on the same fruit and pick one to buy. Stalls run roughly dawn to dusk.",
+    "lat": 42.36175,
+    "lon": -71.05715,
+    "price_tier": 1,
+    "vibe_tags": [
+      "market",
+      "produce",
+      "outdoors"
+    ],
+    "hours": "Fri,Sat 07:00-17:00",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Haymarket,_Boston_Public_Market,_and_City_Hall_in_Boston.JPG?width=960",
+    "xp": 80,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 20,
+    "walk_min": 2
+  },
+  {
+    "id": "old-north-steeple",
+    "station_id": "place-haecl",
+    "type": "scenic",
+    "title": "Look Up at Old North",
+    "description": "Walk through the North End to Salem Street and find the steeple of Old North Church, where the two lanterns hung in 1775. Best in daylight.",
+    "lat": 42.36632,
+    "lon": -71.05442,
+    "price_tier": 0,
+    "vibe_tags": [
+      "history",
+      "architecture",
+      "photo"
+    ],
+    "hours": "always",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Boston_-_Old_North_Church_(48718566608).jpg?width=960",
+    "xp": 50,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 15,
+    "walk_min": 10
+  },
+  {
+    "id": "mikes-pastry-box",
+    "station_id": "place-haecl",
+    "type": "food",
+    "title": "Pick a Pastry on Hanover Street",
+    "description": "Walk to Mike’s Pastry on Hanover Street, scan the case, and choose one pastry to try. Lines are shortest on weekday mornings.",
+    "lat": 42.3642,
+    "lon": -71.05427,
+    "price_tier": 1,
+    "vibe_tags": [
+      "pastry",
+      "dessert",
+      "takeout"
+    ],
+    "hours": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Whoopie_pies_at_Mike%27s_pastry,_Boston.JPG?width=960",
+    "xp": 60,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 20,
+    "walk_min": 8
+  },
+  {
+    "id": "john-harvard-statue",
+    "station_id": "place-harsq",
+    "type": "scenic",
+    "title": "Meet the John Harvard Statue",
+    "description": "Walk into Harvard Yard and find the John Harvard statue in front of University Hall. Read the inscription on the base. Best in daylight.",
+    "lat": 42.37449,
+    "lon": -71.11722,
+    "price_tier": 0,
+    "vibe_tags": [
+      "history",
+      "campus",
+      "photo"
+    ],
+    "hours": "always",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/John_Harvard_statue,_Cambridge,_MA,_2023-02-20.jpg?width=960",
+    "xp": 50,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 10,
+    "walk_min": 5
+  },
+  {
+    "id": "glass-flowers",
+    "station_id": "place-harsq",
+    "type": "event",
+    "title": "See the Glass Flowers",
+    "description": "Visit the Harvard Museum of Natural History on Oxford Street and find the Glass Flowers gallery. Pick the model you’d swear was a real plant.",
+    "lat": 42.37838,
+    "lon": -71.11563,
+    "price_tier": 2,
+    "vibe_tags": [
+      "museum",
+      "science",
+      "indoors"
+    ],
+    "hours": "09:00-17:00",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/GlassFlowers1HMNH.jpg?width=960",
+    "xp": 80,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 45,
+    "walk_min": 10
+  },
+  {
+    "id": "cambridge-city-hall",
+    "station_id": "place-cntsq",
+    "type": "scenic",
+    "title": "Find Cambridge City Hall",
+    "description": "Walk up Massachusetts Avenue to Cambridge City Hall at 795 Mass Ave. Find the clock tower and one detail in the stonework. Best in daylight.",
+    "lat": 42.36705,
+    "lon": -71.10598,
+    "price_tier": 0,
+    "vibe_tags": [
+      "architecture",
+      "history",
+      "outdoors"
+    ],
+    "hours": "always",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Cambridge_City_Hall,_795_Massachusetts_Avenue,_Cambridge_(Middlesex_County,_Massachusetts).jpg?width=960",
+    "xp": 50,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 10,
+    "walk_min": 4
+  },
+  {
+    "id": "toscaninis-scoop",
+    "station_id": "place-cntsq",
+    "type": "food",
+    "title": "Get a Scoop at Toscanini’s",
+    "description": "Walk to Toscanini’s on Main Street and choose one flavor to try. Ask for a taste of anything unfamiliar first.",
+    "lat": 42.36268,
+    "lon": -71.10097,
+    "price_tier": 1,
+    "vibe_tags": [
+      "ice-cream",
+      "dessert"
+    ],
+    "hours": null,
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Toscanini%27s,_Cambridge_MA.jpg?width=960",
+    "xp": 60,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 15,
+    "walk_min": 5
+  },
+  {
+    "id": "theater-district-marquees",
+    "station_id": "place-chncl",
+    "type": "scenic",
+    "title": "Spot the Theater Marquees",
+    "description": "Walk up Washington Street to the Boston Opera House and find its marquee. Count how many other theater signs you can see from the same spot. Best after dark.",
+    "lat": 42.35442,
+    "lon": -71.0624,
+    "price_tier": 0,
+    "vibe_tags": [
+      "theater",
+      "architecture",
+      "night"
+    ],
+    "hours": "always",
+    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Opera_House_Marquee.JPG?width=960",
+    "xp": 50,
+    "checkin_radius_m": 75,
+    "requires_qr": false,
+    "duration_min": 10,
+    "walk_min": 3
   }
 ] as Quest[];
