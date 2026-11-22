@@ -6,6 +6,8 @@ import * as THREE from "three";
 export interface Footprint {
   rings: [number, number][][]; // lng/lat, first ring outer
   h: number; // meters, top of building
+  b?: number; // meters, bottom (for stacked building parts)
+  rgb?: number[]; // fixed wall color
 }
 
 const M_LAT = 110_540;
@@ -13,11 +15,11 @@ const mLng = (lat: number) => 111_320 * Math.cos((lat * Math.PI) / 180);
 
 // Cambridge triple-deckers and row houses come in many colors; bigger buildings are brick, stone or glass.
 const HOUSE_COLORS = [
-  [242, 216, 162], [180, 210, 194], [176, 200, 232], [232, 180, 186], [250, 246, 238],
-  [212, 192, 228], [226, 172, 172], [240, 224, 198], [160, 186, 224], [236, 200, 214],
+  [230, 218, 194], [217, 179, 140], [201, 123, 90], [184, 102, 74], [214, 196, 162],
+  [158, 154, 146], [140, 160, 172], [176, 150, 124], [126, 146, 128], [196, 186, 160],
 ];
-const BIG_COLORS = [[226, 172, 172], [204, 124, 132], [236, 208, 180], [240, 224, 198], [212, 192, 228], [186, 206, 230], [196, 220, 200]];
-const TOWER_COLORS = [[160, 186, 224], [138, 164, 208], [198, 216, 238]];
+const BIG_COLORS = [[201, 123, 90], [184, 102, 74], [217, 179, 140], [230, 218, 194], [214, 196, 162], [158, 154, 146], [156, 82, 62], [176, 150, 124]];
+const TOWER_COLORS = [[98, 132, 168], [78, 108, 146], [118, 146, 176]];
 
 function hash(n: number) {
   const x = Math.sin(n * 12.9898) * 43758.5453;
@@ -96,11 +98,11 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
     const rect = area / (4 * box.hu * box.hv);
     const r = hash(i + 1);
 
-    if (H <= 15 && area < 420 && area > 25 && rect > 0.78) {
+    if (!f.b && !f.rgb && H <= 15 && area < 420 && area > 25 && rect > 0.78) {
       // ---- house: walls to the eaves, gable roof along the long side, chimney ----
       const rgb = HOUSE_COLORS[Math.floor(r * HOUSE_COLORS.length)];
       const eave = Math.max(2.8, H - Math.min(box.hu, box.hv) * 0.75);
-      const roofCol = [[112, 96, 132], [82, 132, 142], [188, 112, 96], [96, 88, 120]][Math.floor(hash(i + 7) * 4)];
+      const roofCol = [[164, 85, 63], [138, 74, 58], [111, 106, 106], [95, 102, 112]][Math.floor(hash(i + 7) * 4)];
       const long = box.hu >= box.hv;
       const c = Math.cos(box.ang), s = Math.sin(box.ang);
       const P = (u: number, v: number, y: number) => [box.cx + u * c - v * s, y, box.cz + u * s + v * c];
@@ -134,21 +136,28 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
     // ---- flat-roofed building ----
     const tall = H > 40;
     const pal = tall && r > 0.35 ? TOWER_COLORS : BIG_COLORS;
-    const rgb = pal[Math.floor(hash(i + 11) * pal.length)];
-    b.walls(ccw(outer), 0, H, rgb);
-    for (const h of holes) if (h.length >= 3) b.walls([...ccw(h)].reverse() as [number, number][], 0, H, rgb);
+    const rgb = f.rgb ?? pal[Math.floor(hash(i + 11) * pal.length)];
+    const base = f.b ?? 0;
+    b.walls(ccw(outer), base, H, rgb);
+    for (const h of holes) if (h.length >= 3) b.walls([...ccw(h)].reverse() as [number, number][], base, H, rgb);
     const shape = THREE.ShapeUtils.triangulateShape(
       outer.map(([x, z]) => new THREE.Vector2(x, z)),
       holes.filter((h) => h.length >= 3).map((h) => h.map(([x, z]) => new THREE.Vector2(x, z))),
     );
     const all = [...outer, ...holes.flat()];
-    const roofRgb = [205, 205, 200];
+    const roofRgb = [141, 144, 150];
     for (const [p, q, t] of shape) {
       const A = [all[p][0], H, all[p][1]], B = [all[q][0], H, all[q][1]], C = [all[t][0], H, all[t][1]];
       // face up: choose winding so the normal points +y
       const cross = (B[0] - A[0]) * (C[2] - A[2]) - (B[2] - A[2]) * (C[0] - A[0]);
       if (cross < 0) b.tri(A, B, C, roofRgb);
       else b.tri(A, C, B, roofRgb);
+      if (base > 0) {
+        // underside of a cantilevered part, facing down
+        const a = [A[0], base, A[2]], bb = [B[0], base, B[2]], c = [C[0], base, C[2]];
+        if (cross < 0) b.tri(a, c, bb, rgb);
+        else b.tri(a, bb, c, rgb);
+      }
     }
     // rooftop units / elevator housing
     if (area > 250 && Math.min(box.hu, box.hv) > 6) {

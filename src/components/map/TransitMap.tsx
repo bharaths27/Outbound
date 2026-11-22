@@ -214,7 +214,7 @@ export default function TransitMap() {
           paint: { "line-color": lineColorExpr(LINE_COLORS), "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.9, 13, 1.7, 17, 3.4] },
         }, beforeLines);
 
-        // campuses: outline + see-through fill, like a selection (real campus land from city parcel/building data)
+        // campuses: one outline + see-through fill per school (real campus areas from OpenStreetMap via Overture Maps)
         m.addSource("campuses", { type: "geojson", data: "data/campuses.geojson" });
         m.addLayer({ id: "campus-fill", type: "fill", source: "campuses", paint: { "fill-color": ["get", "color"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0.22, 16, 0.14] } }, beforeLines);
         m.addLayer({ id: "campus-halo", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.5, 16, 5], "line-opacity": 0.85 } }, beforeLines);
@@ -247,6 +247,15 @@ export default function TransitMap() {
             (m.getSource("ov-minor") as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [...cache.values()].flat() });
           };
           m.on("moveend", loadMinor);
+          // crosswalks: one small file for the whole area, fetched the first time you get close to street level
+          let xwalk = false;
+          const loadXwalk = () => {
+            if (xwalk || m.getZoom() < 15.5) return;
+            xwalk = true;
+            fetch("data/ground/crosswalks.json").then((r) => r.json()).then((j) => (m.getSource("ov-xwalk") as GeoJSONSource | undefined)?.setData(j)).catch(() => (xwalk = false));
+          };
+          m.on("moveend", loadXwalk);
+          loadXwalk();
         }
         // moving water on the river, harbor and ponds
         const styleIds = m.getStyle().layers.map((l) => l.id);

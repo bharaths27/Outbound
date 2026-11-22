@@ -153,20 +153,21 @@ export function makeFacadeMaterial(unit: number, seed = 0) {
   return m;
 }
 
-/** Pastel, illustrated versions of the building palette used in the BPDA tiles (matches the Outbound mockup). */
+/** Game-map versions of the building palette used in the BPDA tiles (matches the Outbound mockup). */
 const REMAP: [number[], number[]][] = [
-  [[185, 143, 118], [226, 172, 172]], // brick -> dusty pink
-  [[191, 174, 154], [240, 224, 198]], // sand -> cream
-  [[200, 196, 189], [244, 226, 200]], // limestone -> warm sand
-  [[227, 221, 211], [250, 236, 224]], // white -> soft peach
-  [[217, 207, 194], [212, 192, 228]], // peach -> lavender
-  [[214, 195, 168], [242, 216, 162]], // mustard -> soft yellow
-  [[169, 112, 90], [204, 124, 132]],  // red brick -> rose
-  [[205, 191, 174], [180, 210, 194]], // sage -> mint
-  [[169, 184, 200], [130, 176, 230]], // tower glass
-  [[159, 176, 194], [112, 158, 214]], // dark tower glass -> deeper blue
-  [[201, 210, 219], [176, 214, 226]], // pale glass -> aqua
-  [[185, 198, 211], [150, 196, 226]], // gray glass -> sky blue
+  // Richer, darker "game map" colors (same family as the HackPrinceton map): brick, brownstone, sandstone, slate glass.
+  [[185, 143, 118], [184, 108, 80]],  // brick
+  [[191, 174, 154], [217, 179, 140]], // sand -> sandstone
+  [[200, 196, 189], [214, 196, 162]], // limestone
+  [[227, 221, 211], [230, 218, 194]], // white -> cream
+  [[217, 207, 194], [176, 150, 124]], // peach -> brownstone
+  [[214, 195, 168], [210, 172, 112]], // mustard -> ochre
+  [[169, 112, 90], [156, 82, 62]],    // red brick -> deep brick
+  [[205, 191, 174], [158, 154, 146]], // sage -> granite gray
+  [[169, 184, 200], [98, 132, 168]],  // tower glass
+  [[159, 176, 194], [78, 108, 146]],  // dark tower glass
+  [[201, 210, 219], [140, 166, 190]], // pale glass
+  [[185, 198, 211], [118, 146, 176]], // gray glass
 ];
 export function brightenPalette(col: Uint8Array) {
   const lut = new Map(REMAP.map(([a, b]) => [(a[0] << 16) | (a[1] << 8) | a[2], b]));

@@ -11,7 +11,7 @@ Sources (download them first, then edit the input paths at the top of each scrip
 | --- | --- |
 | `lcc.py` | Massachusetts State Plane (EPSG:2249, feet) to lng/lat |
 | `bpda_tiles.py` | `bpda/*.bin.gz` building meshes, `*.jpg` aerial photos, `manifest.json` |
-| `campus_cam.py` | `campuses.geojson` and the Cambridge layers |
+| `campus_cam.py` | the Cambridge layers (its old `campuses.geojson` is replaced by `overture_campuses.py`) |
 | `search_index.py` | `search-places.json` ([name, kind, lng, lat]) |
 | `street_labels.py` | `street-labels.geojson` (offline street names: Boston street samples + Cambridge `Trans/Street_Centerlines`) |
 
@@ -21,3 +21,6 @@ base64-wrapped so the offline map can draw labels where only text/data files are
 | `commuter_rail.py` | `cr-lines.geojson`, `cr-stations.json` (MBTA GTFS copy at github.com/OkuraKenG/Trains `gtfs_data/mbta`) |
 | `trees_off_water.py` | removes trees on water from `trees.json` (run after `trees.py`) |
 | `overture_ground.py` | `ground/` streets, paths, sidewalks, parks, water for the T area (Overture Maps; ODbL) |
+| `overture_crosswalks.py` | `ground/crosswalks.json` zebra crosswalks at main intersections (Overture Maps; ODbL) |
+| `overture_campuses.py` | `campuses.geojson`, one real outline per school (Overture Maps / OpenStreetMap; ODbL) |
+| `overture_state.py` | `base/ma-roads.json`, `base/ma-water.json`: main roads and lakes for all of MA and neighbors, for the offline map (Overture Maps; ODbL) |

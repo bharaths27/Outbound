@@ -181,10 +181,10 @@ export class CityBuildingsLayer implements CustomLayerInterface {
     const day = new THREE.Color(0xfff0d8), gold = new THREE.Color(0xffb070), moon = new THREE.Color(0xa8b8e8);
     // keep the pastel colors readable: only a hint of golden hour, and a bright blue "game night" instead of black
     this.sun.color.copy(day).lerp(gold, golden * 0.35).lerp(moon, night);
-    this.sun.intensity = 2.0 * (1 - night) + 0.9 * night;
+    this.sun.intensity = 1.75 * (1 - night) + 0.9 * night;
     this.sky.color.set(0xffffff).lerp(new THREE.Color(0x9aa6d4), night);
     this.sky.groundColor.set(0xb8b0c0).lerp(new THREE.Color(0x6a6488), night);
-    this.sky.intensity = 1.85 * (1 - night) + 1.7 * night;
+    this.sky.intensity = 1.3 * (1 - night) + 1.7 * night;
     // weather: overcast = soft grey light from the whole sky instead of a warm sun
     const w = this.weather;
     if (w) {
@@ -262,14 +262,8 @@ export class CityBuildingsLayer implements CustomLayerInterface {
       };
       jobs.push(job);
     }
-    jobs.push({
-      at: [-71.063, 42.362],
-      r: 0.01,
-      minZoom: this.minZoom,
-      run: async () => {
-        for (const l of makeLandmarks()) this.add(l.obj, l.center, 1);
-      },
-    });
+    // one job per landmark, so each loads when the view reaches it
+    for (const l of makeLandmarks()) jobs.push({ at: l.center, r: 0.01, minZoom: this.minZoom, run: async () => this.add(l.obj, l.center, 1) });
     jobs.push({
       at: TREES_CENTER,
       r: 0.06,

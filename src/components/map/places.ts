@@ -11,21 +11,21 @@ export interface Campus {
 // Campus shapes themselves come from OpenStreetMap (landuse=university/college) in the basemap tiles;
 // these are the label pins, in each school's primary color.
 export const CAMPUSES: Campus[] = [
-  { name: "MIT", short: "MIT", color: "#A31F34", lng: -71.0942, lat: 42.3601 },
-  { name: "Harvard University", short: "Harvard", color: "#A51C30", lng: -71.1167, lat: 42.3744 },
-  { name: "Boston University", short: "BU", color: "#CC0000", lng: -71.1054, lat: 42.3505 },
-  { name: "Northeastern University", short: "Northeastern", color: "#C8102E", lng: -71.0892, lat: 42.3398 },
-  { name: "Tufts University", short: "Tufts", color: "#3E8EDE", lng: -71.1198, lat: 42.4075 },
-  { name: "Boston College", short: "BC", color: "#8A100B", lng: -71.1685, lat: 42.3355 },
-  { name: "Emerson College", short: "Emerson", color: "#6C2C91", lng: -71.0657, lat: 42.3521 },
-  { name: "Suffolk University", short: "Suffolk", color: "#1F3A70", lng: -71.0616, lat: 42.3588 },
-  { name: "Berklee College of Music", short: "Berklee", color: "#2D2D2D", lng: -71.087, lat: 42.3466 },
-  { name: "Wentworth Institute of Technology", short: "Wentworth", color: "#B8860B", lng: -71.0951, lat: 42.3363 },
-  { name: "MassArt", short: "MassArt", color: "#E4002B", lng: -71.099, lat: 42.3373 },
-  { name: "Simmons University", short: "Simmons", color: "#00205B", lng: -71.1002, lat: 42.3389 },
-  { name: "UMass Boston", short: "UMass Boston", color: "#005A8B", lng: -71.0381, lat: 42.3134 },
-  { name: "Brandeis University", short: "Brandeis", color: "#003478", lng: -71.259, lat: 42.3657 },
-  { name: "Harvard Medical School", short: "Harvard Med", color: "#A51C30", lng: -71.1048, lat: 42.3355 },
+  { name: "MIT", short: "MIT", color: "#A31F34", lng: -71.0946, lat: 42.3590 },
+  { name: "Harvard University", short: "Harvard", color: "#A51C30", lng: -71.1162, lat: 42.3744 },
+  { name: "Boston University", short: "BU", color: "#CC0000", lng: -71.1033, lat: 42.3494 },
+  { name: "Northeastern University", short: "Northeastern", color: "#C8102E", lng: -71.0886, lat: 42.3388 },
+  { name: "Tufts University", short: "Tufts", color: "#3E8EDE", lng: -71.1185, lat: 42.4068 },
+  { name: "Boston College", short: "BC", color: "#8A100B", lng: -71.1668, lat: 42.3379 },
+  { name: "Emerson College", short: "Emerson", color: "#6C2C91", lng: -71.0644, lat: 42.3532 },
+  { name: "Suffolk University", short: "Suffolk", color: "#1F3A70", lng: -71.0618, lat: 42.3592 },
+  { name: "Berklee College of Music", short: "Berklee", color: "#2D2D2D", lng: -71.0873, lat: 42.3466 },
+  { name: "Wentworth Institute of Technology", short: "Wentworth", color: "#B8860B", lng: -71.0957, lat: 42.3365 },
+  { name: "MassArt", short: "MassArt", color: "#E4002B", lng: -71.0996, lat: 42.3367 },
+  { name: "Simmons University", short: "Simmons", color: "#00205B", lng: -71.1004, lat: 42.3390 },
+  { name: "UMass Boston", short: "UMass Boston", color: "#005A8B", lng: -71.0385, lat: 42.3140 },
+  { name: "Brandeis University", short: "Brandeis", color: "#003478", lng: -71.2585, lat: 42.3660 },
+  { name: "Harvard Medical School", short: "Harvard Med", color: "#A51C30", lng: -71.1035, lat: 42.3368 },
 ];
 
 export interface FriendVisit {
