@@ -3,6 +3,7 @@
 
 import type { PriceTier, QuestType } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
+import { PhotoOrFallback } from "./photo-or-fallback";
 
 export const CATEGORY: Record<QuestType, { label: string; tint: string; ink: string; d: string }> = {
   food: {
@@ -46,16 +47,15 @@ export function QuestThumb({
   className?: string;
   iconSize?: number;
 }) {
-  if (photo) {
-    // Remote photos come from the content team; next/image needs their hosts configured first.
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={photo} alt="" loading="lazy" className={cn("object-cover", className)} />;
-  }
-  return (
+  const tinted = (
     <div className={cn("flex items-center justify-center", CATEGORY[type].tint, className)}>
       <CategoryIcon type={type} size={iconSize} />
     </div>
   );
+  if (photo) {
+    return <PhotoOrFallback src={photo} className={cn("object-cover", className)} fallback={tinted} />;
+  }
+  return tinted;
 }
 
 /** "Free", "$", "$$", "$$$" for the meta row; the budget filter keeps its dollar ranges. */
