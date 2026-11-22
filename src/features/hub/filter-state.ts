@@ -29,7 +29,7 @@ export const BUDGET_OPTIONS: { value: PriceTier; label: string }[] = [
   { value: 3, label: "$20+" },
 ];
 
-/** Minutes available, counted from the station (ride time isn't known yet). */
+/** Minutes available, counted from the player when their ride time is known, else from the station. */
 export const TIME_OPTIONS: { value: number; label: string }[] = [
   { value: 15, label: "15 min" },
   { value: 30, label: "30 min" },
@@ -129,11 +129,14 @@ export function activeCount(f: HubFilters): number {
   );
 }
 
-/** Filters, then (with search terms) puts quests matching more terms first. */
-export function applyFilters(quests: Quest[], f: HubFilters, now: Date): Quest[] {
+/**
+ * Filters, then (with search terms) puts quests matching more terms first. `rideMin` is the
+ * ride from the player to this station when known (counted against the time filter).
+ */
+export function applyFilters(quests: Quest[], f: HubFilters, now: Date, rideMin: number | null = null): Quest[] {
   const hits = (q: Quest) => f.terms.filter((t) => matchesTerm(q, t)).length;
   const kept = quests.filter(
-    (q) => matchesFilters(q, f) && (!f.openNow || isOpenAt(q.hours, now) !== false) && (f.terms.length === 0 || hits(q) > 0),
+    (q) => matchesFilters(q, f, { rideMin: rideMin ?? 0 }) && (!f.openNow || isOpenAt(q.hours, now) !== false) && (f.terms.length === 0 || hits(q) > 0),
   );
   return f.terms.length === 0 ? kept : kept.map((q) => ({ q, n: hits(q) })).sort((a, b) => b.n - a.n).map((x) => x.q);
 }

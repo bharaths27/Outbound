@@ -3,7 +3,9 @@
 Stations and quests for Outbound, edited as CSV. Columns match `public.stations` and
 `public.quests` in `backend/supabase/schema.sql`.
 
-- `stations.csv`: neighborhood and stop story for each station with quests.
+- `stations.csv`: every station on the map, with its neighborhood and a short description
+  (`story`), shown at the top of the station panel. Stations without quests show "No quests
+  here yet".
 - `quests.csv`: the quests.
 
 After editing either file:
@@ -39,7 +41,12 @@ Removing Bharath's starter quests is an optional, commented-out step at the end 
   player has.
 - `vibe_tags`: lowercase and hyphenated (`late-night`, `street-art`). No budget or time
   words (`cheap`, `free`, `quick`): the budget and time filters cover those.
-- `photo_url`: an `https://` image, or empty.
+- `photo_url`: an `https://` image, or empty. Use a photo from Wikimedia Commons, as
+  `https://commons.wikimedia.org/wiki/Special:FilePath/<File_name.jpg>?width=960` (the file
+  name from the Commons page URL after `File:`). That serves a 960 px copy, and the quest page
+  shows the photo's author and license from Commons under the description, which CC BY and
+  CC BY-SA require. Don't use photos from other sites unless the license allows it and you add
+  the credit yourself.
 - `hours` drives "Open now" and the open/closed label. Use one of:
 
   | Value | Meaning |

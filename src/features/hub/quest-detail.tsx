@@ -25,6 +25,7 @@ import { budgetLabel } from "./filter-state";
 import { openState, scheduleRows } from "./hours";
 import { LineLetter, groupLines } from "./line-badge";
 import { TagList, XpChip } from "./quest-card";
+import { PhotoCredit } from "./photo-credit";
 import { lastVisit, type Player } from "./use-player";
 
 export interface QuestDetailProps {
@@ -146,6 +147,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
       <Meta quest={quest} now={now} />
       {quest.description && <p className="max-w-[70ch] text-[15px] leading-[1.55] text-ink-2">{quest.description}</p>}
       <TagList tags={quest.vibe_tags} max={6} />
+      <PhotoCredit url={quest.photo_url} />
     </>
   );
 

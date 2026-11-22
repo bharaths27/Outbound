@@ -12,13 +12,21 @@ import { data } from "@/lib/data";
 import type { Quest, Station } from "@/lib/data/types";
 import { getExploreFilters } from "@/features/explore/explore-filters";
 import { FilterBar } from "./filter-bar";
-import { EMPTY_FILTERS, applyFilters, cravingOptions, fromSearch, type HubFilters } from "./filter-state";
+import {
+  EMPTY_FILTERS,
+  applyFilters,
+  cravingOptions,
+  fromSearch,
+  type HubFilters,
+} from "./filter-state";
 import { HubHeader, HubHeaderSkeleton } from "./hub-header";
 import { QuestCard } from "./quest-card";
+import { useRideMinutes } from "./ride-time";
 import { QuestDetail } from "./quest-detail";
 import { SearchBar } from "./search-bar";
 import { useNow } from "./use-now";
 import { lastVisit, tierIn, usePlayer } from "./use-player";
+import { mapStation } from "./map-station";
 
 type Load =
   | { status: "loading" }
@@ -34,7 +42,9 @@ function Story({ text }: { text: string }) {
   return (
     <p className="text-sm leading-[1.5] text-muted-2">
       {/* Inline "Read more", like the reference: cut at a word near 150 characters. */}
-      {long && !expanded ? `${text.slice(0, text.lastIndexOf(" ", 150)).trimEnd()}… ` : `${text} `}
+      {long && !expanded
+        ? `${text.slice(0, text.lastIndexOf(" ", 150)).trimEnd()}… `
+        : `${text} `}
       {long && (
         <button
           type="button"
@@ -64,7 +74,10 @@ function ListSkeleton() {
 
 /** The quest with the shortest walk from the station. */
 function closestQuest(quests: Quest[]): Quest | null {
-  return quests.reduce<Quest | null>((best, q) => (best === null || q.walk_min < best.walk_min ? q : best), null);
+  return quests.reduce<Quest | null>(
+    (best, q) => (best === null || q.walk_min < best.walk_min ? q : best),
+    null,
+  );
 }
 
 /** Filters found nothing: say which filter to drop, and still show the closest quest. */
@@ -83,11 +96,15 @@ function NoMatches({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col items-center gap-3 py-5 text-center">
         <p className="type-body text-muted-foreground">
-          {filters.openNow ? "Nothing open matches. Try turning off Open now." : "No quests match these filters."}
+          {filters.openNow
+            ? "Nothing open matches. Try turning off Open now."
+            : "No quests match these filters."}
         </p>
         <div className="flex flex-wrap justify-center gap-2">
           {filters.openNow && (
-            <Button onClick={() => onChange({ ...filters, openNow: false })}>Turn off Open now</Button>
+            <Button onClick={() => onChange({ ...filters, openNow: false })}>
+              Turn off Open now
+            </Button>
           )}
           <Button variant="outline" onClick={() => onChange(EMPTY_FILTERS)}>
             Clear filters
@@ -96,7 +113,9 @@ function NoMatches({
       </div>
       {closest && (
         <>
-          <p className="type-eyebrow text-muted-foreground">Closest to the station</p>
+          <p className="type-eyebrow text-muted-foreground">
+            Closest to the station
+          </p>
           {card(closest)}
         </>
       )}
@@ -104,11 +123,20 @@ function NoMatches({
   );
 }
 
-export function StationHub({ stationId, onClose }: { stationId: string; onClose: () => void }) {
+export function StationHub({
+  stationId,
+  onClose,
+}: {
+  stationId: string;
+  onClose: () => void;
+}) {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   // Starts from the Explore card's Craving / Budget / Time picks, if any.
-  const [filters, setFilters] = useState<HubFilters>(() => ({ ...EMPTY_FILTERS, ...getExploreFilters() }));
+  const [filters, setFilters] = useState<HubFilters>(() => ({
+    ...EMPTY_FILTERS,
+    ...getExploreFilters(),
+  }));
   const [openQuestId, setOpenQuestId] = useState<string | null>(null);
   const { player, reload } = usePlayer();
   const now = useNow();
@@ -122,9 +150,14 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
   useEffect(() => {
     let cancelled = false;
     Promise.all([data.getStation(stationId), data.getQuests(stationId)])
-      .then(([station, quests]) => {
+      .then(async ([found, quests]) => {
+        const station = found ?? (await mapStation(stationId));
         if (cancelled) return;
-        setLoad(station ? { status: "ready", station, quests } : { status: "missing" });
+        setLoad(
+          station
+            ? { status: "ready", station, quests }
+            : { status: "missing" },
+        );
       })
       .catch(() => !cancelled && setLoad({ status: "error" }));
     return () => {
@@ -133,13 +166,23 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
   }, [stationId, attempt]);
 
   const quests = load.status === "ready" ? load.quests : NO_QUESTS;
-  const results = useMemo(() => applyFilters(quests, filters, now), [quests, filters, now]);
-  const cravings = useMemo(() => cravingOptions(quests, filters.craving), [quests, filters.craving]);
-  const knownTags = useMemo(() => [...new Set(quests.flatMap((q) => q.vibe_tags))], [quests]);
+  const rideMin = useRideMinutes(stationId);
+  const results = useMemo(
+    () => applyFilters(quests, filters, now, rideMin),
+    [quests, filters, now, rideMin],
+  );
+  const cravings = useMemo(
+    () => cravingOptions(quests, filters.craving),
+    [quests, filters.craving],
+  );
+  const knownTags = useMemo(
+    () => [...new Set(quests.flatMap((q) => q.vibe_tags))],
+    [quests],
+  );
 
   if (load.status === "loading") {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 pt-3 desk:pt-6">
         <HubHeaderSkeleton onClose={onClose} />
         <ListSkeleton />
       </div>
@@ -148,7 +191,7 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
 
   if (load.status !== "ready") {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 pt-3 desk:pt-6">
         <div className="flex justify-end">
           <Button variant="ghost" onClick={onClose}>
             Close
@@ -156,7 +199,9 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
         </div>
         <div className="flex flex-col items-center gap-3 py-8 text-center">
           <p className="type-heading">
-            {load.status === "missing" ? "We couldn't find that station." : "This station didn't load."}
+            {load.status === "missing"
+              ? "We couldn't find that station."
+              : "This station didn't load."}
           </p>
           <p className="type-body text-muted-foreground">
             {load.status === "missing"
@@ -181,12 +226,16 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
 
   const { station } = load;
   const tier = tierIn(player, station.neighborhood);
-  const openQuest = openQuestId ? quests.find((q) => q.id === openQuestId) : undefined;
+  const openQuest = openQuestId
+    ? quests.find((q) => q.id === openQuestId)
+    : undefined;
 
   return (
     <div ref={rootRef} className="flex flex-col gap-4">
-      {/* Pinned while the rest scrolls (DESIGN.md §7). */}
-      <div className="sticky top-0 z-10 -mx-4 bg-background px-4 pb-1 desk:-mx-6 desk:px-6">
+      {/* Pinned while the rest scrolls (DESIGN.md §7). The scroll area has no top padding and
+          the header carries it instead, so nothing scrolls into a gap above the header. A
+          48 px eased fade in the panel's color hangs under it, so content scrolls out softly. */}
+      <div className="sticky top-0 z-20 -mx-4 bg-background px-4 pt-3 pb-1 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-12 after:ob-fade-down desk:-mx-6 desk:px-6 desk:pt-6">
         <HubHeader station={station} onClose={onClose} />
       </div>
 
@@ -206,24 +255,38 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
           <Button
             variant="outline"
             className="self-start"
-            onClick={() => openGuide({ prompt: `What should I do near ${station.name}?` })}
+            onClick={() =>
+              openGuide({ prompt: `What should I do near ${station.name}?` })
+            }
           >
             <Sparkles className="text-maroon" aria-hidden />
             Ask Guide about {station.name}
           </Button>
 
-          <div className="flex flex-col gap-4">
-            <SearchBar
-              stationName={station.name}
-              knownTags={knownTags}
-              filters={filters}
-              onSearch={(result) => setFilters((f) => fromSearch(f, result))}
-              onChange={setFilters}
-            />
-            <FilterBar filters={filters} cravings={cravings} resultCount={results.length} onChange={setFilters} />
-          </div>
+          {/* Search and filters only help when there is something to filter. */}
+          {quests.length > 0 && (
+            <div className="flex flex-col gap-4">
+              <SearchBar
+                stationName={station.name}
+                knownTags={knownTags}
+                filters={filters}
+                onSearch={(result) => setFilters((f) => fromSearch(f, result))}
+                onChange={setFilters}
+              />
+              <FilterBar
+                filters={filters}
+                cravings={cravings}
+                resultCount={results.length}
+                rideMin={rideMin}
+                onChange={setFilters}
+              />
+            </div>
+          )}
 
-          <section aria-label={`Quests near ${station.name}`} className="flex flex-col gap-3">
+          <section
+            aria-label={`Quests near ${station.name}`}
+            className="flex flex-col gap-3"
+          >
             {quests.length === 0 ? (
               <p className="type-body py-6 text-center text-muted-foreground">
                 No quests here yet. Try a station nearby.

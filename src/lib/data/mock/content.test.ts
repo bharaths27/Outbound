@@ -55,7 +55,7 @@ describe("content: quests", () => {
     if (q.photo_url !== null) expect(q.photo_url).toMatch(/^https:\/\//);
   });
 
-  it("gives every station at least one quest", () => {
-    for (const s of stations) expect(quests.some((q) => q.station_id === s.id), s.id).toBe(true);
+  it("gives every station a description", () => {
+    for (const s of stations) expect(s.story?.trim(), s.id).toBeTruthy();
   });
 });

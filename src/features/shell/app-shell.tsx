@@ -5,13 +5,25 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { guideFloatsOn } from "@/features/guide/placement";
 import { cn } from "@/lib/utils";
-import { AskGuideButton, NAV, NavIcon, PHONE_NAV, NotificationsBell, ProfileLink, ThemeToggle, XpPill, isActive } from "./shell-parts";
+import { ScrollFade } from "./scroll-fade";
+import {
+  AskGuideButton,
+  NAV,
+  NavIcon,
+  PHONE_NAV,
+  NotificationsBell,
+  ProfileLink,
+  ThemeToggle,
+  XpPill,
+  isActive,
+} from "./shell-parts";
 import { useShellPlayer } from "./use-shell-player";
 
 /** Routes that render without the shell (full-screen flows and dev pages). */
 const BARE_ROUTES = ["/login", "/onboarding", "/squad/join", "/dev"];
 
-export const isBareRoute = (pathname: string) => BARE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+export const isBareRoute = (pathname: string) =>
+  BARE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
 
 /**
  * App frame (DESIGN.md §4). Phones and tablets (< 1024 px): a maroon header on Explore
@@ -31,9 +43,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop top bar */}
       <header className="hidden bg-maroon text-on-maroon desk:block">
         <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-7 gap-y-3 px-8 py-3">
-          <Link href="/" className="flex items-center py-2" aria-label="Outbound home">
+          <Link
+            href="/"
+            className="flex items-center py-2"
+            aria-label="Outbound home"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/outbound-wordmark.svg" alt="" className="block h-7 w-auto" />
+            <img
+              src="/outbound-wordmark.svg"
+              alt=""
+              className="block h-7 w-auto"
+            />
           </Link>
           <nav aria-label="Primary" className="flex flex-1 flex-wrap gap-1">
             {NAV.map((item) => {
@@ -45,7 +65,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex h-11 items-center rounded-full px-4 text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-gold",
-                    active ? "bg-paper font-bold text-maroon shadow-nav" : "font-semibold text-on-maroon-muted hover:bg-white/10",
+                    active
+                      ? "bg-paper font-bold text-maroon shadow-nav"
+                      : "font-semibold text-on-maroon-muted hover:bg-white/10",
                   )}
                 >
                   {item.label}
@@ -68,7 +90,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="flex items-center gap-1.5 bg-maroon px-3 pt-[calc(14px+env(safe-area-inset-top))] pb-3 text-on-maroon desk:hidden">
           <div className="flex flex-1 items-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/outbound-wordmark.svg" alt="Outbound" className="block h-[22px] w-auto" />
+            <img
+              src="/outbound-wordmark.svg"
+              alt="Outbound"
+              className="block h-[22px] w-auto"
+            />
           </div>
           <XpPill player={player} size="sm" />
           <ThemeToggle />
@@ -78,7 +104,15 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       {/* Where the floating Ask Guide button shows, bottom padding keeps it off the last row. */}
-      <main className={cn("relative min-h-0 flex-1 overflow-y-auto", guideFloats && "pb-20")}>{children}</main>
+      <main
+        className={cn(
+          "relative min-h-0 flex-1 overflow-y-auto",
+          guideFloats && "pb-20",
+        )}
+      >
+        {!onExplore && <ScrollFade key={pathname} />}
+        {children}
+      </main>
 
       {/* Mobile tab bar */}
       <nav

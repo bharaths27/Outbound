@@ -442,3 +442,18 @@
 :root[data-theme="dark"] .text-primary,
 :root[data-theme="dark"] .text-maroon-600 { color: #f4b4c3; }
 :root[data-theme="dark"] .ob-link { color: #f4b4c3 !important; }
+
+/* A soft fade from the page color to transparent, eased so it has no visible edge (the
+   shell's scroll fade and the station panel's header). Stops follow an ease-out curve instead of a straight line. */
+@utility ob-fade-down {
+  background-color: var(--background);
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    rgb(0 0 0 / 0.85) 20%,
+    rgb(0 0 0 / 0.62) 40%,
+    rgb(0 0 0 / 0.36) 60%,
+    rgb(0 0 0 / 0.14) 80%,
+    transparent 100%
+  );
+}
