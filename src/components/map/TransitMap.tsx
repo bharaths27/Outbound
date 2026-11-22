@@ -44,6 +44,9 @@ interface CrStation {
   routes: string[];
   town: string;
 }
+/** Commuter Rail lines and stations (purple) are off for now; set true to show them again. */
+const SHOW_COMMUTER_RAIL = false;
+const CR_VIS = SHOW_COMMUTER_RAIL ? "visible" : "none";
 const CR_NAMES: Record<string, string> = {
   "CR-Fairmount": "Fairmount", "CR-NewBedford": "Fall River/New Bedford", "CR-Fitchburg": "Fitchburg", "CR-Worcester": "Framingham/Worcester",
   "CR-Franklin": "Franklin/Foxboro", "CR-Greenbush": "Greenbush", "CR-Haverhill": "Haverhill", "CR-Kingston": "Kingston", "CR-Lowell": "Lowell",
@@ -181,14 +184,14 @@ export default function TransitMap() {
           id: "cr-casing",
           type: "line",
           source: "cr-lines",
-          layout: { "line-cap": "round", "line-join": "round" },
+          layout: { "line-cap": "round", "line-join": "round", visibility: CR_VIS },
           paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1.2, 13, 2.4, 17, 4.5], "line-opacity": 0.85 },
         }, beforeLines);
         m.addLayer({
           id: "cr-lines",
           type: "line",
           source: "cr-lines",
-          layout: { "line-cap": "round", "line-join": "round" },
+          layout: { "line-cap": "round", "line-join": "round", visibility: CR_VIS },
           paint: { "line-color": "#80276C", "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 13, 1.3, 17, 2.6], "line-dasharray": [3, 1.2] },
         }, beforeLines);
         m.addSource("mbta-lines", { type: "geojson", data: linesGeo });
@@ -362,6 +365,7 @@ export default function TransitMap() {
           type: "circle",
           source: "cr-stations",
           minzoom: 8.5,
+          layout: { visibility: CR_VIS },
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 1.4, 13, 3, 17, 5],
             "circle-color": "#ffffff",
@@ -376,6 +380,7 @@ export default function TransitMap() {
           source: "cr-stations",
           minzoom: 12,
           layout: {
+            visibility: CR_VIS,
             "text-field": ["get", "name"],
             "text-font": ["Noto Sans Regular"],
             "text-size": ["interpolate", ["linear"], ["zoom"], 12, 9.5, 17, 12],
