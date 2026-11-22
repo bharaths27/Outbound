@@ -41,10 +41,10 @@ export function LoginPage() {
             the headline. The hub sits at x=405 of the 640 px art, so the art is shifted to put it at the centre. */}
         <div
           aria-hidden
-          className="pointer-events-none relative mt-auto mb-6 hidden h-[440px] desk:block [@media(max-height:820px)]:h-[330px]"
+          className="pointer-events-none relative mt-auto mb-6 hidden h-[440px] desk:block [@media(max-height:760px)]:h-[330px] [@media(min-height:940px)]:h-[528px]"
         >
-          {/* Shrinks on short screens so it never runs into the wordmark or pushes the copy off screen. */}
-          <div className="absolute inset-x-0 bottom-0 h-[440px] origin-bottom [@media(max-height:820px)]:scale-75">
+          {/* Full size on a typical laptop, larger on tall screens, smaller on short ones so it never runs into the wordmark or pushes the copy off screen. */}
+          <div className="absolute inset-x-0 bottom-0 h-[440px] origin-bottom [@media(max-height:760px)]:scale-75 [@media(min-height:940px)]:scale-120">
             <svg
               aria-hidden
               viewBox="0 0 600 420"
