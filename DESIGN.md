@@ -41,6 +41,7 @@ The map itself is owned by Verna. Restyle only the chrome around it; the illustr
 
 1. **Navigation.**
    - Replace the 4-tab shell (Map, Passport, Compete, Profile; left rail on desktop) with **5 items: Explore · Quests · Passport · Leaderboard · Events**.
+   - **Team decision (2026-11-21):** the phone tab bar shows **Explore · Quests · Passport · Leaderboard · Rewards**. Events isn't designed yet, so it's in the desktop top bar only.
    - Phones get a **bottom tab bar**. Desktop gets a **maroon top bar** with the logo, nav pills, XP pill, bell and avatar.
    - **Profile** has no tab. On desktop you reach it from the avatar; on mobile from the avatar or menu.
    - Keep the shell hidden on Login, Onboarding and Squad invite.
