@@ -3,7 +3,9 @@
 Stations and quests for Outbound, edited as CSV. Columns match `public.stations` and
 `public.quests` in `backend/supabase/schema.sql`.
 
-- `stations.csv`: neighborhood and stop story for each station with quests.
+- `stations.csv`: every station on the map, with its neighborhood and a short description
+  (`story`), shown at the top of the station panel. Stations without quests show "No quests
+  here yet".
 - `quests.csv`: the quests.
 
 After editing either file:

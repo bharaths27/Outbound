@@ -117,6 +117,1295 @@ export const stations: Station[] = [
     "lon": -71.062752,
     "neighborhood": "Chinatown",
     "story": "Leave the Orange Line at Washington and Boylston. Follow the neighborhood streets toward the Beach Street gate and the southern end of the Greenway."
+  },
+  {
+    "id": "place-aport",
+    "name": "Airport",
+    "lines": [
+      "Blue"
+    ],
+    "lat": 42.374371,
+    "lon": -71.030225,
+    "neighborhood": "East Boston",
+    "story": "The Blue Line stop for Logan Airport, with free shuttle buses to every terminal. East Boston's waterfront and Piers Park are a short walk away."
+  },
+  {
+    "id": "place-alfcl",
+    "name": "Alewife",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.39583,
+    "lon": -71.141287,
+    "neighborhood": "North Cambridge",
+    "story": "The northern end of the Red Line, beside Alewife Brook Reservation. The Minuteman and Fitchburg Cutoff bike paths start nearby."
+  },
+  {
+    "id": "place-alsgr",
+    "name": "Allston Street",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.348701,
+    "lon": -71.137955,
+    "neighborhood": "Allston",
+    "story": "A B branch stop on Commonwealth Avenue in Allston, between Boston University and Harvard Avenue."
+  },
+  {
+    "id": "place-amory",
+    "name": "Amory Street",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.350992,
+    "lon": -71.114748,
+    "neighborhood": "Fenway-Kenmore",
+    "story": "A B branch stop on Commonwealth Avenue at the west side of Boston University's campus."
+  },
+  {
+    "id": "place-andrw",
+    "name": "Andrew",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.330154,
+    "lon": -71.057655,
+    "neighborhood": "South Boston",
+    "story": "A Red Line stop at Andrew Square, between South Boston and Dorchester."
+  },
+  {
+    "id": "place-aqucl",
+    "name": "Aquarium",
+    "lines": [
+      "Blue"
+    ],
+    "lat": 42.359526,
+    "lon": -71.051939,
+    "neighborhood": "Downtown",
+    "story": "The Blue Line stop on the waterfront, next to the New England Aquarium and Long Wharf. Harbor boats and the Greenway are steps away."
+  },
+  {
+    "id": "place-armnl",
+    "name": "Arlington",
+    "lines": [
+      "Green-B",
+      "Green-C",
+      "Green-D",
+      "Green-E"
+    ],
+    "lat": 42.351902,
+    "lon": -71.070893,
+    "neighborhood": "Back Bay",
+    "story": "A Green Line stop at the corner of the Public Garden, where Back Bay begins. Newbury Street starts a block away."
+  },
+  {
+    "id": "place-asmnl",
+    "name": "Ashmont",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.28452,
+    "lon": -71.063777,
+    "neighborhood": "Dorchester",
+    "story": "The end of the Red Line's Ashmont branch in Dorchester, and the transfer to the Mattapan trolley."
+  },
+  {
+    "id": "place-astao",
+    "name": "Assembly",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.392811,
+    "lon": -71.077257,
+    "neighborhood": "Somerville",
+    "story": "An Orange Line stop at Assembly Row in Somerville, with shops and restaurants along the Mystic River."
+  },
+  {
+    "id": "place-babck",
+    "name": "Babcock Street",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.351616,
+    "lon": -71.119924,
+    "neighborhood": "Allston",
+    "story": "A B branch stop on Commonwealth Avenue in Allston, near Boston University's western edge."
+  },
+  {
+    "id": "place-bbsta",
+    "name": "Back Bay",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.34735,
+    "lon": -71.075727,
+    "neighborhood": "Back Bay",
+    "story": "An Orange Line and Commuter Rail station in Back Bay, near Copley Place and the Southwest Corridor Park."
+  },
+  {
+    "id": "place-bckhl",
+    "name": "Back of the Hill",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.330139,
+    "lon": -71.111313,
+    "neighborhood": "Jamaica Plain",
+    "story": "An E branch stop on Huntington Avenue at the foot of Mission Hill."
+  },
+  {
+    "id": "place-balsq",
+    "name": "Ball Square",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.399889,
+    "lon": -71.111003,
+    "neighborhood": "Medford",
+    "story": "A Green Line Extension stop on the Medford–Somerville line, by the small shops of Ball Square."
+  },
+  {
+    "id": "place-bmmnl",
+    "name": "Beachmont",
+    "lines": [
+      "Blue"
+    ],
+    "lat": 42.39726,
+    "lon": -70.992533,
+    "neighborhood": "Revere",
+    "story": "A Blue Line stop in Revere's Beachmont neighborhood, a few blocks from the shore."
+  },
+  {
+    "id": "place-bcnfd",
+    "name": "Beaconsfield",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.335765,
+    "lon": -71.140455,
+    "neighborhood": "Brookline",
+    "story": "A D branch stop in a quiet residential part of Brookline."
+  },
+  {
+    "id": "place-bland",
+    "name": "Blandford Street",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.349293,
+    "lon": -71.100258,
+    "neighborhood": "Fenway-Kenmore",
+    "story": "A B branch stop on Commonwealth Avenue in the middle of Boston University's campus."
+  },
+  {
+    "id": "place-lake",
+    "name": "Boston College",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.340081,
+    "lon": -71.166769,
+    "neighborhood": "Brighton",
+    "story": "The end of the B branch, at the foot of Boston College's campus in Chestnut Hill."
+  },
+  {
+    "id": "place-buest",
+    "name": "Boston University East",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.349735,
+    "lon": -71.103889,
+    "neighborhood": "Fenway-Kenmore",
+    "story": "A B branch stop on Commonwealth Avenue at the east end of Boston University, close to Kenmore Square."
+  },
+  {
+    "id": "place-bomnl",
+    "name": "Bowdoin",
+    "lines": [
+      "Blue"
+    ],
+    "lat": 42.361169,
+    "lon": -71.061838,
+    "neighborhood": "Beacon Hill",
+    "story": "The Blue Line's downtown end, near Government Center and the slope of Beacon Hill."
+  },
+  {
+    "id": "place-boyls",
+    "name": "Boylston",
+    "lines": [
+      "Green-B",
+      "Green-C",
+      "Green-D",
+      "Green-E"
+    ],
+    "lat": 42.35302,
+    "lon": -71.06459,
+    "neighborhood": "Downtown",
+    "story": "A Green Line stop at Boston Common's southeast corner, near the Theatre District and Chinatown."
+  },
+  {
+    "id": "place-brntn",
+    "name": "Braintree",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.2078543,
+    "lon": -71.0011385,
+    "neighborhood": "Braintree",
+    "story": "The end of the Red Line's Braintree branch, shared with the Commuter Rail."
+  },
+  {
+    "id": "place-bndhl",
+    "name": "Brandon Hall",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.340013,
+    "lon": -71.128701,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop on Beacon Street in Brookline."
+  },
+  {
+    "id": "place-brmnl",
+    "name": "Brigham Circle",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.334229,
+    "lon": -71.104609,
+    "neighborhood": "Mission Hill",
+    "story": "An E branch stop on Huntington Avenue in Mission Hill, near the Longwood medical area."
+  },
+  {
+    "id": "place-brdwy",
+    "name": "Broadway",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.342622,
+    "lon": -71.056967,
+    "neighborhood": "South Boston",
+    "story": "A Red Line stop in South Boston, at the start of West Broadway's restaurants and bars."
+  },
+  {
+    "id": "place-brkhl",
+    "name": "Brookline Hills",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.331316,
+    "lon": -71.126683,
+    "neighborhood": "Brookline",
+    "story": "A D branch stop in Brookline, next to Brookline High School."
+  },
+  {
+    "id": "place-bvmnl",
+    "name": "Brookline Village",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.332608,
+    "lon": -71.116857,
+    "neighborhood": "Brookline",
+    "story": "A D branch stop in Brookline Village, with independent shops along Washington Street."
+  },
+  {
+    "id": "place-butlr",
+    "name": "Butler",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.272429,
+    "lon": -71.062519,
+    "neighborhood": "Dorchester",
+    "story": "A Mattapan trolley stop in Dorchester, on the edge of Cedar Grove Cemetery."
+  },
+  {
+    "id": "place-capst",
+    "name": "Capen Street",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.267563,
+    "lon": -71.087338,
+    "neighborhood": "Milton",
+    "story": "A Mattapan trolley stop in Milton, near the Neponset River."
+  },
+  {
+    "id": "place-cedgr",
+    "name": "Cedar Grove",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.279629,
+    "lon": -71.060394,
+    "neighborhood": "Dorchester",
+    "story": "A Mattapan trolley stop in Dorchester, where the line runs through Cedar Grove Cemetery."
+  },
+  {
+    "id": "place-cenav",
+    "name": "Central Avenue",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.270027,
+    "lon": -71.073443,
+    "neighborhood": "Milton",
+    "story": "A Mattapan trolley stop in Milton, by the Neponset River at Central Avenue."
+  },
+  {
+    "id": "place-chmnl",
+    "name": "Charles/MGH",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.361166,
+    "lon": -71.070628,
+    "neighborhood": "Beacon Hill",
+    "story": "A Red Line stop at the foot of Beacon Hill, next to Mass General Hospital. Charles Street's shops and the Esplanade are close."
+  },
+  {
+    "id": "place-chhil",
+    "name": "Chestnut Hill",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.326753,
+    "lon": -71.164699,
+    "neighborhood": "Newton",
+    "story": "A D branch stop in Chestnut Hill, near the Chestnut Hill Reservoir."
+  },
+  {
+    "id": "place-chill",
+    "name": "Chestnut Hill Avenue",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.338169,
+    "lon": -71.15316,
+    "neighborhood": "Brighton",
+    "story": "A B branch stop on Commonwealth Avenue in Brighton."
+  },
+  {
+    "id": "place-chswk",
+    "name": "Chiswick Road",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.340805,
+    "lon": -71.150711,
+    "neighborhood": "Brighton",
+    "story": "A B branch stop on Commonwealth Avenue in Brighton."
+  },
+  {
+    "id": "place-clmnl",
+    "name": "Cleveland Circle",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.336142,
+    "lon": -71.149326,
+    "neighborhood": "Brighton",
+    "story": "The end of the C branch, at Cleveland Circle next to the Chestnut Hill Reservoir."
+  },
+  {
+    "id": "place-ccmnl",
+    "name": "Community College",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.373622,
+    "lon": -71.069533,
+    "neighborhood": "Charlestown",
+    "story": "An Orange Line stop in Charlestown, next to Bunker Hill Community College."
+  },
+  {
+    "id": "place-cool",
+    "name": "Coolidge Corner",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.342116,
+    "lon": -71.121263,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop at Coolidge Corner in Brookline, home to the Coolidge Corner Theatre and shops along Beacon and Harvard streets."
+  },
+  {
+    "id": "place-davis",
+    "name": "Davis",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.39674,
+    "lon": -71.121815,
+    "neighborhood": "Somerville",
+    "story": "A Red Line stop at Davis Square in Somerville, with restaurants, the Somerville Theatre, and the Somerville Community Path."
+  },
+  {
+    "id": "place-denrd",
+    "name": "Dean Road",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.337656,
+    "lon": -71.142156,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop on Beacon Street in Brookline."
+  },
+  {
+    "id": "place-dwnxg",
+    "name": "Downtown Crossing",
+    "lines": [
+      "Red",
+      "Orange"
+    ],
+    "lat": 42.355518,
+    "lon": -71.060225,
+    "neighborhood": "Downtown",
+    "story": "Where the Red and Orange lines meet, in Boston's shopping district. The pedestrian streets around Washington Street lead to Boston Common."
+  },
+  {
+    "id": "place-esomr",
+    "name": "East Somerville",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.379467,
+    "lon": -71.086625,
+    "neighborhood": "Somerville",
+    "story": "A Green Line Extension stop in East Somerville, along Washington Street."
+  },
+  {
+    "id": "place-eliot",
+    "name": "Eliot",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.319045,
+    "lon": -71.216684,
+    "neighborhood": "Newton",
+    "story": "A D branch stop in Newton Upper Falls."
+  },
+  {
+    "id": "place-engav",
+    "name": "Englewood Avenue",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.337104,
+    "lon": -71.144852,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop on Beacon Street in Brookline."
+  },
+  {
+    "id": "place-fbkst",
+    "name": "Fairbanks Street",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.339725,
+    "lon": -71.131073,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop on Beacon Street in Brookline."
+  },
+  {
+    "id": "place-fenwy",
+    "name": "Fenway",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.345403,
+    "lon": -71.104213,
+    "neighborhood": "Fenway-Kenmore",
+    "story": "A D branch stop near the Landmark Center, close to the Back Bay Fens and the Emerald Necklace."
+  },
+  {
+    "id": "place-fenwd",
+    "name": "Fenwood Road",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.333706,
+    "lon": -71.105728,
+    "neighborhood": "Mission Hill",
+    "story": "An E branch stop on Huntington Avenue in Mission Hill."
+  },
+  {
+    "id": "place-fldcr",
+    "name": "Fields Corner",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.300093,
+    "lon": -71.061667,
+    "neighborhood": "Dorchester",
+    "story": "A Red Line stop in Fields Corner, Dorchester, known for its Vietnamese restaurants and shops."
+  },
+  {
+    "id": "place-forhl",
+    "name": "Forest Hills",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.300713,
+    "lon": -71.113943,
+    "neighborhood": "Jamaica Plain",
+    "story": "The southern end of the Orange Line in Jamaica Plain, near the Arnold Arboretum and Franklin Park."
+  },
+  {
+    "id": "place-gilmn",
+    "name": "Gilman Square",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.387928,
+    "lon": -71.096766,
+    "neighborhood": "Somerville",
+    "story": "A Green Line Extension stop at Gilman Square in Somerville."
+  },
+  {
+    "id": "place-grnst",
+    "name": "Green Street",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.310525,
+    "lon": -71.107414,
+    "neighborhood": "Jamaica Plain",
+    "story": "An Orange Line stop in Jamaica Plain, a short walk from Centre Street and Jamaica Pond."
+  },
+  {
+    "id": "place-grigg",
+    "name": "Griggs Street",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.348545,
+    "lon": -71.134949,
+    "neighborhood": "Allston",
+    "story": "A B branch stop on Commonwealth Avenue in Allston."
+  },
+  {
+    "id": "place-harvd",
+    "name": "Harvard Avenue",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.350243,
+    "lon": -71.131355,
+    "neighborhood": "Allston",
+    "story": "A B branch stop at Harvard Avenue, the center of Allston's restaurants, bars, and music venues."
+  },
+  {
+    "id": "place-hwsst",
+    "name": "Hawes Street",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.344906,
+    "lon": -71.111145,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop on Beacon Street in Brookline."
+  },
+  {
+    "id": "place-hsmnl",
+    "name": "Heath Street",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.328316,
+    "lon": -71.110252,
+    "neighborhood": "Jamaica Plain",
+    "story": "The end of the E branch, at the edge of Jamaica Plain and Mission Hill."
+  },
+  {
+    "id": "place-hymnl",
+    "name": "Hynes Convention Center",
+    "lines": [
+      "Green-B",
+      "Green-C",
+      "Green-D"
+    ],
+    "lat": 42.347888,
+    "lon": -71.087903,
+    "neighborhood": "Back Bay",
+    "story": "A Green Line stop on Massachusetts Avenue in Back Bay, at the west end of Newbury Street and next to the Hynes Convention Center."
+  },
+  {
+    "id": "place-jfk",
+    "name": "JFK/UMass",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.320685,
+    "lon": -71.052391,
+    "neighborhood": "South Boston",
+    "story": "A Red Line stop where the Ashmont and Braintree branches split, with shuttles to UMass Boston and the JFK Library."
+  },
+  {
+    "id": "place-jaksn",
+    "name": "Jackson Square",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.323132,
+    "lon": -71.099592,
+    "neighborhood": "Jamaica Plain",
+    "story": "An Orange Line stop in Jamaica Plain, beside the Southwest Corridor Park."
+  },
+  {
+    "id": "place-knncl",
+    "name": "Kendall/MIT",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.3624908,
+    "lon": -71.0861765,
+    "neighborhood": "Kendall Square",
+    "story": "A Red Line stop at the center of Kendall Square and MIT's campus. The Longfellow Bridge crosses to Boston nearby."
+  },
+  {
+    "id": "place-kntst",
+    "name": "Kent Street",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.344074,
+    "lon": -71.114197,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop on Beacon Street in Brookline."
+  },
+  {
+    "id": "place-lech",
+    "name": "Lechmere",
+    "lines": [
+      "Green-D",
+      "Green-E"
+    ],
+    "lat": 42.371572,
+    "lon": -71.076584,
+    "neighborhood": "East Cambridge",
+    "story": "A Green Line stop in East Cambridge, near the CambridgeSide mall and the Charles River."
+  },
+  {
+    "id": "place-longw",
+    "name": "Longwood",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.341702,
+    "lon": -71.109956,
+    "neighborhood": "Brookline",
+    "story": "A D branch stop in Brookline, by the Riverway and the Emerald Necklace."
+  },
+  {
+    "id": "place-lngmd",
+    "name": "Longwood Medical Area",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.33596,
+    "lon": -71.100052,
+    "neighborhood": "Fenway",
+    "story": "An E branch stop in the Longwood Medical Area, surrounded by hospitals and colleges."
+  },
+  {
+    "id": "place-mgngl",
+    "name": "Magoun Square",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.393682,
+    "lon": -71.1063879,
+    "neighborhood": "Somerville",
+    "story": "A Green Line Extension stop at Magoun Square in Somerville."
+  },
+  {
+    "id": "place-mlmnl",
+    "name": "Malden Center",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.426632,
+    "lon": -71.07411,
+    "neighborhood": "Malden",
+    "story": "An Orange Line and Commuter Rail stop in downtown Malden."
+  },
+  {
+    "id": "place-masta",
+    "name": "Massachusetts Avenue",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.341512,
+    "lon": -71.083423,
+    "neighborhood": "South End",
+    "story": "An Orange Line stop on Massachusetts Avenue between the South End and Back Bay, along the Southwest Corridor Park."
+  },
+  {
+    "id": "place-matt",
+    "name": "Mattapan",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.26762,
+    "lon": -71.092486,
+    "neighborhood": "Mattapan",
+    "story": "The end of the Mattapan trolley, in Mattapan Square."
+  },
+  {
+    "id": "place-mvbcl",
+    "name": "Maverick",
+    "lines": [
+      "Blue"
+    ],
+    "lat": 42.369002,
+    "lon": -71.03958,
+    "neighborhood": "East Boston",
+    "story": "The first Blue Line stop in East Boston, at Maverick Square. The neighborhood's waterfront and restaurants are close by."
+  },
+  {
+    "id": "place-mdftf",
+    "name": "Medford/Tufts",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.407975,
+    "lon": -71.117044,
+    "neighborhood": "Medford",
+    "story": "The end of the Green Line Extension, next to Tufts University's Medford campus."
+  },
+  {
+    "id": "place-miltt",
+    "name": "Milton",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.270349,
+    "lon": -71.067266,
+    "neighborhood": "Milton",
+    "story": "A Mattapan trolley stop in Milton, next to the Neponset River."
+  },
+  {
+    "id": "place-mispk",
+    "name": "Mission Park",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.333195,
+    "lon": -71.109756,
+    "neighborhood": "Fenway",
+    "story": "An E branch stop on Huntington Avenue, near Mission Park and the Longwood medical area."
+  },
+  {
+    "id": "place-mfa",
+    "name": "Museum of Fine Arts",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.337711,
+    "lon": -71.095512,
+    "neighborhood": "Fenway",
+    "story": "An E branch stop in front of the Museum of Fine Arts, a short walk from the Isabella Stewart Gardner Museum."
+  },
+  {
+    "id": "place-newto",
+    "name": "Newton Centre",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.329443,
+    "lon": -71.192414,
+    "neighborhood": "Newton",
+    "story": "A D branch stop in Newton Centre, with shops and restaurants around the village green."
+  },
+  {
+    "id": "place-newtn",
+    "name": "Newton Highlands",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.322381,
+    "lon": -71.205509,
+    "neighborhood": "Newton",
+    "story": "A D branch stop in Newton Highlands, a small village with local shops."
+  },
+  {
+    "id": "place-nqncy",
+    "name": "North Quincy",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.275275,
+    "lon": -71.029583,
+    "neighborhood": "Quincy",
+    "story": "A Red Line stop in North Quincy, the first stop in Quincy on the Braintree branch."
+  },
+  {
+    "id": "place-north",
+    "name": "North Station",
+    "lines": [
+      "Orange",
+      "Green-D",
+      "Green-E"
+    ],
+    "lat": 42.365577,
+    "lon": -71.06129,
+    "neighborhood": "West End",
+    "story": "The Orange and Green line stop under TD Garden, with Commuter Rail trains north. The North End is a short walk away."
+  },
+  {
+    "id": "place-nuniv",
+    "name": "Northeastern University",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.340401,
+    "lon": -71.088806,
+    "neighborhood": "Fenway",
+    "story": "An E branch stop on Huntington Avenue at Northeastern University, near Symphony Hall."
+  },
+  {
+    "id": "place-ogmnl",
+    "name": "Oak Grove",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.43668,
+    "lon": -71.071097,
+    "neighborhood": "Malden",
+    "story": "The northern end of the Orange Line in Malden, near the Middlesex Fells Reservation."
+  },
+  {
+    "id": "place-orhte",
+    "name": "Orient Heights",
+    "lines": [
+      "Blue"
+    ],
+    "lat": 42.38685,
+    "lon": -71.004797,
+    "neighborhood": "East Boston",
+    "story": "A Blue Line stop in East Boston's Orient Heights, near Constitution Beach."
+  },
+  {
+    "id": "place-brico",
+    "name": "Packard's Corner",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.351967,
+    "lon": -71.125031,
+    "neighborhood": "Allston",
+    "story": "A B branch stop where Commonwealth Avenue meets Brighton Avenue in Allston."
+  },
+  {
+    "id": "place-portr",
+    "name": "Porter",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.3884,
+    "lon": -71.119149,
+    "neighborhood": "North Cambridge",
+    "story": "A Red Line and Commuter Rail stop at Porter Square, on the line between Cambridge and Somerville."
+  },
+  {
+    "id": "place-prmnl",
+    "name": "Prudential",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.34557,
+    "lon": -71.081696,
+    "neighborhood": "Back Bay",
+    "story": "An E branch stop next to the Prudential Center and the Christian Science Plaza in Back Bay."
+  },
+  {
+    "id": "place-qamnl",
+    "name": "Quincy Adams",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.233391,
+    "lon": -71.007153,
+    "neighborhood": "Quincy",
+    "story": "A Red Line stop in Quincy, near the Adams National Historical Park."
+  },
+  {
+    "id": "place-qnctr",
+    "name": "Quincy Center",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.251809,
+    "lon": -71.005409,
+    "neighborhood": "Quincy",
+    "story": "A Red Line and Commuter Rail stop in downtown Quincy, near Quincy's City Hall and the Adams family sites."
+  },
+  {
+    "id": "place-rsmnl",
+    "name": "Reservoir",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.335088,
+    "lon": -71.148758,
+    "neighborhood": "Brookline",
+    "story": "A D branch stop near Cleveland Circle and the Chestnut Hill Reservoir."
+  },
+  {
+    "id": "place-rbmnl",
+    "name": "Revere Beach",
+    "lines": [
+      "Blue"
+    ],
+    "lat": 42.407851,
+    "lon": -70.992504,
+    "neighborhood": "Revere",
+    "story": "A Blue Line stop steps from Revere Beach, America's first public beach."
+  },
+  {
+    "id": "place-river",
+    "name": "Riverside",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.337352,
+    "lon": -71.252685,
+    "neighborhood": "Newton",
+    "story": "The western end of the D branch, at Riverside in Newton."
+  },
+  {
+    "id": "place-rvrwy",
+    "name": "Riverway",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.331684,
+    "lon": -71.111931,
+    "neighborhood": "Mission Hill",
+    "story": "An E branch stop at the Riverway, part of the Emerald Necklace parks."
+  },
+  {
+    "id": "place-rcmnl",
+    "name": "Roxbury Crossing",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.331397,
+    "lon": -71.095451,
+    "neighborhood": "Roxbury",
+    "story": "An Orange Line stop in Roxbury, at the foot of Mission Hill."
+  },
+  {
+    "id": "place-rugg",
+    "name": "Ruggles",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.336377,
+    "lon": -71.088961,
+    "neighborhood": "Mission Hill",
+    "story": "An Orange Line and Commuter Rail stop next to Northeastern University's campus."
+  },
+  {
+    "id": "place-smary",
+    "name": "Saint Mary's Street",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.345974,
+    "lon": -71.107353,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop on Beacon Street, a short walk from Kenmore Square."
+  },
+  {
+    "id": "place-stpul",
+    "name": "Saint Paul Street",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.343327,
+    "lon": -71.116997,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop on Beacon Street in Brookline."
+  },
+  {
+    "id": "place-shmnl",
+    "name": "Savin Hill",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.31129,
+    "lon": -71.053331,
+    "neighborhood": "Dorchester",
+    "story": "A Red Line stop in Dorchester's Savin Hill, a short walk from Malibu Beach."
+  },
+  {
+    "id": "place-spmnl",
+    "name": "Science Park/West End",
+    "lines": [
+      "Green-D",
+      "Green-E"
+    ],
+    "lat": 42.366664,
+    "lon": -71.067666,
+    "neighborhood": "West End",
+    "story": "A Green Line stop next to the Museum of Science, on the dam between the Charles River and the harbor."
+  },
+  {
+    "id": "place-smmnl",
+    "name": "Shawmut",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.2931258,
+    "lon": -71.065738,
+    "neighborhood": "Dorchester",
+    "story": "A Red Line stop in Dorchester, on the Ashmont branch."
+  },
+  {
+    "id": "place-sstat",
+    "name": "South Station",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.352271,
+    "lon": -71.055242,
+    "neighborhood": "Downtown",
+    "story": "A Red Line, Silver Line, and Commuter Rail hub, with Amtrak trains and the bus terminal. The Seaport and the Greenway are close."
+  },
+  {
+    "id": "place-sougr",
+    "name": "South Street",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.3396,
+    "lon": -71.157661,
+    "neighborhood": "Brighton",
+    "story": "A B branch stop on Commonwealth Avenue in Brighton."
+  },
+  {
+    "id": "place-state",
+    "name": "State",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.358978,
+    "lon": -71.057598,
+    "neighborhood": "Downtown",
+    "story": "The Orange and Blue line stop under the Old State House. Faneuil Hall and the Financial District are around it."
+  },
+  {
+    "id": "place-sbmnl",
+    "name": "Stony Brook",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.317062,
+    "lon": -71.104248,
+    "neighborhood": "Jamaica Plain",
+    "story": "An Orange Line stop in Jamaica Plain, near the Brewery Complex and the Southwest Corridor."
+  },
+  {
+    "id": "place-sdmnl",
+    "name": "Suffolk Downs",
+    "lines": [
+      "Blue"
+    ],
+    "lat": 42.390505,
+    "lon": -70.99715,
+    "neighborhood": "East Boston",
+    "story": "A Blue Line stop in East Boston, next to the old Suffolk Downs racetrack."
+  },
+  {
+    "id": "place-sull",
+    "name": "Sullivan Square",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.383975,
+    "lon": -71.076994,
+    "neighborhood": "Charlestown",
+    "story": "An Orange Line stop in Charlestown, at the edge of Somerville."
+  },
+  {
+    "id": "place-sumav",
+    "name": "Summit Avenue",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.34111,
+    "lon": -71.12561,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop on Beacon Street in Brookline."
+  },
+  {
+    "id": "place-sthld",
+    "name": "Sutherland Road",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.341614,
+    "lon": -71.146202,
+    "neighborhood": "Brighton",
+    "story": "A B branch stop on Commonwealth Avenue in Brighton."
+  },
+  {
+    "id": "place-symcl",
+    "name": "Symphony",
+    "lines": [
+      "Green-E"
+    ],
+    "lat": 42.342687,
+    "lon": -71.085056,
+    "neighborhood": "Fenway",
+    "story": "An E branch stop at Massachusetts and Huntington avenues, next to Symphony Hall."
+  },
+  {
+    "id": "place-tapst",
+    "name": "Tappan Street",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.338459,
+    "lon": -71.138702,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop on Beacon Street in Brookline."
+  },
+  {
+    "id": "place-tumnl",
+    "name": "Tufts Medical Center",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.349662,
+    "lon": -71.063917,
+    "neighborhood": "Chinatown",
+    "story": "An Orange Line stop by Tufts Medical Center, between Chinatown and the South End."
+  },
+  {
+    "id": "place-unsqu",
+    "name": "Union Square",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.377359,
+    "lon": -71.094761,
+    "neighborhood": "Somerville",
+    "story": "A Green Line Extension stop at Union Square in Somerville, with restaurants and a weekend farmers market in season."
+  },
+  {
+    "id": "place-valrd",
+    "name": "Valley Road",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.268347,
+    "lon": -71.081343,
+    "neighborhood": "Milton",
+    "story": "A Mattapan trolley stop in Milton."
+  },
+  {
+    "id": "place-waban",
+    "name": "Waban",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.325845,
+    "lon": -71.230609,
+    "neighborhood": "Newton",
+    "story": "A D branch stop in Waban, a small village in Newton."
+  },
+  {
+    "id": "place-wrnst",
+    "name": "Warren Street",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.348343,
+    "lon": -71.140457,
+    "neighborhood": "Brighton",
+    "story": "A B branch stop on Commonwealth Avenue in Brighton."
+  },
+  {
+    "id": "place-bcnwa",
+    "name": "Washington Square",
+    "lines": [
+      "Green-C"
+    ],
+    "lat": 42.339394,
+    "lon": -71.13533,
+    "neighborhood": "Brookline",
+    "story": "A C branch stop at Washington Square in Brookline, with restaurants along Beacon Street."
+  },
+  {
+    "id": "place-wascm",
+    "name": "Washington Street",
+    "lines": [
+      "Green-B"
+    ],
+    "lat": 42.343864,
+    "lon": -71.142853,
+    "neighborhood": "Brighton",
+    "story": "A B branch stop where Commonwealth Avenue meets Washington Street in Brighton."
+  },
+  {
+    "id": "place-welln",
+    "name": "Wellington",
+    "lines": [
+      "Orange"
+    ],
+    "lat": 42.40237,
+    "lon": -71.077082,
+    "neighborhood": "Medford",
+    "story": "An Orange Line stop in Medford, near the Mystic River."
+  },
+  {
+    "id": "place-wlsta",
+    "name": "Wollaston",
+    "lines": [
+      "Red"
+    ],
+    "lat": 42.2665139,
+    "lon": -71.0203369,
+    "neighborhood": "Quincy",
+    "story": "A Red Line stop in Quincy, a few blocks from Wollaston Beach."
+  },
+  {
+    "id": "place-wondl",
+    "name": "Wonderland",
+    "lines": [
+      "Blue"
+    ],
+    "lat": 42.413728,
+    "lon": -70.991545,
+    "neighborhood": "Revere",
+    "story": "The end of the Blue Line in Revere, steps from the north end of Revere Beach."
+  },
+  {
+    "id": "place-wimnl",
+    "name": "Wood Island",
+    "lines": [
+      "Blue"
+    ],
+    "lat": 42.379656,
+    "lon": -71.022913,
+    "neighborhood": "East Boston",
+    "story": "A Blue Line stop in East Boston, close to Logan Airport."
+  },
+  {
+    "id": "place-woodl",
+    "name": "Woodland",
+    "lines": [
+      "Green-D"
+    ],
+    "lat": 42.332902,
+    "lon": -71.243362,
+    "neighborhood": "Newton",
+    "story": "A D branch stop in Newton, by the Woodland golf course."
   }
 ];
 
