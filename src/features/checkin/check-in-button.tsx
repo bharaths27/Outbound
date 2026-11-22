@@ -357,6 +357,7 @@ export function CheckInButton({ quest, profile, tier, now, onCheckedIn, stationN
                       questId={quest.id}
                       questTitle={quest.title}
                       neighborhood={state.result.neighborhood}
+                      stationId={quest.station_id}
                       stationName={stationName}
                       tier={state.result.tier}
                       crossSchool={state.result.cross_school}
