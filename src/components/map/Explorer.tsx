@@ -537,8 +537,8 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
           {route && (
             <div className="mt-3">
               <div className="flex items-center justify-between text-[13.5px]">
-                <button className="text-[var(--ob-muted)] hover:underline" onClick={() => (setChosen(null), setFollow(null), fit(options!.map(pathOf)))}>
-                  ← All options
+                <button className="inline-flex items-center gap-1 text-[var(--ob-muted)] hover:underline" onClick={() => (setChosen(null), setFollow(null), fit(options!.map(pathOf)))}>
+                  <ArrowLeft size={14} aria-hidden /> All options
                 </button>
                 {route.label && <span className="rounded-full bg-[var(--ob-sand)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--ob-ink-2)]">{route.label}</span>}
               </div>
@@ -671,7 +671,11 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                   <li key={i} className="rounded-lg bg-[var(--ob-cream)] px-2.5 py-2 text-[13.5px]">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-semibold text-[var(--ob-ink)]">{r.author} · {r.school}</span>
-                      <span className="text-[12px] text-amber-600" aria-label={`${r.stars} out of 5`}>{"★".repeat(r.stars)}<span className="text-[var(--ob-line)]">{"★".repeat(5 - r.stars)}</span></span>
+                      <span className="flex shrink-0 gap-px" role="img" aria-label={`${r.stars} out of 5`}>
+                        {[0, 1, 2, 3, 4].map((n) => (
+                          <Star key={n} size={12} aria-hidden className={n < r.stars ? "fill-amber-400 text-amber-500" : "fill-[var(--ob-line)] text-[var(--ob-line)]"} />
+                        ))}
+                      </span>
                     </div>
                     <p className="mt-0.5 text-[var(--ob-ink-2)]">{r.text}</p>
                     <p className="text-[11.5px] text-[var(--ob-muted)]">{r.when}</p>

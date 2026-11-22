@@ -504,7 +504,7 @@
 .ob-hosted { cursor: pointer; position: relative; display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 4px 10px 4px 5px; border-radius: 14px; background: #fff; border: 2px solid #7c3aed; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3); text-align: left; transform-origin: bottom center; transition: scale .15s; }
 .ob-pin:hover > .ob-hosted { scale: 1.06; }
 .ob-hosted::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 10px; height: 10px; background: #fff; border-right: 2px solid #7c3aed; border-bottom: 2px solid #7c3aed; transform: translateX(-50%) rotate(45deg); }
-.ob-hosted-emoji { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 9px; background: #ede9fe; font-size: 16px; line-height: 1; }
+.ob-hosted-icon { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 9px; background: #ede9fe; color: #6d28d9; line-height: 1; }
 .ob-hosted-text { display: flex; min-width: 0; flex-direction: column; }
 .ob-hosted-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12.5px/1.2 system-ui, sans-serif; color: #1f1235; }
 .ob-hosted-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 10.5px/1.2 system-ui, sans-serif; color: #6b7280; }
