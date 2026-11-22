@@ -5,13 +5,12 @@ import { createPortal } from "react-dom";
 import * as maplibregl from "maplibre-gl";
 import type { Map as MlMap, GeoJSONSource, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import Link from "next/link";
 import { MAP_SEARCH_SLOT } from "@/features/explore/explore-card";
 import { openStationHub } from "@/features/hub/open-hub";
 import type { LineLateness, Station, Train } from "@/lib/types";
 import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
-import { TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
+import { TRACK_HALF_GAP, TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
 import { loadBaseStyle, groundLayerIds, registerFontProtocol } from "./style";
 import { CityBuildingsLayer, fetchBpdaManifest, fetchRegionManifest, inBpda, inRegion } from "./buildings3d";
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
@@ -21,12 +20,12 @@ import ServicePanel from "./ServicePanel";
 import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
-import { BookOpen, Cloud, Layers, LocateFixed, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Landmark, Moon, Soup, Star, Sun, Sunset, Trophy, Waves } from "lucide-react";
-import { createElement, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN } from "lucide";
+import { BookOpen, Check, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Coffee, Compass, Landmark, Layers, LocateFixed, MapPin, Moon, Pizza, Soup, Star, Sun, Sunset, TrainFront, Trees, Trophy, Waves } from "lucide-react";
+import { createElement, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN, Trees as TreesN, Pizza as PizzaN, Coffee as CoffeeN, Check as CheckN } from "lucide";
 
-const QUEST_ICONS = { Landmark, Waves, Soup, BookOpen, Sunset, Trophy };
-const QUEST_NODES = { Landmark: LandmarkN, Waves: WavesN, Soup: SoupN, BookOpen: BookOpenN, Sunset: SunsetN, Trophy: TrophyN };
-const svgOf = (node: (typeof QUEST_NODES)[keyof typeof QUEST_NODES], size: number) => {
+const QUEST_ICONS = { Landmark, Waves, Soup, BookOpen, Sunset, Trophy, Trees, Pizza, Coffee };
+const QUEST_NODES = { Landmark: LandmarkN, Waves: WavesN, Soup: SoupN, BookOpen: BookOpenN, Sunset: SunsetN, Trophy: TrophyN, Trees: TreesN, Pizza: PizzaN, Coffee: CoffeeN };
+const svgOf = (node: (typeof QUEST_NODES)[keyof typeof QUEST_NODES] | typeof CheckN, size: number) => {
   const el = createElement(node);
   el.setAttribute("width", String(size));
   el.setAttribute("height", String(size));
@@ -38,6 +37,10 @@ import {
   destinationOf, LATENESS_HEX,
 } from "./feed";
 import { CAMPUSES, SAMPLE_FRIEND_VISITS, SAMPLE_QUESTS, initials, type FriendVisit, type Quest } from "./places";
+import {
+  CHECKIN_RADIUS_M, DEFAULT_HOME, NEW_AREA_BONUS, checkedInToday, estimateRide, exploredStops, fogGeoJSON, haversineM, levelOf,
+  loadProgress, nearestStation, pickExpeditions, saveProgress, spotXp, type Progress, type Ride,
+} from "./gamify";
 
 type FeedMode = "live" | "replay" | "demo";
 interface CrStation {
@@ -99,6 +102,7 @@ export default function TransitMap() {
   const [ready, setReady] = useState(false);
   const [offlineBasemap, setOfflineBasemap] = useState(false);
   const [is3D, setIs3D] = useState(true);
+  const [orbit, setOrbit] = useState(false); // drag turns and tilts the camera instead of moving the map
   const [satellite, setSatellite] = useState(false);
   const [realistic, setRealistic] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -124,6 +128,11 @@ export default function TransitMap() {
   const [train, setTrain] = useState<TrainNow | null>(null);
   const [now, setNow] = useState(Date.now());
   const [replay, setReplay] = useState<{ frames: ReplayFrame[]; source: string; i: number; playing: boolean; speed: number } | null>(null);
+  // game layer: XP, weekly Expedition, fog of war (see gamify.ts)
+  const [progress, setProgress] = useState<Progress>({ xp: 0, visits: {} });
+  const [pops, setPops] = useState<{ id: number; text: string; sub?: string }[]>([]);
+  const [levelUp, setLevelUp] = useState<number | null>(null);
+  useEffect(() => setProgress(loadProgress()), []);
 
   // ---------- map setup ----------
   useEffect(() => {
@@ -239,6 +248,14 @@ export default function TransitMap() {
           source: "cr-lines",
           layout: { "line-cap": "round", "line-join": "round", visibility: CR_VIS },
           paint: { "line-color": "#80276C", "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 13, 1.3, 17, 2.6], "line-dasharray": [3, 1.2] },
+        }, beforeLines);
+        // fog of war: the parts of the T area you haven't explored yet (cleared around home and every check-in)
+        m.addSource("fog", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        m.addLayer({
+          id: "fog",
+          type: "fill",
+          source: "fog",
+          paint: { "fill-color": "#cfd8e3", "fill-opacity": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 0.5, 17, 0.35], "fill-antialias": false },
         }, beforeLines);
         m.addSource("mbta-lines", { type: "geojson", data: linesGeo });
         m.addLayer({
@@ -532,11 +549,58 @@ export default function TransitMap() {
       };
       return new maplibregl.Marker({ element: el }).setLngLat([f.lng, f.lat]).addTo(map);
     });
+    const markers = markersRef.current;
+    return () => {
+      markers.campus.forEach((m) => m.remove());
+      markers.friends.forEach((m) => m.remove());
+    };
+  }, [ready]);
+
+  // ---------- game: XP pins, weekly Expedition, fog ----------
+  const game = useMemo(() => {
+    const stations = stationsRef.current;
+    if (!ready || !stations.length) return null;
+    const home = stations.find((s) => s.id === DEFAULT_HOME) ?? stations[0];
+    const rides = new Map<string, Ride>();
+    for (const q of SAMPLE_QUESTS) {
+      const to = nearestStation(stations, q.lat, q.lng);
+      if (to) rides.set(q.id, estimateRide(home, to));
+    }
+    const expeditions = pickExpeditions(SAMPLE_QUESTS, rides);
+    return { home, rides, expeditions };
+  }, [ready]);
+
+  const visitedSpots = useMemo(() => SAMPLE_QUESTS.filter((q) => progress.visits[q.id]?.length), [progress]);
+  const fog = useMemo(
+    () => (game ? fogGeoJSON(game.home, visitedSpots.map((q) => ({ lat: q.lat, lon: q.lng }))) : null),
+    [game, visitedSpots],
+  );
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && fog) (map.getSource("fog") as GeoJSONSource | undefined)?.setData(fog);
+  }, [fog]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !game) return;
     markersRef.current.quests = SAMPLE_QUESTS.map((q) => {
-      const el = document.createElement("div");
-      el.className = "ob-quest";
-      el.title = q.title;
-      el.innerHTML = `<span class="ob-quest-icon">${svgOf(QUEST_NODES[q.icon], 15)}</span><span class="ob-quest-pts">+${q.points}</span>`;
+      const ride = game.rides.get(q.id)!;
+      const visited = !!progress.visits[q.id]?.length;
+      const exp = game.expeditions.has(q.id);
+      const xp = spotXp(q, ride, visited, exp);
+      const el = document.createElement("button");
+      el.type = "button";
+      el.dataset.xp = String(xp.total + (exp && !visited ? 1000 : 0)); // decluttering keeps the most valuable pin
+      el.setAttribute("aria-label", `${exp && !visited ? "Expedition: " : ""}${q.title} at ${q.place}, ${xp.total} XP, about ${ride.minutes} minutes away`);
+      el.className = `ob-quest${exp && !visited ? " ob-quest-exp" : ""}${visited ? " ob-quest-done" : ""}`;
+      el.style.setProperty("--s", String(1 + (xp.mult - 1) * 0.25));
+      el.style.setProperty("--lc", (LINE_COLORS as Record<string, string>)[ride.line] ?? "#888");
+      el.title = `${q.title}: +${xp.total} XP`;
+      el.innerHTML =
+        (exp && !visited ? `<span class="ob-quest-tag">Expedition</span>` : "") +
+        `<span class="ob-quest-icon">${svgOf(visited ? CheckN : QUEST_NODES[q.icon], 15)}</span>` +
+        `<span class="ob-quest-pts">+${xp.total}</span>` +
+        (ride.minutes ? `<span class="ob-quest-ride"><i></i>${ride.minutes}m</span>` : "");
       el.onclick = (ev) => {
         ev.stopPropagation();
         setFriend(null);
@@ -546,12 +610,29 @@ export default function TransitMap() {
       return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([q.lng, q.lat]).addTo(map);
     });
     const markers = markersRef.current;
-    return () => {
-      markers.campus.forEach((m) => m.remove());
-      markers.friends.forEach((m) => m.remove());
-      markers.quests.forEach((m) => m.remove());
-    };
-  }, [ready]);
+    return () => markers.quests.forEach((m) => m.remove());
+  }, [ready, game, progress]);
+
+  const checkIn = (q: Quest) => {
+    if (!game || checkedInToday(progress, q.id)) return;
+    const ride = game.rides.get(q.id)!;
+    const visited = !!progress.visits[q.id]?.length;
+    const xp = spotXp(q, ride, visited, game.expeditions.has(q.id));
+    // first time in a part of the map you hadn't uncovered yet: small bonus
+    const newArea = !visited && haversineM(q.lat, q.lng, game.home.lat, game.home.lon) > 1400 && !visitedSpots.some((v) => haversineM(q.lat, q.lng, v.lat, v.lng) < 800);
+    const gained = xp.total + (newArea ? NEW_AREA_BONUS : 0);
+    const before = levelOf(progress.xp).level;
+    const next: Progress = { xp: progress.xp + gained, visits: { ...progress.visits, [q.id]: [...(progress.visits[q.id] ?? []), Date.now()] } };
+    setProgress(next);
+    saveProgress(next);
+    const id = Date.now();
+    const parts = [xp.mult > 1 && !visited ? `${xp.mult}x distance` : visited ? "repeat visit" : "", xp.expeditionBonus ? "Expedition" : "", newArea ? "new area" : ""].filter(Boolean);
+    setPops((p) => [...p, { id, text: `+${gained} XP`, sub: parts.join(" · ") }]);
+    const after = levelOf(next.xp).level;
+    if (after > before) {
+      setLevelUp(after);
+    }
+  };
 
   // show/hide markers by zoom + toggles
   useEffect(() => {
@@ -561,16 +642,48 @@ export default function TransitMap() {
       const z = map.getZoom();
       markersRef.current.campus.forEach((m) => (m.getElement().style.display = show.campuses && z >= 11 ? "" : "none"));
       markersRef.current.friends.forEach((m) => (m.getElement().style.display = show.friends && z >= 11.5 ? "" : "none"));
-      markersRef.current.quests.forEach((m) => (m.getElement().style.display = show.friends && z >= 12.5 ? "" : "none"));
+      // Expedition pins show from the whole-network view; the rest once you zoom in a little
+      // pins that would overlap on screen fold into the most valuable one, which shows "+N"
+      const kept: { x: number; y: number; el: HTMLElement; extra: number }[] = [];
+      const byValue = [...markersRef.current.quests].sort((a, b) => Number(b.getElement().dataset.xp) - Number(a.getElement().dataset.xp));
+      for (const m of byValue) {
+        const el = m.getElement();
+        const exp = el.classList.contains("ob-quest-exp");
+        let on = show.friends && z >= (exp ? 10 : 12.3);
+        if (on) {
+          const pt = map.project(m.getLngLat());
+          const near = kept.find((k) => Math.abs(k.x - pt.x) < 64 && Math.abs(k.y - pt.y) < 30);
+          if (near) {
+            near.extra++;
+            on = false;
+          } else kept.push({ x: pt.x, y: pt.y, el, extra: 0 });
+        }
+        el.style.display = on ? "" : "none";
+      }
+      for (const k of kept) {
+        let more = k.el.querySelector<HTMLElement>(".ob-quest-more");
+        if (k.extra && !more) {
+          more = document.createElement("span");
+          more.className = "ob-quest-more";
+          k.el.appendChild(more);
+        }
+        if (more) {
+          if (k.extra) more.textContent = `+${k.extra}`;
+          else more.remove();
+        }
+      }
+      for (const m of markersRef.current.quests) if (m.getElement().style.display === "none") m.getElement().querySelector(".ob-quest-more")?.remove();
     };
     update();
     map.on("zoom", update);
+    map.on("moveend", update);
     for (const id of ["campus-fill", "campus-halo", "campus-line"])
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", show.campuses ? "visible" : "none");
     return () => {
       map.off("zoom", update);
+      map.off("moveend", update);
     };
-  }, [ready, show.campuses, show.friends]);
+  }, [ready, show.campuses, show.friends, progress, game]);
 
   // ---------- 3D / 2D ----------
   useEffect(() => {
@@ -603,6 +716,44 @@ export default function TransitMap() {
       map.off("zoom", pitchCap);
     };
   }, [ready, is3D, show.trains]);
+
+  // ---------- camera: in Rotate mode, dragging turns (left/right) and tilts (up/down) the view ----------
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    if (!orbit || !is3D) {
+      map.dragPan.enable();
+      return;
+    }
+    map.dragPan.disable();
+    const el = map.getCanvasContainer();
+    let last: { x: number; y: number } | null = null;
+    const down = (e: PointerEvent) => {
+      if (e.button !== 0 || !e.isPrimary) return;
+      last = { x: e.clientX, y: e.clientY };
+      el.setPointerCapture(e.pointerId);
+    };
+    const move = (e: PointerEvent) => {
+      if (!last) return;
+      const dx = e.clientX - last.x, dy = e.clientY - last.y;
+      last = { x: e.clientX, y: e.clientY };
+      map.jumpTo({ bearing: map.getBearing() - dx * 0.35, pitch: Math.max(0, Math.min(map.getMaxPitch(), map.getPitch() - dy * 0.3)) });
+    };
+    const up = () => (last = null);
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+    el.style.cursor = "move";
+    return () => {
+      el.removeEventListener("pointerdown", down);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", up);
+      el.style.cursor = "";
+      map.dragPan.enable();
+    };
+  }, [ready, orbit, is3D]);
 
   // ---------- weather outside (light, clouds, rain/snow), refreshed every 15 min ----------
   useEffect(() => {
@@ -814,7 +965,7 @@ export default function TransitMap() {
       last = ts;
       const map = mapRef.current, anim = animRef.current;
       if (!map || !anim) return;
-      const snap = anim.snapshot();
+      const snap = anim.snapshot(performance.now(), (layerRef.current?.scaleFor(map.getZoom()) ?? 0) * TRACK_HALF_GAP);
       (map.getSource("trains-2d") as GeoJSONSource | undefined)?.setData({
         type: "FeatureCollection",
         features: snap.map((t) => ({ type: "Feature", properties: { id: t.id, line: t.line }, geometry: { type: "Point", coordinates: [t.lng, t.lat] } })),
@@ -902,9 +1053,6 @@ export default function TransitMap() {
           return searchSlot ? createPortal(search, searchSlot) : search;
         })()}
         <Explorer ref={explorer} map={ready ? mapRef.current : null} userLoc={userLoc} />
-        {autoFallback && feedMode !== "live" && (
-          <div className="ob-panel px-3 py-1.5 text-xs text-amber-800">Live feed is down. Showing {feedMode === "replay" ? "saved trains" : "demo trains"}; retrying every 30 s.</div>
-        )}
         {notice && (
           <button className="ob-panel px-3 py-1.5 text-left text-xs text-amber-800" onClick={() => setNotice(null)}>
             {notice}
@@ -938,6 +1086,8 @@ export default function TransitMap() {
         </div>
         <div className={`ob-panel w-[176px] flex-col gap-2 p-2.5 text-xs desk:flex ${controlsOpen ? "flex" : "hidden"}`}>
           <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
+          {is3D && <Seg options={[["Move", false], ["Rotate", true]]} value={orbit} onChange={setOrbit} />}
+          {is3D && <p className="-mt-1 text-[10px] leading-tight text-[var(--ob-muted)]">{orbit ? "Drag to turn and tilt" : "Right-drag or Rotate to turn"}</p>}
           {(GOOGLE_KEY || !offlineBasemap) && <Seg options={[["Illustrated", false], ["Realistic", true]]} value={realistic} onChange={setRealistic} />}
           <div className="mt-1 flex flex-col gap-1">
             <Toggle label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
@@ -1050,41 +1200,74 @@ export default function TransitMap() {
         </Card>
       )}
 
-      {/* quest card */}
-      {quest && (
-        <Card onClose={() => setQuest(null)}>
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-              {(() => {
-                const I = QUEST_ICONS[quest.icon];
-                return <I size={22} strokeWidth={2} aria-hidden />;
-              })()}
-            </span>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600">Passport quest · +{quest.points} pts</p>
-              <h2 className="truncate text-base font-semibold text-[var(--ob-ink)]">{quest.title}</h2>
+      {/* quest card: what it's worth from your home station, and check in */}
+      {quest && game && (() => {
+        const ride = game.rides.get(quest.id)!;
+        const visited = !!progress.visits[quest.id]?.length;
+        const exp = game.expeditions.has(quest.id);
+        const xp = spotXp(quest, ride, visited, exp);
+        const doneToday = checkedInToday(progress, quest.id);
+        const near = userLoc ? haversineM(userLoc[1], userLoc[0], quest.lat, quest.lng) <= CHECKIN_RADIUS_M : false;
+        const I = QUEST_ICONS[quest.icon];
+        return (
+          <Card onClose={() => setQuest(null)}>
+            <div className="flex items-center gap-3">
+              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${exp && !visited ? "bg-gradient-to-br from-amber-200 to-amber-400 text-amber-900" : "bg-amber-100 text-amber-700"}`}>
+                <I size={22} strokeWidth={2} aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+                  {exp && !visited ? "This week's Expedition" : visited ? "Visited" : quest.kind === "food" ? "Food spot" : "Passport quest"} · +{xp.total} XP
+                </p>
+                <h2 className="truncate text-base font-semibold text-[var(--ob-ink)]">{quest.title}</h2>
+              </div>
             </div>
-          </div>
-          <p className="mt-2 text-[13px] text-[var(--ob-ink-2)]">
-            Go to <b>{quest.place}</b>. {quest.hint}.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => {
-                explorer.current?.show({ id: `quest-${quest.id}`, name: quest.place, address: `Quest: ${quest.title}`, lng: quest.lng, lat: quest.lat, types: [], category: "", rating: null, ratings: 0, price: null, openNow: null, url: null });
-                setQuest(null);
-              }}
-              className="flex-1 rounded-lg bg-[var(--ob-maroon)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
-            >
-              Directions
-            </button>
-            <Link href="/passport" className="rounded-lg bg-[var(--ob-sand)] px-3 py-2 text-sm font-medium text-[var(--ob-ink-2)] hover:bg-[var(--ob-line)]">
-              Passport
-            </Link>
-          </div>
-          <p className="mt-1.5 text-[10px] uppercase tracking-wide text-[var(--ob-muted)]">sample quests</p>
-        </Card>
-      )}
+            <p className="mt-2 text-[13px] text-[var(--ob-ink-2)]">
+              Go to <b>{quest.place}</b>. {quest.hint}.
+            </p>
+            <div className="mt-2.5 rounded-xl bg-[var(--ob-cream)] p-2.5 text-[12px] text-[var(--ob-ink-2)]">
+              <div className="flex items-center gap-1.5">
+                <TrainFront size={13} aria-hidden />
+                <span>
+                  {ride.minutes ? <>About <b>{ride.minutes} min</b> from {ride.from.name}</> : <>At your home stop</>}
+                  {ride.minutes ? <> to {ride.to.name}{ride.transfer ? ", 1 transfer" : ""}</> : null}
+                </span>
+                <span className="ml-auto h-2 w-2 shrink-0 rounded-full" style={{ background: (LINE_COLORS as Record<string, string>)[ride.line] }} />
+              </div>
+              <dl className="mt-2 space-y-0.5 tabular-nums">
+                <Row k="Base" v={`${xp.base}`} />
+                <Row k={`Distance (${ride.minutes >= 30 ? "30+ min" : ride.minutes >= 15 ? "15 to 30 min" : "under 15 min"})`} v={`${xp.mult}x`} />
+                {xp.expeditionBonus > 0 && <Row k="Expedition bonus" v={`+${xp.expeditionBonus}`} />}
+                {visited && <Row k="Repeat visit" v="a quarter" />}
+                <div className="mt-1 flex justify-between border-t border-[var(--ob-line)] pt-1 font-semibold text-[var(--ob-ink)]">
+                  <dt>You earn</dt>
+                  <dd>+{xp.total} XP</dd>
+                </div>
+              </dl>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                disabled={doneToday}
+                onClick={() => checkIn(quest)}
+                title={near ? "You're here" : `Real check-ins need you within ${CHECKIN_RADIUS_M} m for about 10 minutes`}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--ob-maroon)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--ob-maroon-dark)] disabled:opacity-50"
+              >
+                {doneToday ? <><Check size={15} aria-hidden /> Checked in today</> : <><MapPin size={15} aria-hidden /> Check in{near ? "" : " (demo)"}</>}
+              </button>
+              <button
+                onClick={() => {
+                  explorer.current?.show({ id: `quest-${quest.id}`, name: quest.place, address: `Quest: ${quest.title}`, lng: quest.lng, lat: quest.lat, types: [], category: "", rating: null, ratings: 0, price: null, openNow: null, url: null });
+                  setQuest(null);
+                }}
+                className="rounded-lg bg-[var(--ob-sand)] px-3 py-2 text-sm font-medium text-[var(--ob-ink-2)] hover:bg-[var(--ob-line)]"
+              >
+                Directions
+              </button>
+            </div>
+            <p className="mt-1.5 text-[10px] uppercase tracking-wide text-[var(--ob-muted)]">sample places and XP until the quests feed is live</p>
+          </Card>
+        );
+      })()}
 
       {/* train card */}
       {train && (
@@ -1108,6 +1291,54 @@ export default function TransitMap() {
         </Card>
       )}
 
+      {/* player HUD: level, XP bar, this week's Expedition, how much of the T you've uncovered */}
+      {game && loaded && (() => {
+        const lv = levelOf(progress.xp);
+        const stops = exploredStops(stationsRef.current, game.home, visitedSpots.map((q) => ({ lat: q.lat, lon: q.lng })));
+        const expDone = [...game.expeditions].filter((id) => progress.visits[id]?.some((t) => Date.now() - t < 7 * 86400000)).length;
+        return (
+          <div className="ob-panel ob-hud absolute bottom-3 left-3 w-[min(300px,calc(100vw-196px))] sm:w-[300px] px-3 py-2 text-xs sm:bottom-4 sm:left-4" style={{ display: quest || friend || train || crStation ? "none" : undefined }}>
+            <div className="flex items-center gap-2">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--ob-maroon)] text-[12px] font-bold text-white">{lv.level}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex justify-between text-[11px] text-[var(--ob-ink-2)]">
+                  <span className="font-semibold text-[var(--ob-ink)]">Level {lv.level}</span>
+                  <span className="tabular-nums">{lv.into}/{lv.need} XP</span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--ob-sand)]">
+                  <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-[var(--ob-maroon)] transition-[width] duration-700" style={{ width: `${(100 * lv.into) / lv.need}%` }} />
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--ob-ink-2)]">
+              <button
+                className="flex items-center gap-1 hover:text-[var(--ob-ink)]"
+                title="This week's 3 far-out spots: big XP and a stamp. New picks every Monday."
+                onClick={() => mapRef.current?.fitBounds(boundsOf([...game.expeditions].map((id) => SAMPLE_QUESTS.find((q) => q.id === id)!), game.home), { padding: 90, duration: 1600 })}
+              >
+                <Compass size={13} className="text-amber-600" aria-hidden /> Expedition {expDone}/3
+              </button>
+              <span className="flex items-center gap-1" title="Check in somewhere new to clear the fog around it">
+                <MapPin size={13} aria-hidden /> {stops.n}/{stops.total} stops explored
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+      <div className="pointer-events-none absolute left-1/2 top-[38%] z-20 -translate-x-1/2">
+        {pops.map((p) => (
+          <div key={p.id} className="ob-xp-pop text-center" onAnimationEnd={() => setPops((all) => all.filter((x) => x.id !== p.id))}>
+            <div className="text-3xl font-extrabold text-amber-500 [text-shadow:0_2px_0_#fff,0_4px_12px_rgba(0,0,0,.25)]">{p.text}</div>
+            {p.sub && <div className="text-xs font-semibold text-[var(--ob-ink-2)] [text-shadow:0_1px_0_#fff]">{p.sub}</div>}
+          </div>
+        ))}
+      </div>
+      {levelUp && (
+        <div onAnimationEnd={() => setLevelUp(null)} className="ob-panel ob-levelup pointer-events-none absolute left-1/2 top-20 z-20 -translate-x-1/2 px-5 py-3 text-center">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Level up</div>
+          <div className="text-2xl font-extrabold text-[var(--ob-maroon)]">Level {levelUp}</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1157,6 +1388,20 @@ function Stars({ value, small }: { value: number; small?: boolean }) {
       <span className="ml-1 text-[var(--ob-muted)]">{value.toFixed(1)}</span>
     </span>
   );
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex justify-between">
+      <dt>{k}</dt>
+      <dd>{v}</dd>
+    </div>
+  );
+}
+
+function boundsOf(qs: Quest[], home: { lat: number; lon: number }): [[number, number], [number, number]] {
+  const lngs = [home.lon, ...qs.map((q) => q.lng)], lats = [home.lat, ...qs.map((q) => q.lat)];
+  return [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]];
 }
 
 function Card({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
