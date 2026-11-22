@@ -71,7 +71,7 @@ export interface Quest {
 export type Tier = "bronze" | "silver" | "gold";
 
 /** Reasons in check_in()'s xp_breakdown, in the order they are applied. */
-export type XpReason = "base" | "first_visit" | "new_neighborhood" | "squad" | "cross_school";
+export type XpReason = "base" | "first_visit" | "new_neighborhood" | "squad" | "cross_school" | "quest_of_the_week";
 
 /** check_in() return value (migration 002). xp_breakdown adds up to xp_awarded. */
 export interface CheckInResult {
