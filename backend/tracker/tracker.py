@@ -20,6 +20,23 @@ from datetime import datetime, timezone
 import psycopg
 import requests
 
+def load_env_file():
+    """Read KEY=VALUE lines from the repo's .env.local (values there win over the shell)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(here, "..", "..", ".env.local")
+    if not os.path.exists(path):
+        print(f"note: {os.path.normpath(path)} not found; using shell environment")
+        return
+    for line in open(path):
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ[key.strip()] = value.strip().strip('"').strip("'")
+
+
+load_env_file()
+
 MBTA = "https://api-v3.mbta.com"
 API_KEY = os.environ.get("MBTA_API_KEY", "")
 DB_URL = os.environ.get("TIGER_DATA_URL")
@@ -127,8 +144,9 @@ def poll_predictions(conn):
 
 
 def main():
-    if not DB_URL:
-        sys.exit("Set TIGER_DATA_URL first (the postgres:// connection string from Tiger Data).")
+    if not DB_URL or "@HOST:" in DB_URL or "PASSWORD@" in DB_URL:
+        sys.exit("TIGER_DATA_URL in .env.local is still the template. Paste your real postgres:// string and save.")
+    print(f"using Tiger Data host: {DB_URL.split('@')[-1].split('/')[0]}")
     if not API_KEY:
         print("warning: no MBTA_API_KEY set; you'll hit the low anonymous rate limit")
     last_pred = 0.0

@@ -1,4 +1,4 @@
-# T Quest backend: step-by-step setup
+# Outbound backend: step-by-step setup
 
 Files in this folder:
 
@@ -44,7 +44,8 @@ You should see a line every 15 s like `13:40:15 trains=58 predictions=140 with_s
 ## Step 3. Supabase (Suki runs it, 5 min)
 
 1. Supabase, then **SQL Editor**, then **New query**. Paste all of `supabase/schema.sql` and **Run**.
-2. Re-running it wipes T Quest data (not logins), so only re-run before real users exist.
+   Then, one new query each, in order: `supabase/002_frontend_requests.sql`, `supabase/003_passport_privacy.sql`, `supabase/004_api_grants.sql`, `supabase/005_rewards.sql` (then the secret line that `node scripts/solana-setup.mjs` prints), `supabase/seed_stations.sql`, `supabase/seed_quests_starter.sql` (all safe to re-run; they keep data).
+2. Re-running it wipes Outbound data (not logins), so only re-run before real users exist.
 3. **Authentication, then Providers, then Email**: keep enabled. Turn **Confirm email** off for the hackathon, so sign-up works instantly without the low built-in email limit. Or add custom SMTP (Resend) under **Authentication, then Emails, then SMTP Settings**.
 4. **Authentication, then URL Configuration**: Site URL = the Vercel URL; add `http://localhost:3000/**` to redirect URLs.
 5. Make 3 or 4 demo accounts from different schools (sign up through the app, or **Authentication, then Users, then Add user** with an email like `demo1@bu.edu`).
@@ -75,17 +76,30 @@ const { data, error } = await supabase.rpc("check_in", {
   p_qr: null,          // or the scanned code for event quests
   p_squad_id: null,    // or the active squad id
 });
-// data = { xp_awarded, first_visit, new_neighborhood, cross_school, neighborhood, tier, total_xp }
-// error.message is human-readable: "too far: 120 m away (need within 75 m)", "already checked in to this quest today"
+// data = { xp_awarded, xp_breakdown: [{reason, xp}], first_visit, new_neighborhood, cross_school,
+//          neighborhood, neighborhood_quests, tier, next_tier, quests_to_next_tier,
+//          total_xp, level, xp_to_next_level }
+// reasons: base | first_visit | new_neighborhood | squad | cross_school
+// error.hint is a stable code: NOT_SIGNED_IN, QUEST_NOT_FOUND, QR_MISMATCH, LOCATION_REQUIRED,
+//   TOO_FAR, NOT_IN_SQUAD, ALREADY_CHECKED_IN_TODAY. error.message is human text and may change.
 ```
 
-**Passport:** `supabase.from("passport").select("*").eq("user_id", user.id)`
+Demo accounts (`profiles.is_demo = true`) can check in without a location:
+`update public.profiles set is_demo = true where email in ('demo1@bu.edu', ...);`
+
+**Squad members:** `supabase.from("squad_member_profiles").select("*").eq("squad_id", id)`
+
+**Time filter:** `quests.duration_min` (at the spot) and `quests.walk_min` (station to spot, one way). A quest fits when ride + 2 x walk_min + duration_min <= minutes available.
+
+**Levels:** `profiles.level` and `profiles.xp_to_next_level` (a level every 250 XP).
+
+**Passport:** `supabase.from("passport").select("*").eq("user_id", user.id)` (includes `next_tier`, `quests_to_next_tier`)
 
 **Leaderboard:** `supabase.from("leaderboard_weekly").select("*")`
 
-**Sign-up error:** a non-school email fails with "Database error saving new user". Check the domain in the UI first and show "Use your school email."
+**Sign-up error:** a non-school email fails (Supabase may show only "Database error saving new user"; the database hint is SCHOOL_NOT_SUPPORTED). Check the domain in the UI first and show "Use your school email."
 
-**Demo tip:** to make the table QR quest, set `qr_code = 'TQUEST-EXPO'` on one event quest, and print that text as a QR code.
+**Demo tip:** to make the table QR quest, set `qr_code = 'OUTBOUND-EXPO'` on one event quest, and print that text as a QR code.
 
 ## Step 6. Vultr (optional, only after Steps 1 to 5 work)
 
@@ -113,3 +127,25 @@ Give `replay.json` to Verna.
 - x2 when a squad-mate from a **different school** checked in to the same quest within 60 min (both get the gold border)
 - Passport tier per neighborhood: bronze 1 to 2 quests, silver 3 to 4, gold 5+
 - Leaderboard: resets Mondays (Boston time); a school needs 5+ players to be `eligible`
+
+## Gamification handoff
+
+On an existing Outbound database, run only `supabase/005_gamification.sql` after 004.
+Then wire these calls into the frontend:
+
+| UI | Backend |
+| --- | --- |
+| Signed-in passport or profile | `supabase.rpc("my_game_progress")` returns `badges`, `current_streak`, and `longest_streak`. Refresh after check-in. |
+| Players tab by the school rankings | `supabase.from("leaderboard_players_weekly").select("*").order("rank").order("user_id").limit(10)` |
+| Weekly quest highlight | `supabase.rpc("quest_of_the_week")` returns zero or one row with `quest_id`, `week_start`, and `base_xp_multiplier`. The `check_in` response lists the extra base XP as `quest_of_the_week` in `xp_breakdown`. |
+| Share a quest | `/api/share-card/<questId>` renders a PNG with a QR linking to `/q/<questId>`. That page shows the quest and station. The card contains only catalog details. |
+
+Line Collector credits the Red, Orange, and Green lines served by visited stations,
+including multiple lines at a transfer stop. Night Owl credits check-ins from
+10 PM up to midnight. Squad Goals counts three distinct players including you
+in the same squad at the same station within one hour. Cross-town counts four
+distinct neighborhoods in one Monday–Sunday week. A streak stays active until
+you miss a full Boston calendar day.
+
+Rankings show only public players and count only visible visits. The featured quest is fixed for each Boston calendar week. It is selected on first access using last week's recommendations among non-QR quests with positive XP. Ties and weeks without votes use quest ID order. The first check-in to the featured quest each week earns an extra copy of its base XP.
+After check-in, call `supabase.rpc("recommend_quest", { p_quest_id: quest.id })` to record a recommendation for the current week.
