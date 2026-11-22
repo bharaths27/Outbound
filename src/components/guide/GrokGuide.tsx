@@ -463,7 +463,13 @@ export default function GrokGuide({
             if (e.currentTarget === e.target) setDragging(false);
           }}
           onDrop={onDrop}
-          className="relative flex h-[640px] max-h-[calc(100dvh-8.5rem)] w-[420px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-border bg-white text-ink shadow-2xl desk:max-h-[calc(100dvh-6.5rem)]"
+          className={`relative flex h-[640px] max-h-[calc(100dvh-8.5rem)] w-[420px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-border bg-white text-ink shadow-2xl ${
+            // On the map, open beside the left column (live trains, search results) and below the
+            // Explore card (with its "Where to?" search) instead of over them.
+            onMap && !openFromHeader
+              ? "min-[820px]:max-h-[max(320px,calc(100dvh-28rem))] min-[820px]:translate-x-[356px] desk:max-h-[max(320px,calc(100dvh-26.5rem))]"
+              : "desk:max-h-[calc(100dvh-6.5rem)]"
+          }`}
         >
           <header className="flex items-center gap-2.5 bg-maroon px-4 py-3 text-on-maroon">
             <span className="flex size-9 items-center justify-center rounded-full bg-gold text-gold-foreground">

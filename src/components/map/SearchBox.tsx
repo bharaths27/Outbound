@@ -65,6 +65,7 @@ export default function SearchBox({
   onStation,
   onTextSearch,
   onPlace,
+  inCard = false,
 }: {
   map: MlMap | null;
   stations: SearchStation[];
@@ -74,6 +75,8 @@ export default function SearchBox({
   onTextSearch?: (q: string) => void;
   /** a Google place was picked: show its card (rating, directions) */
   onPlace?: (p: Place) => void;
+  /** Sits in the Explore card: full width, styled like the card's filter chips. */
+  inCard?: boolean;
 }) {
   const [q, setQ] = useState("");
   // our Google search route answers (a server with a key): search works even when the basemap tiles are offline
@@ -258,8 +261,14 @@ export default function SearchBox({
   };
 
   return (
-    <div ref={boxRef} className="relative w-[min(340px,calc(100vw-212px))] min-w-[150px] sm:w-[340px]">
-      <div className="ob-panel flex items-center gap-2 px-3 py-2">
+    <div ref={boxRef} className={inCard ? "relative w-full" : "relative w-[min(340px,calc(100vw-212px))] min-w-[150px] sm:w-[340px]"}>
+      <div
+        className={
+          inCard
+            ? "flex h-11 items-center gap-2 rounded-full border border-border-strong bg-sand px-4 focus-within:border-maroon"
+            : "ob-panel flex items-center gap-2 px-3 py-2"
+        }
+      >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="shrink-0 text-[var(--ob-muted)]" aria-hidden>
           <circle cx="11" cy="11" r="7" />
           <path d="m20 20-3.5-3.5" />
@@ -288,7 +297,7 @@ export default function SearchBox({
           }}
           placeholder="Where to? Places, food, addresses"
           aria-label="Search places, food, addresses"
-          className="w-full min-w-0 bg-transparent text-sm text-[var(--ob-ink)] outline-none placeholder:text-[var(--ob-muted)]"
+          className={`w-full min-w-0 bg-transparent text-[var(--ob-ink)] outline-none placeholder:text-[var(--ob-muted)] ${inCard ? "text-[15px]" : "text-sm"}`}
         />
         {q && (
           <button onClick={clear} aria-label="Clear search" className="shrink-0 rounded px-1 text-[var(--ob-muted)] hover:text-[var(--ob-ink-2)]">
@@ -297,7 +306,7 @@ export default function SearchBox({
         )}
       </div>
       {open && query.length >= 2 && (
-        <div className="ob-panel absolute left-0 right-0 top-full z-20 mt-1.5 max-h-[60vh] overflow-auto py-1 text-sm">
+        <div className={`ob-panel absolute left-0 right-0 top-full z-20 mt-1.5 overflow-auto py-1 text-sm ${inCard ? "max-h-[min(50vh,420px)] shadow-xl" : "max-h-[60vh]"}`}>
           {onTextSearch && live && (
             <button
               onMouseEnter={() => setActive(-1)}

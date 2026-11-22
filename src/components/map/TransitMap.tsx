@@ -1,10 +1,12 @@
 "use client";
 // Live 3D map of the T. Owner: Person 1 (map frontend).
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import * as maplibregl from "maplibre-gl";
 import type { Map as MlMap, GeoJSONSource, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
+import { MAP_SEARCH_SLOT } from "@/features/explore/explore-card";
 import { openStationHub } from "@/features/hub/open-hub";
 import type { LineLateness, Station, Train } from "@/lib/types";
 import { LINE_COLORS } from "@/lib/lines";
@@ -115,6 +117,9 @@ export default function TransitMap() {
   const [trainCount, setTrainCount] = useState(0);
   const [trainList, setTrainList] = useState<Train[]>([]);
   const [showService, setShowService] = useState(false);
+  // Explore's card has a slot for the search box (explore-card.tsx); other pages keep it on the map.
+  const [searchSlot, setSearchSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => setSearchSlot(document.getElementById(MAP_SEARCH_SLOT)), []);
   const [lateness, setLateness] = useState<{ lines: LineLateness[]; sample: boolean } | null>(null);
   const [train, setTrain] = useState<TrainNow | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -877,19 +882,25 @@ export default function TransitMap() {
             onTrain={(t) => mapRef.current?.flyTo({ center: [t.lon, t.lat], zoom: Math.max(mapRef.current.getZoom(), 15), duration: 1500 })}
           />
         )}
-        <SearchBox
-          map={ready ? mapRef.current : null}
-          stations={stationsRef.current}
-          online={!offlineBasemap}
-          onStation={(id) => {
-            const s = stationsRef.current.find((x) => x.id === id);
-            if (!s) return;
-            setTrain(null);
-            openStationHub(s.id);
-          }}
-          onTextSearch={(q) => explorer.current?.search(q)}
-          onPlace={(p) => explorer.current?.show(p)}
-        />
+        {(() => {
+          const search = (
+            <SearchBox
+              inCard={!!searchSlot}
+              map={ready ? mapRef.current : null}
+              stations={stationsRef.current}
+              online={!offlineBasemap}
+              onStation={(id) => {
+                const s = stationsRef.current.find((x) => x.id === id);
+                if (!s) return;
+                setTrain(null);
+                openStationHub(s.id);
+              }}
+              onTextSearch={(q) => explorer.current?.search(q)}
+              onPlace={(p) => explorer.current?.show(p)}
+            />
+          );
+          return searchSlot ? createPortal(search, searchSlot) : search;
+        })()}
         <Explorer ref={explorer} map={ready ? mapRef.current : null} userLoc={userLoc} />
         {autoFallback && feedMode !== "live" && (
           <div className="ob-panel px-3 py-1.5 text-xs text-amber-800">Live feed is down. Showing {feedMode === "replay" ? "saved trains" : "demo trains"}; retrying every 30 s.</div>

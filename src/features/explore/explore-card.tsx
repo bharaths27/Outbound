@@ -76,6 +76,9 @@ function Chip({
   );
 }
 
+/** Where the map's search box goes (TransitMap looks it up by id). */
+export const MAP_SEARCH_SLOT = "ob-map-search";
+
 export function ExploreCard({ className }: { className?: string }) {
   const filters = useExploreFilters();
   const any = hasExploreFilters(filters);
@@ -131,6 +134,9 @@ export function ExploreCard({ className }: { className?: string }) {
           onChange={(v) => setExploreFilters({ minutes: v === ANY ? null : Number(v) })}
         />
       </div>
+      {/* The map's "Where to?" search (TransitMap portals it here), so the left side of the map
+          stays free for the live train list and the Guide can't cover it. Empty until the map loads. */}
+      <div id={MAP_SEARCH_SLOT} className="mt-3 empty:hidden desk:mt-4" />
     </section>
   );
 }

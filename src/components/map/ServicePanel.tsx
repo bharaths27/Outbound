@@ -59,7 +59,9 @@ export default function ServicePanel({
   }, [trains]);
 
   return (
-    <div className="ob-panel max-h-[min(60vh,520px)] overflow-y-auto px-2 py-1.5 text-xs">
+    // Same width as the map's other left panels, and short enough to stay above the Quest of the
+    // Week card and the Ask Guide button.
+    <div className="ob-panel max-h-[max(160px,min(520px,calc(100dvh-var(--ob-map-top,0px)-22rem)))] w-[min(340px,calc(100vw-24px))] overflow-y-auto px-2 py-1.5 text-xs desk:max-h-[max(160px,min(520px,calc(100dvh-var(--ob-map-top,0px)-14rem)))]">
       {GROUPS.map((g) => {
         const count = g.routes.reduce((n, r) => n + (byRoute.get(r)?.length ?? 0), 0);
         const isOpen = open === g.id;

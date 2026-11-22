@@ -18,6 +18,8 @@ export const KNOWN_TAGS = [
   // Suki's content tags
   "photo", "coffee", "pastry", "bagel", "takeout", "snack", "dim-sum", "sit-down", "park", "river", "water",
   "walk", "indoors", "museum", "art", "books", "cozy",
+  // tags on the newer quests
+  "nature", "produce", "science", "ice-cream", "theater", "night",
 ];
 
 const CRAVINGS = ["food", "scenic", "event", "any"] as const;
