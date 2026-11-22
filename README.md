@@ -4,11 +4,19 @@ Boston's T as a multiplayer exploration game for college students. Live 3D/2D ma
 
 ## Run it
 
+Use Node.js 22.13 or later.
+
 ```bash
 npm install
 cp .env.example .env.local   # fill in the keys (ask Bharath in DMs)
 npm run dev                  # http://localhost:3000
 ```
+
+### Try a Guide photo trip
+
+Set `GEMINI_API_KEY` and a server-side `GOOGLE_MAPS_KEY` with Places API (New) and Routes API enabled in `.env.local`. In the app, open **✦ Ask Guide** in the bottom-right corner, click the camera, choose a dish or Boston landmark photo, and click **Ask**. Click **Use my location** and allow location access to see available MBTA directions. For dish photos, **Show Boston matches** searches near downtown without requesting location.
+
+Run the photo-trip integration tests with `npm run test:photo-trip`.
 
 ## Where things live
 

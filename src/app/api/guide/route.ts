@@ -1,6 +1,6 @@
 // POST /api/guide  { "message": "cheap food near Kenmore, I have an hour", "history": [{ role, content }],
 //                   "image"?: "data:image/jpeg;base64,..." }   (optional photo of food or a place, jpeg/png, < 3 MB)
-// -> { reply: string, quests: [{ id, title, station_id, station_name, xp, price_tier }], source: "grok" | "fallback" }
+// Text -> { reply: string, quests: [{ id, title, station_id, station_name, xp, price_tier }], source: "grok" | "fallback" }
 //
 // Outbound Guide: a chat helper powered by Grok (xAI) that recommends real quests from our
 // Supabase data. Falls back to a keyword matcher if Grok fails or takes over 15 s.
@@ -13,6 +13,7 @@ import {
 } from "@/lib/guide";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 35;
 
 const MODEL = process.env.GROK_MODEL || "grok-4.7";
 const QUEST_FIELDS =
@@ -34,9 +35,8 @@ async function loadQuests(): Promise<GuideQuest[]> {
 
 const IMAGE_RE = /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/;
 const MAX_IMAGE_CHARS = 4_000_000; // ~3 MB of base64; Vercel's request limit is 4.5 MB
-const PHOTO_PROMPT = "Here's a photo. What is it, and which quest is the closest match?";
 
-async function askGrok(message: string, history: GuideTurn[], quests: GuideQuest[], image: string | null) {
+async function askGrok(message: string, history: GuideTurn[], quests: GuideQuest[]) {
   // Tolerate stray spaces or quotes pasted around the key.
   const key = process.env.XAI_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (!key) throw new Error("XAI_API_KEY not set");
@@ -48,20 +48,12 @@ async function askGrok(message: string, history: GuideTurn[], quests: GuideQuest
       input: [
         { role: "system", content: buildSystemPrompt(quests) },
         ...history,
-        image
-          ? {
-              role: "user",
-              content: [
-                { type: "input_image", image_url: image },
-                { type: "input_text", text: message || PHOTO_PROMPT },
-              ],
-            }
-          : { role: "user", content: message },
+        { role: "user", content: message },
       ],
       temperature: 0.5,
       store: false,
     }),
-    signal: AbortSignal.timeout(image ? 25000 : 15000),
+    signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`Grok ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
@@ -91,7 +83,15 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: 'Send JSON like { "message": "cheap food near Kenmore" }' }, { status: 400 });
   }
-  if (!message && !image) return NextResponse.json({ error: "message is empty" }, { status: 400 });
+  if (image) {
+    try {
+      const { previewPhoto } = await import("@/lib/photo-trip/preview");
+      return NextResponse.json(await previewPhoto(image, message));
+    } catch {
+      return NextResponse.json({ error: "I couldn’t check your photo right now. Try again in a moment." }, { status: 502 });
+    }
+  }
+  if (!message) return NextResponse.json({ error: "message is empty" }, { status: 400 });
 
   let quests: GuideQuest[];
   try {
@@ -101,12 +101,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Couldn't load quests" }, { status: 503 });
   }
   try {
-    return NextResponse.json(await askGrok(message, history, quests, image));
+    return NextResponse.json(await askGrok(message, history, quests));
   } catch (e) {
     console.warn("[guide] Grok failed, using fallback:", (e as Error).message);
-    const fb = fallbackGuide(message, quests);
-    if (image) fb.reply = `I couldn't look at the photo just now. ${fb.reply}`;
-    return NextResponse.json(fb);
+    return NextResponse.json(fallbackGuide(message, quests));
   }
 }
 
