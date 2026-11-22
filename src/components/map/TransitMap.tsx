@@ -17,7 +17,7 @@ import Explorer, { type ExplorerHandle } from "./Explorer";
 import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
-import { BookOpen, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Landmark, LocateFixed, Moon, Soup, Star, Sun, Sunset, Trophy, Waves } from "lucide-react";
+import { BookOpen, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Landmark, Moon, Soup, Star, Sun, Sunset, Trophy, Waves } from "lucide-react";
 import { createElement, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN } from "lucide";
 
 const QUEST_ICONS = { Landmark, Waves, Soup, BookOpen, Sunset, Trophy };
@@ -586,12 +586,6 @@ export default function TransitMap() {
       meMarker.current = new maplibregl.Marker({ element: el }).setLngLat(userLoc).addTo(map);
     } else meMarker.current.setLngLat(userLoc);
   }, [ready, userLoc]);
-  const locateMe = () => {
-    const map = mapRef.current;
-    if (!map) return;
-    if (userLoc) map.flyTo({ center: userLoc, zoom: Math.max(map.getZoom(), 15.6), pitch: map.getPitch(), duration: 1800 });
-    else setNotice("Turn on location for this site to see where you are.");
-  };
 
   // ---------- illustrated / realistic ----------
   useEffect(() => {
@@ -781,19 +775,6 @@ export default function TransitMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
-  // nearest T station to you (walking ~80 m a minute, a bit more than straight-line distance)
-  const nearest = useMemo(() => {
-    if (!userLoc || !ready) return null;
-    let best: { s: StationData; d: number } | null = null;
-    for (const st of stationsRef.current) {
-      const d = Math.hypot((st.lon - userLoc[0]) * 82_000, (st.lat - userLoc[1]) * 111_000);
-      if (!best || d < best.d) best = { s: st, d };
-    }
-    return best && best.d < 3000 ? { s: best.s, min: Math.max(1, Math.round((best.d * 1.25) / 80)) } : null;
-  }, [userLoc, ready]);
-
-  const fly = (v: keyof typeof VIEWS) => mapRef.current?.flyTo({ ...VIEWS[v], pitch: is3D ? VIEWS[v].pitch : 0, duration: 3500 });
-
   // ---------- UI ----------
   const ago = lastUpdate ? Math.max(0, Math.round((now - lastUpdate) / 1000)) : null;
   const statusText =
@@ -807,18 +788,6 @@ export default function TransitMap() {
     <div className="fixed inset-0 bg-[#dfe9f3]">
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
       <WeatherFx weather={weather} active={loaded && is3D} />
-      {/* one loading screen, then straight into the 3D city */}
-      <div
-        className={`pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-[#ece6da] transition-opacity duration-700 ${loaded ? "opacity-0" : "opacity-100"}`}
-        aria-hidden={loaded}
-      >
-        <div className="text-3xl font-semibold tracking-tight text-[#6b1d3a]">Outbound</div>
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <span className="inline-block h-2 w-2 animate-ping rounded-full bg-[#6b1d3a]" />
-          Building Boston in 3D…
-        </div>
-      </div>
-
       {/* top-left: brand, feed status, Tiger Data badges */}
       <div className="absolute left-3 top-3 flex max-w-[calc(100vw-212px)] sm:max-w-[calc(100vw-24px)] flex-col gap-2 sm:left-4 sm:top-4">
         <div className="ob-panel flex items-center gap-3 px-3 py-2">
@@ -875,37 +844,6 @@ export default function TransitMap() {
         >
           {feedMode === "live" ? "Replay saved trains" : "Back to live"}
         </button>
-      </div>
-
-      {/* bottom-left: jump to USA / Massachusetts / Boston */}
-      <div className="ob-panel absolute bottom-8 left-3 flex gap-1 p-1 text-xs sm:left-4">
-        {(["usa", "mass", "boston"] as const).map((v) => (
-          <button key={v} onClick={() => fly(v)} className="rounded-lg px-2.5 py-1.5 font-medium text-slate-700 hover:bg-slate-100">
-            {v === "usa" ? "USA" : v === "mass" ? "Massachusetts" : "Boston"}
-          </button>
-        ))}
-        <button onClick={locateMe} className="rounded-lg px-2.5 py-1.5 font-medium text-sky-700 hover:bg-slate-100" title="Go to my location">
-          <LocateFixed size={13} strokeWidth={2.2} className="mr-1 inline -translate-y-px" aria-hidden />
-          Me
-        </button>
-        {nearest && (
-          <button
-            onClick={() => {
-              setTrain(null);
-              setStation(nearest.s);
-              mapRef.current?.flyTo({ center: [nearest.s.lon, nearest.s.lat], zoom: Math.max(mapRef.current.getZoom(), 15.5), duration: 1800 });
-            }}
-            className="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-medium text-slate-700 hover:bg-slate-100 sm:flex"
-            title="Nearest T station to you"
-          >
-            <span className="flex gap-0.5">
-              {nearest.s.lines.slice(0, 3).map((l) => (
-                <span key={l} className="h-2 w-2 rounded-full" style={{ background: LINE_COLORS[l as keyof typeof LINE_COLORS] }} />
-              ))}
-            </span>
-            {nearest.s.name} · {nearest.min} min walk
-          </button>
-        )}
       </div>
 
       {/* replay bar */}
@@ -1096,12 +1034,6 @@ export default function TransitMap() {
         </Card>
       )}
 
-      {/* app nav */}
-      <nav className="ob-panel absolute bottom-8 right-14 hidden gap-1 p-1 text-xs sm:flex">
-        {[["Passport", "/passport"], ["Leaderboard", "/leaderboard"], ["Login", "/login"]].map(([l, h]) => (
-          <Link key={h} href={h} className="rounded-lg px-2.5 py-1.5 font-medium text-slate-700 hover:bg-slate-100">{l}</Link>
-        ))}
-      </nav>
     </div>
   );
 }
