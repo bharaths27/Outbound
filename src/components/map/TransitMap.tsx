@@ -5,7 +5,8 @@ import * as maplibregl from "maplibre-gl";
 import type { Map as MlMap, GeoJSONSource, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
-import type { Arrival, LineLateness, Station, Train } from "@/lib/types";
+import { openStationHub } from "@/features/hub/open-hub";
+import type { LineLateness, Station, Train } from "@/lib/types";
 import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
 import { TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
@@ -30,8 +31,8 @@ const svgOf = (node: (typeof QUEST_NODES)[keyof typeof QUEST_NODES], size: numbe
   return el.outerHTML;
 };
 import {
-  LIVE_INTERVAL_MS, ReplayFrame, DemoFeed, fetchLive, fetchReplay, fetchLateness, fetchArrivals,
-  sampleArrivals, destinationOf, LATENESS_HEX,
+  LIVE_INTERVAL_MS, ReplayFrame, DemoFeed, fetchLive, fetchReplay, fetchLateness,
+  destinationOf, LATENESS_HEX,
 } from "./feed";
 import { CAMPUSES, SAMPLE_FRIEND_VISITS, SAMPLE_QUESTS, initials, type FriendVisit, type Quest } from "./places";
 
@@ -108,8 +109,6 @@ export default function TransitMap() {
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
   const [trainCount, setTrainCount] = useState(0);
   const [lateness, setLateness] = useState<{ lines: LineLateness[]; sample: boolean } | null>(null);
-  const [station, setStation] = useState<StationData | null>(null);
-  const [arrivals, setArrivals] = useState<{ list: Arrival[]; sample: boolean } | null>(null);
   const [train, setTrain] = useState<TrainNow | null>(null);
   const [now, setNow] = useState(Date.now());
   const [replay, setReplay] = useState<{ frames: ReplayFrame[]; source: string; i: number; playing: boolean; speed: number } | null>(null);
@@ -123,10 +122,10 @@ export default function TransitMap() {
       const [manifest, region] = await Promise.all([fetchBpdaManifest(), fetchRegionManifest()]);
       const [{ style, offline }, linesGeo, stations, cambridgeOutline, crStations] = await Promise.all([
         loadBaseStyle(manifest),
-        fetch("data/mbta-lines.geojson").then((r) => r.json()),
-        fetch("data/mbta-stations.json").then((r) => r.json()) as Promise<StationData[]>,
-        fetch("data/cambridge/outline.geojson").then((r) => r.json()).catch(() => null),
-        fetch("data/cr-stations.json").then((r) => r.json()).catch(() => []) as Promise<CrStation[]>,
+        fetch("/data/mbta-lines.geojson").then((r) => r.json()),
+        fetch("/data/mbta-stations.json").then((r) => r.json()) as Promise<StationData[]>,
+        fetch("/data/cambridge/outline.geojson").then((r) => r.json()).catch(() => null),
+        fetch("/data/cr-stations.json").then((r) => r.json()).catch(() => []) as Promise<CrStation[]>,
       ]);
       if (disposed || !box.current) return;
       setOfflineBasemap(offline);
@@ -138,7 +137,7 @@ export default function TransitMap() {
       if (process.env.NODE_ENV !== "production") (window as unknown as { __obAnim: TrainAnimator }).__obAnim = animator; // for tests
 
       registerFontProtocol(maplibregl);
-      maplibregl.setWorkerUrl(`${new URL("maplibre-gl-worker.mjs", document.baseURI).href}?v=${maplibregl.getVersion()}`); // copied by scripts/copy-maplibre-worker.mjs
+      maplibregl.setWorkerUrl(`${new URL("/maplibre-gl-worker.mjs", document.baseURI).href}?v=${maplibregl.getVersion()}`); // copied by scripts/copy-maplibre-worker.mjs
       map = new maplibregl.Map({
         container: box.current,
         style,
@@ -179,7 +178,7 @@ export default function TransitMap() {
         const labelsStart = styleLayers.slice(lastExt + 1).find((l) => l.type === "symbol")?.id ?? firstSymbol;
 
         // Commuter Rail (purple, thinner, under the subway lines) out to Brandeis, Salem, Worcester, Providence...
-        m.addSource("cr-lines", { type: "geojson", data: "data/cr-lines.geojson" });
+        m.addSource("cr-lines", { type: "geojson", data: "/data/cr-lines.geojson" });
         m.addLayer({
           id: "cr-casing",
           type: "line",
@@ -218,7 +217,7 @@ export default function TransitMap() {
         }, beforeLines);
 
         // campuses: one outline + see-through fill per school (real campus areas from OpenStreetMap via Overture Maps)
-        m.addSource("campuses", { type: "geojson", data: "data/campuses.geojson" });
+        m.addSource("campuses", { type: "geojson", data: "/data/campuses.geojson" });
         m.addLayer({ id: "campus-fill", type: "fill", source: "campuses", paint: { "fill-color": ["get", "color"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0.22, 16, 0.14] } }, beforeLines);
         m.addLayer({ id: "campus-halo", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.5, 16, 5], "line-opacity": 0.85 } }, beforeLines);
         m.addLayer({ id: "campus-line", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 16, 2.4], "line-dasharray": [3, 2] } }, beforeLines);
@@ -238,14 +237,14 @@ export default function TransitMap() {
         if (m.getSource("ov-minor")) {
           const cache = new Map<string, GeoJSON.Feature[]>();
           let cells: { file: string; bbox: [number, number, number, number] }[] = [];
-          fetch("data/ground/manifest.json").then((r) => r.json()).then((j) => ((cells = j.minor), loadMinor())).catch(() => {});
+          fetch("/data/ground/manifest.json").then((r) => r.json()).then((j) => ((cells = j.minor), loadMinor())).catch(() => {});
           const loadMinor = async () => {
             if (m.getZoom() < 13) return;
             const b = m.getBounds();
             const want = cells.filter((c) => c.bbox[0] < b.getEast() + 0.02 && c.bbox[2] > b.getWest() - 0.02 && c.bbox[1] < b.getNorth() + 0.02 && c.bbox[3] > b.getSouth() - 0.02).slice(0, 12);
             const missing = want.filter((c) => !cache.has(c.file));
             if (!missing.length) return;
-            await Promise.all(missing.map(async (c) => cache.set(c.file, (await (await fetch(`data/ground/${c.file}`)).json()).features)));
+            await Promise.all(missing.map(async (c) => cache.set(c.file, (await (await fetch(`/data/ground/${c.file}`)).json()).features)));
             for (const k of [...cache.keys()]) if (!want.some((c) => c.file === k)) cache.delete(k); // keep memory small
             (m.getSource("ov-minor") as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [...cache.values()].flat() });
           };
@@ -255,7 +254,7 @@ export default function TransitMap() {
           const loadXwalk = () => {
             if (xwalk || m.getZoom() < 15.5) return;
             xwalk = true;
-            fetch("data/ground/crosswalks.json").then((r) => r.json()).then((j) => (m.getSource("ov-xwalk") as GeoJSONSource | undefined)?.setData(j)).catch(() => (xwalk = false));
+            fetch("/data/ground/crosswalks.json").then((r) => r.json()).then((j) => (m.getSource("ov-xwalk") as GeoJSONSource | undefined)?.setData(j)).catch(() => (xwalk = false));
           };
           m.on("moveend", loadXwalk);
           loadXwalk();
@@ -393,7 +392,6 @@ export default function TransitMap() {
         m.on("click", "cr-stations", (e) => {
           const f = e.features?.[0];
           if (!f) return;
-          setStation(null);
           setTrain(null);
           setCrStation(crStations.find((x) => x.id === f.properties?.id) ?? null);
         });
@@ -421,14 +419,13 @@ export default function TransitMap() {
           const s = stationsRef.current.find((x) => x.id === id);
           if (s) {
             setTrain(null);
-            setStation(s);
+            openStationHub(s.id); // the hub (src/features/hub) shows the station, arrivals and quests
           }
         });
         m.on("click", "trains-2d", (e) => {
           const id = e.features?.[0]?.properties?.id as string;
           const t = animRef.current?.snapshot().find((x) => x.id === id);
           if (t) {
-            setStation(null);
             setTrain(t);
           }
         });
@@ -747,24 +744,6 @@ export default function TransitMap() {
     return () => cancelAnimationFrame(raf);
   }, [ready]);
 
-  // ---------- station arrivals countdown ----------
-  useEffect(() => {
-    if (!station) return;
-    let alive = true;
-    setArrivals(null);
-    const load = async () => {
-      const a = feedMode === "live" ? await fetchArrivals(station.id) : null;
-      if (!alive) return;
-      setArrivals(a ? { list: a, sample: false } : { list: sampleArrivals(station.lines), sample: true });
-    };
-    load();
-    const t = setInterval(load, 15_000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
-  }, [station, feedMode]);
-
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -790,14 +769,13 @@ export default function TransitMap() {
         : `Sample trains · MBTA feed unreachable`;
 
   return (
-    <div className="fixed inset-0 bg-[#dfe9f3]">
+    <div className="ob-map absolute inset-0 overflow-hidden bg-[#dfe9f3]">
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
       <WeatherFx weather={weather} active={loaded && is3D} />
-      {/* top-left: brand, feed status, Tiger Data badges */}
+      {/* top-left: feed status, Tiger Data badges (the app shell shows the logo) */}
       <div className="absolute left-3 top-3 flex max-w-[calc(100vw-212px)] sm:max-w-[calc(100vw-24px)] flex-col gap-2 sm:left-4 sm:top-4">
         <div className="ob-panel flex items-center gap-3 px-3 py-2">
-          <span className="text-base font-semibold tracking-tight text-slate-900">Outbound</span>
-          <span className="flex items-center gap-1.5 text-xs text-slate-600">
+          <span className="flex items-center gap-1.5 text-xs text-[var(--ob-ink-2)]">
             <span
               className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white ${feedMode === "live" && lastUpdate ? "bg-emerald-600" : feedMode === "replay" ? "bg-sky-600" : "bg-amber-500"}`}
               title={feedMode === "live" ? "Real MBTA positions" : "Not real-time: MBTA feed unreachable"}
@@ -816,7 +794,7 @@ export default function TransitMap() {
             const s = stationsRef.current.find((x) => x.id === id);
             if (!s) return;
             setTrain(null);
-            setStation(s);
+            openStationHub(s.id);
           }}
           onTextSearch={(q) => explorer.current?.search(q)}
           onPlace={(p) => explorer.current?.show(p)}
@@ -844,7 +822,7 @@ export default function TransitMap() {
           {show.delays && <Toggle label="Color lines by delay" on={delayColors} set={setDelayColors} small />}
         </div>
         <button
-          className="mt-1 rounded-lg bg-slate-900 px-2 py-1.5 font-medium text-white hover:bg-slate-700"
+          className="mt-1 rounded-lg bg-[var(--ob-maroon)] px-2 py-1.5 font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
           onClick={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
         >
           {feedMode === "live" ? "Replay saved trains" : "Back to live"}
@@ -854,7 +832,7 @@ export default function TransitMap() {
       {/* replay bar */}
       {feedMode === "replay" && replay && (
         <div className="ob-panel absolute bottom-20 left-1/2 flex w-[min(520px,calc(100vw-24px))] -translate-x-1/2 items-center gap-3 px-3 py-2 text-xs">
-          <button className="w-14 rounded-md bg-slate-900 px-2 py-1 text-white" onClick={() => setReplay({ ...replay, playing: !replay.playing })}>
+          <button className="w-14 rounded-md bg-[var(--ob-maroon)] px-2 py-1 text-white" onClick={() => setReplay({ ...replay, playing: !replay.playing })}>
             {replay.playing ? "Pause" : "Play"}
           </button>
           <input
@@ -868,48 +846,13 @@ export default function TransitMap() {
             }}
             className="flex-1"
           />
-          <span className="w-16 tabular-nums text-slate-700">{fmtTime(replay.frames[replay.i].t)}</span>
-          <select value={replay.speed} onChange={(e) => setReplay({ ...replay, speed: Number(e.target.value) })} className="rounded border border-slate-300 bg-white px-1 py-0.5">
+          <span className="w-16 tabular-nums text-[var(--ob-ink-2)]">{fmtTime(replay.frames[replay.i].t)}</span>
+          <select value={replay.speed} onChange={(e) => setReplay({ ...replay, speed: Number(e.target.value) })} className="rounded border border-[var(--ob-line)] bg-white px-1 py-0.5">
             {[1, 4, 16].map((s) => (
               <option key={s} value={s}>{s}×</option>
             ))}
           </select>
         </div>
-      )}
-
-      {/* station card with live countdown */}
-      {station && (
-        <Card onClose={() => setStation(null)}>
-          <div className="flex items-center gap-2">
-            {station.lines.map((l) => (
-              <span key={l} className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-white" style={{ background: LINE_COLORS[l as keyof typeof LINE_COLORS] }}>
-                {l}
-              </span>
-            ))}
-          </div>
-          <h2 className="mt-1 text-lg font-semibold text-slate-900">{station.name}</h2>
-          <div className="mt-2 flex flex-col divide-y divide-slate-100">
-            {!arrivals && <span className="py-2 text-slate-500">Loading arrivals…</span>}
-            {arrivals?.list.length === 0 && <span className="py-2 text-slate-500">No trains predicted right now.</span>}
-            {arrivals?.list.slice(0, 6).map((a, i) => {
-              const secs = Math.round((new Date(a.arrivalTime).getTime() - now) / 1000);
-              return (
-                <div key={i} className="flex items-center justify-between py-1.5">
-                  <span className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: LINE_COLORS[a.line] }} />
-                    <span className="text-slate-800">{destinationOf(a.route, a.directionId)}</span>
-                    {a.route.startsWith("Green-") && <span className="text-[10px] text-slate-500">{a.route.slice(6)}</span>}
-                  </span>
-                  <span className="font-semibold tabular-nums text-slate-900">{fmtCountdown(secs)}</span>
-                </div>
-              );
-            })}
-          </div>
-          {arrivals?.sample && <p className="mt-1 text-[10px] uppercase tracking-wide text-slate-400">sample times (MBTA unreachable)</p>}
-          <Link href={`/station/${station.id}`} className="mt-3 block rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-medium text-white hover:bg-slate-700">
-            Open station hub
-          </Link>
-        </Card>
       )}
 
       {/* friend profile: who, where, their rating and note */}
@@ -920,28 +863,28 @@ export default function TransitMap() {
               {initials(friend.name)}
             </span>
             <div className="min-w-0">
-              <h2 className="truncate text-base font-semibold text-slate-900">{friend.name}</h2>
-              <p className="text-xs text-slate-500">
+              <h2 className="truncate text-base font-semibold text-[var(--ob-ink)]">{friend.name}</h2>
+              <p className="text-xs text-[var(--ob-muted)]">
                 {friend.school}
                 {friend.year ? ` · ${friend.year}` : ""}
                 {friend.visits ? ` · ${friend.visits} places` : ""}
               </p>
             </div>
           </div>
-          <div className="mt-3 rounded-xl bg-slate-50 p-2.5">
+          <div className="mt-3 rounded-xl bg-[var(--ob-cream)] p-2.5">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="font-semibold text-slate-900">{friend.place}</span>
-              <span className="shrink-0 text-xs text-slate-500">{friend.when}</span>
+              <span className="font-semibold text-[var(--ob-ink)]">{friend.place}</span>
+              <span className="shrink-0 text-xs text-[var(--ob-muted)]">{friend.when}</span>
             </div>
             <Stars value={friend.rating} />
-            <p className="mt-1 text-[13px] italic text-slate-700">“{friend.note}”</p>
+            <p className="mt-1 text-[13px] italic text-[var(--ob-ink-2)]">“{friend.note}”</p>
           </div>
           {!!friend.recent?.length && (
             <div className="mt-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Also went to</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ob-muted)]">Also went to</p>
               {friend.recent.map((r) => (
                 <div key={r.place} className="flex items-center justify-between py-0.5 text-[13px]">
-                  <span className="text-slate-700">{r.place}</span>
+                  <span className="text-[var(--ob-ink-2)]">{r.place}</span>
                   <Stars value={r.rating} small />
                 </div>
               ))}
@@ -952,11 +895,11 @@ export default function TransitMap() {
               explorer.current?.show({ id: `friend-${friend.id}`, name: friend.place, address: `${friend.name} went here ${friend.when}`, lng: friend.lng, lat: friend.lat, types: [], category: "", rating: null, ratings: 0, price: null, openNow: null, url: null });
               setFriend(null);
             }}
-            className="mt-3 w-full rounded-lg bg-[#6b1d3a] px-3 py-2 text-sm font-medium text-white hover:bg-[#5a1731]"
+            className="mt-3 w-full rounded-lg bg-[var(--ob-maroon)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
           >
             Directions to {friend.place}
           </button>
-          <p className="mt-1.5 text-[10px] uppercase tracking-wide text-slate-400">sample friends until the friends feed is live</p>
+          <p className="mt-1.5 text-[10px] uppercase tracking-wide text-[var(--ob-muted)]">sample friends until the friends feed is live</p>
         </Card>
       )}
 
@@ -966,15 +909,15 @@ export default function TransitMap() {
           <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-white" style={{ background: "#80276C" }}>
             Commuter Rail
           </span>
-          <h2 className="mt-1 text-lg font-semibold text-slate-900">{crStation.name}</h2>
-          <p className="text-slate-600">{crStation.town}</p>
-          <p className="mt-1 text-[13px] text-slate-700">{crStation.routes.map((r) => CR_NAMES[r] ?? r).join(" · ")} Line</p>
+          <h2 className="mt-1 text-lg font-semibold text-[var(--ob-ink)]">{crStation.name}</h2>
+          <p className="text-[var(--ob-ink-2)]">{crStation.town}</p>
+          <p className="mt-1 text-[13px] text-[var(--ob-ink-2)]">{crStation.routes.map((r) => CR_NAMES[r] ?? r).join(" · ")} Line</p>
           <button
             onClick={() => {
               explorer.current?.show({ id: `cr-${crStation.id}`, name: `${crStation.name} station`, address: `Commuter Rail, ${crStation.town}`, lng: crStation.lon, lat: crStation.lat, types: [], category: "", rating: null, ratings: 0, price: null, openNow: null, url: null });
               setCrStation(null);
             }}
-            className="mt-3 w-full rounded-lg bg-[#6b1d3a] px-3 py-2 text-sm font-medium text-white hover:bg-[#5a1731]"
+            className="mt-3 w-full rounded-lg bg-[var(--ob-maroon)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
           >
             Directions
           </button>
@@ -993,10 +936,10 @@ export default function TransitMap() {
             </span>
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600">Passport quest · +{quest.points} pts</p>
-              <h2 className="truncate text-base font-semibold text-slate-900">{quest.title}</h2>
+              <h2 className="truncate text-base font-semibold text-[var(--ob-ink)]">{quest.title}</h2>
             </div>
           </div>
-          <p className="mt-2 text-[13px] text-slate-700">
+          <p className="mt-2 text-[13px] text-[var(--ob-ink-2)]">
             Go to <b>{quest.place}</b>. {quest.hint}.
           </p>
           <div className="mt-3 flex gap-2">
@@ -1005,15 +948,15 @@ export default function TransitMap() {
                 explorer.current?.show({ id: `quest-${quest.id}`, name: quest.place, address: `Quest: ${quest.title}`, lng: quest.lng, lat: quest.lat, types: [], category: "", rating: null, ratings: 0, price: null, openNow: null, url: null });
                 setQuest(null);
               }}
-              className="flex-1 rounded-lg bg-[#6b1d3a] px-3 py-2 text-sm font-medium text-white hover:bg-[#5a1731]"
+              className="flex-1 rounded-lg bg-[var(--ob-maroon)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
             >
               Directions
             </button>
-            <Link href="/passport" className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200">
+            <Link href="/passport" className="rounded-lg bg-[var(--ob-sand)] px-3 py-2 text-sm font-medium text-[var(--ob-ink-2)] hover:bg-[var(--ob-line)]">
               Passport
             </Link>
           </div>
-          <p className="mt-1.5 text-[10px] uppercase tracking-wide text-slate-400">sample quests</p>
+          <p className="mt-1.5 text-[10px] uppercase tracking-wide text-[var(--ob-muted)]">sample quests</p>
         </Card>
       )}
 
@@ -1023,15 +966,15 @@ export default function TransitMap() {
           <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-white" style={{ background: LINE_COLORS[train.line] }}>
             {train.info.route.replace("-", " ")}
           </span>
-          <h2 className="mt-1 text-lg font-semibold text-slate-900">
+          <h2 className="mt-1 text-lg font-semibold text-[var(--ob-ink)]">
             To {destinationOf(train.info.route, train.info.directionId ?? 0)}
           </h2>
-          <p className="text-slate-600">
+          <p className="text-[var(--ob-ink-2)]">
             {statusLabel(train.info.status)} {stationName(train.info.stopId) ?? "next stop"}
           </p>
-          {train.info.occupancy && <p className="mt-1 text-xs text-slate-500">Crowding: {train.info.occupancy.replaceAll("_", " ").toLowerCase()}</p>}
+          {train.info.occupancy && <p className="mt-1 text-xs text-[var(--ob-muted)]">Crowding: {train.info.occupancy.replaceAll("_", " ").toLowerCase()}</p>}
           <button
-            className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
+            className="mt-3 w-full rounded-lg border border-[var(--ob-line)] px-3 py-1.5 text-sm font-medium text-[var(--ob-ink)] hover:bg-[var(--ob-cream)]"
             onClick={() => mapRef.current?.flyTo({ center: [train.lng, train.lat], zoom: 16.4, pitch: 62, duration: 1800 })}
           >
             Follow closer
@@ -1045,12 +988,12 @@ export default function TransitMap() {
 
 function Seg<T>({ options, value, onChange }: { options: [string, T][]; value: T; onChange: (v: T) => void }) {
   return (
-    <div className="flex rounded-lg bg-slate-100 p-0.5">
+    <div className="flex rounded-lg bg-[var(--ob-sand)] p-0.5">
       {options.map(([label, v]) => (
         <button
           key={label}
           onClick={() => onChange(v)}
-          className={`flex-1 rounded-md px-2 py-1 font-medium ${value === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
+          className={`flex-1 rounded-md px-2 py-1 font-medium ${value === v ? "bg-white text-[var(--ob-ink)] shadow-sm" : "text-[var(--ob-muted)]"}`}
         >
           {label}
         </button>
@@ -1061,9 +1004,9 @@ function Seg<T>({ options, value, onChange }: { options: [string, T][]; value: T
 
 function Toggle({ label, on, set, small }: { label: string; on: boolean; set: (v: boolean) => void; small?: boolean }) {
   return (
-    <label className={`flex cursor-pointer items-center justify-between gap-2 ${small ? "pl-3 text-[11px] text-slate-500" : "text-slate-700"}`}>
+    <label className={`flex cursor-pointer items-center justify-between gap-2 ${small ? "pl-3 text-[11px] text-[var(--ob-muted)]" : "text-[var(--ob-ink-2)]"}`}>
       {label}
-      <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} className="accent-slate-900" />
+      <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} className="accent-[var(--ob-maroon)]" />
     </label>
   );
 }
@@ -1072,8 +1015,8 @@ function WeatherChip({ w, night }: { w: Weather; night: boolean }) {
   const Icon = { clear: night ? Moon : Sun, cloudy: w.cloud > 0.75 ? Cloud : CloudSun, fog: CloudFog, rain: CloudRain, snow: CloudSnow, storm: CloudLightning }[w.kind];
   const label = { clear: "Clear", cloudy: w.cloud > 0.75 ? "Cloudy" : "Partly cloudy", fog: "Fog", rain: "Rain", snow: "Snow", storm: "Storm" }[w.kind];
   return (
-    <span className="ml-auto flex items-center gap-1 text-xs text-slate-600" title={`${label} in Boston now. The 3D light follows the time and weather outside.`}>
-      <Icon size={15} strokeWidth={2} className="text-slate-500" aria-hidden />
+    <span className="ml-auto flex items-center gap-1 text-xs text-[var(--ob-ink-2)]" title={`${label} in Boston now. The 3D light follows the time and weather outside.`}>
+      <Icon size={15} strokeWidth={2} className="text-[var(--ob-muted)]" aria-hidden />
       {w.tempF}°
     </span>
   );
@@ -1083,9 +1026,9 @@ function Stars({ value, small }: { value: number; small?: boolean }) {
   return (
     <span className={`inline-flex items-center gap-0.5 ${small ? "text-[11px]" : "mt-0.5 text-sm"}`} aria-label={`${value} out of 5`}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <Star key={i} size={small ? 11 : 14} strokeWidth={1.5} className={value >= i ? "fill-amber-400 text-amber-500" : value >= i - 0.5 ? "fill-amber-200 text-amber-400" : "fill-slate-200 text-slate-300"} aria-hidden />
+        <Star key={i} size={small ? 11 : 14} strokeWidth={1.5} className={value >= i ? "fill-amber-400 text-amber-500" : value >= i - 0.5 ? "fill-amber-200 text-amber-400" : "fill-[var(--ob-line)] text-[var(--ob-muted)]"} aria-hidden />
       ))}
-      <span className="ml-1 text-slate-500">{value.toFixed(1)}</span>
+      <span className="ml-1 text-[var(--ob-muted)]">{value.toFixed(1)}</span>
     </span>
   );
 }
@@ -1093,7 +1036,7 @@ function Stars({ value, small }: { value: number; small?: boolean }) {
 function Card({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="ob-panel absolute bottom-24 left-3 w-[min(300px,calc(100vw-24px))] p-3.5 text-sm sm:left-4">
-      <button onClick={onClose} className="absolute right-2.5 top-2 text-lg leading-none text-slate-400 hover:text-slate-700" aria-label="Close">
+      <button onClick={onClose} className="absolute right-2.5 top-2 text-lg leading-none text-[var(--ob-muted)] hover:text-[var(--ob-ink-2)]" aria-label="Close">
         ×
       </button>
       {children}
@@ -1103,12 +1046,6 @@ function Card({ children, onClose }: { children: React.ReactNode; onClose: () =>
 
 const statusLabel = (s: string | null) =>
   s === "STOPPED_AT" ? "Stopped at" : s === "INCOMING_AT" ? "Arriving at" : "Heading to";
-
-function fmtCountdown(secs: number) {
-  if (secs <= 30) return "Now";
-  if (secs < 600) return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
-  return `${Math.round(secs / 60)} min`;
-}
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", timeZone: "America/New_York" });

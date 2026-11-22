@@ -94,7 +94,7 @@ export default function SearchBox({
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch(new URL("data/search-places.json", document.baseURI))
+    fetch(new URL("/data/search-places.json", document.baseURI))
       .then((r) => (r.ok ? r.json() : []))
       .then(setPlaces)
       .catch(() => setPlaces([]));
@@ -260,7 +260,7 @@ export default function SearchBox({
   return (
     <div ref={boxRef} className="relative w-[min(340px,calc(100vw-212px))] min-w-[150px] sm:w-[340px]">
       <div className="ob-panel flex items-center gap-2 px-3 py-2">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="shrink-0 text-slate-500" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="shrink-0 text-[var(--ob-muted)]" aria-hidden>
           <circle cx="11" cy="11" r="7" />
           <path d="m20 20-3.5-3.5" />
         </svg>
@@ -288,10 +288,10 @@ export default function SearchBox({
           }}
           placeholder="Where to? Places, food, addresses"
           aria-label="Search places, food, addresses"
-          className="w-full min-w-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+          className="w-full min-w-0 bg-transparent text-sm text-[var(--ob-ink)] outline-none placeholder:text-[var(--ob-muted)]"
         />
         {q && (
-          <button onClick={clear} aria-label="Clear search" className="shrink-0 rounded px-1 text-slate-400 hover:text-slate-700">
+          <button onClick={clear} aria-label="Clear search" className="shrink-0 rounded px-1 text-[var(--ob-muted)] hover:text-[var(--ob-ink-2)]">
             ×
           </button>
         )}
@@ -302,26 +302,26 @@ export default function SearchBox({
             <button
               onMouseEnter={() => setActive(-1)}
               onClick={textSearch}
-              className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left ${active === -1 ? "bg-slate-100" : ""}`}
+              className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left ${active === -1 ? "bg-[var(--ob-sand)]" : ""}`}
             >
-              <Search size={14} className="text-slate-500" aria-hidden />
-              <span className="truncate text-slate-900">
+              <Search size={14} className="text-[var(--ob-muted)]" aria-hidden />
+              <span className="truncate text-[var(--ob-ink)]">
                 Search for <b>{q.trim()}</b> nearby
               </span>
             </button>
           )}
-          {results.length === 0 && !(onTextSearch && live) && <div className="px-3 py-2 text-xs text-slate-500">No matches{live ? "" : " in the offline index"}</div>}
+          {results.length === 0 && !(onTextSearch && live) && <div className="px-3 py-2 text-xs text-[var(--ob-muted)]">No matches{live ? "" : " in the offline index"}</div>}
           {results.map((r, i) => (
             <button
               key={r.key}
               onMouseEnter={() => setActive(i)}
               onClick={() => go(r)}
-              className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left ${i === active ? "bg-slate-100" : ""}`}
+              className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left ${i === active ? "bg-[var(--ob-sand)]" : ""}`}
             >
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: KIND_DOT[r.kind] }} />
               <span className="min-w-0">
-                <span className="block truncate text-slate-900">{r.name}</span>
-                <span className="block truncate text-[11px] text-slate-500">{r.sub}</span>
+                <span className="block truncate text-[var(--ob-ink)]">{r.name}</span>
+                <span className="block truncate text-[11px] text-[var(--ob-muted)]">{r.sub}</span>
               </span>
             </button>
           ))}

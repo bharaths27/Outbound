@@ -47,7 +47,7 @@ export function detailGround(url: (f: string) => string): { sources: StyleSpecif
 //   - Cambridge streets, water, parks and buildings with real heights (City of Cambridge GIS, cambridge/)
 //   - illustrated ground of central Boston, drawn from the 2023 BPDA aerial photos (bpda/*_ground.png)
 function fallbackStyle(manifest: BpdaManifest | null): StyleSpecification {
-  const url = (f: string) => new URL(`data/${f}`, document.baseURI).href;
+  const url = (f: string) => new URL(`/data/${f}`, document.baseURI).href;
   const sources: StyleSpecification["sources"] = {
     states: { type: "geojson", data: url("base/us-states.geojson") },
     water: { type: "geojson", data: url("base/water.geojson") },
@@ -113,7 +113,7 @@ export function registerFontProtocol(ml: { addProtocol: (name: string, fn: (p: {
     if (!cache.has(file))
       cache.set(
         file,
-        fetch(new URL(`data/fonts/${file}-0-255.json`, document.baseURI).href)
+        fetch(new URL(`/data/fonts/${file}-0-255.json`, document.baseURI).href)
           .then((r) => r.json())
           .then((j) => Uint8Array.from(atob(j.data), (c) => c.charCodeAt(0)).buffer),
       );
@@ -244,10 +244,10 @@ function restyle(style: StyleSpecification, manifest: BpdaManifest | null): Styl
     maxzoom: 14,
     attribution: "Elevation: Mapzen Terrain Tiles (AWS)",
   };
-  style.sources.earth = EARTH_SOURCE(new URL("data/base/earth.jpg", document.baseURI).href);
+  style.sources.earth = EARTH_SOURCE(new URL("/data/base/earth.jpg", document.baseURI).href);
   // illustrated central Boston ground under the streets
   const groundSrc: StyleSpecification["sources"] = {};
-  const ground = groundLayers(manifest, groundSrc, (f) => new URL(`data/${f}`, document.baseURI).href);
+  const ground = groundLayers(manifest, groundSrc, (f) => new URL(`/data/${f}`, document.baseURI).href);
   Object.assign(style.sources, groundSrc);
   layers.splice(layers.findIndex((l) => l.id === "water"), 0, ...ground); // OSM water draws over it
   const firstLine = layers.findIndex((l) => l.type === "line");
