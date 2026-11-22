@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DEMO_ACCOUNTS, data } from "@/lib/data";
 import type { AuthError, School } from "@/lib/data/types";
+import { Stamp } from "@/features/passport/stamp";
 import { isEmail, safeNext, schoolForEmail } from "./auth";
 
 type Mode = "signin" | "signup";
@@ -31,18 +32,31 @@ const AUTH_COPY: Record<AuthError, string> = {
 
 export function LoginPage() {
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-8 px-4 py-10">
-      <div className="flex flex-col gap-2">
-        <p className="type-small text-muted-foreground">Outbound</p>
-        <h1 className="type-display">Explore Boston on the T</h1>
-        <p className="type-body text-muted-foreground">
-          Find food, events, and views near every stop. Earn stamps, level up your passport, and win the week for your
-          school.
-        </p>
-      </div>
-      <Suspense fallback={null}>
-        <LoginForms />
-      </Suspense>
+    <div className="flex min-h-dvh flex-col bg-page desk:flex-row">
+      {/* Intro: a maroon band on phones, the left half on desktop (DESIGN.md §6 Login). */}
+      <section className="relative overflow-hidden bg-maroon px-6 pt-7 pb-[52px] text-white desk:flex desk:flex-1 desk:flex-col desk:px-14 desk:py-12">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static SVG wordmark */}
+        <img src="/outbound-wordmark.svg" alt="Outbound" className="block h-[26px] w-auto self-start desk:h-8" />
+        <div aria-hidden className="pointer-events-none absolute top-[150px] right-[120px] hidden rotate-[-8deg] rounded-full bg-page shadow-[0_12px_30px_rgb(0_0_0/0.25)] desk:block">
+          <Stamp questId="login-hero" title="Kenmore" neighborhood="Fenway-Kenmore" stationId="place-kencl" type="scenic" tier="gold" size={150} />
+        </div>
+        <div className="relative desk:mt-auto">
+          <h1 className="mt-[22px] font-display text-[30px] leading-[1.1] font-semibold text-gold desk:mt-0 desk:text-[56px] desk:leading-[1.05]">
+            Explore Boston via T
+          </h1>
+          <p className="mt-2 max-w-[460px] text-[15px] leading-normal text-on-maroon-muted desk:mt-4 desk:text-lg">
+            Tap a station, find food, events and views nearby, and check in for XP and passport stamps. Every check-in helps
+            your school win the week.
+          </p>
+        </div>
+      </section>
+      <main className="-mt-8 flex flex-1 justify-center px-4 pb-8 desk:mt-0 desk:items-center desk:px-10 desk:py-14">
+        <div className="w-full max-w-[440px]">
+          <Suspense fallback={null}>
+            <LoginForms />
+          </Suspense>
+        </div>
+      </main>
     </div>
   );
 }
@@ -113,8 +127,12 @@ function LoginForms() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <form onSubmit={submit} className="flex flex-col gap-3" noValidate>
+    <div className="flex flex-col gap-5">
+      <form
+        onSubmit={submit}
+        className="relative flex flex-col gap-3.5 rounded-[22px] border border-border bg-surface p-4 shadow-card desk:gap-4 desk:rounded-2xl desk:p-6"
+        noValidate
+      >
         <Tabs
           value={mode}
           onValueChange={(v) => {
@@ -122,14 +140,14 @@ function LoginForms() {
             setFormError(null);
           }}
         >
-          <TabsList>
+          <TabsList className="h-12 w-full">
             <TabsTrigger value="signin">Sign in</TabsTrigger>
             <TabsTrigger value="signup">Create account</TabsTrigger>
           </TabsList>
         </Tabs>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="email" className="type-small font-medium">
+          <label htmlFor="email" className="text-sm font-bold">
             School email
           </label>
           <Input
@@ -146,7 +164,7 @@ function LoginForms() {
             onBlur={() => setTouched(true)}
             aria-invalid={hint?.error ? true : undefined}
             aria-describedby={hint ? "email-hint" : undefined}
-            className="h-11"
+            className="h-[50px] text-base"
           />
           {hint && (
             <p id="email-hint" className={hint.error ? "type-small text-destructive" : "type-small text-muted-foreground"}>
@@ -156,7 +174,7 @@ function LoginForms() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="password" className="type-small font-medium">
+          <label htmlFor="password" className="text-sm font-bold">
             Password
           </label>
           <Input
@@ -169,7 +187,7 @@ function LoginForms() {
               setFormError(null);
             }}
             aria-describedby={mode === "signup" ? "password-hint" : undefined}
-            className="h-11"
+            className="h-[50px] text-base"
           />
           {mode === "signup" && (
             <p id="password-hint" className="type-small text-muted-foreground">
@@ -184,42 +202,44 @@ function LoginForms() {
           </p>
         )}
 
-        <Button type="submit" disabled={busy} className="mt-1">
+        <Button type="submit" disabled={busy} className="mt-1 h-[52px] rounded-2xl text-base font-bold">
           {busy && <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden />}
           {mode === "signin" ? "Sign in" : "Create account"}
         </Button>
       </form>
 
-      <section aria-labelledby="demo-heading" className="flex flex-col gap-3">
+      <section aria-labelledby="demo-heading" className="flex flex-col gap-2.5">
         <div className="flex flex-col gap-0.5">
-          <h2 id="demo-heading" className="type-heading">
+          <h2 id="demo-heading" className="text-[15px] font-bold">
             Try a demo account
           </h2>
           <p className="type-small text-muted-foreground">No password needed. Demo players can check in from anywhere.</p>
         </div>
-        <ul className="flex flex-col gap-2">
+        <ul className="grid grid-cols-2 gap-2">
           {DEMO_ACCOUNTS.map((a) => (
             <li key={a.id}>
               <Button
                 variant="outline"
                 onClick={() => demo(a.id)}
                 disabled={demoBusy !== null}
-                className="h-auto w-full flex-col items-start gap-0.5 py-3 text-left whitespace-normal"
+                className="h-full min-h-[72px] w-full flex-col items-start justify-start gap-0.5 rounded-lg bg-surface px-3 py-3 text-left whitespace-normal"
               >
-                <span className="type-body font-medium">
+                <span className="text-[15px] font-bold">
                   {demoBusy === a.id && <Loader2 className="mr-1.5 inline size-4 animate-spin motion-reduce:animate-none" aria-hidden />}
                   {a.label}
                 </span>
-                <span className="type-small text-muted-foreground">{a.blurb}</span>
+                <span className="text-xs leading-snug font-normal text-muted-foreground">{a.blurb}</span>
               </Button>
             </li>
           ))}
         </ul>
       </section>
 
-      <p className="type-small text-muted-foreground">
-        Just looking? <Link href="/" className="text-accent underline-offset-4 hover:underline">Browse the map</Link> without
-        signing in.
+      <p className="text-center text-sm text-muted-2">
+        Just looking?{" "}
+        <Link href="/" className="font-bold text-maroon underline-offset-4 hover:underline">
+          Browse the map without signing in
+        </Link>
       </p>
     </div>
   );

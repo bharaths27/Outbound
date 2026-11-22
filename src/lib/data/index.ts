@@ -18,3 +18,4 @@ export const DEMO_ACCOUNTS: DemoAccount[] = useSupabase ? SUPABASE_DEMO_ACCOUNTS
 export { parseCheckInError } from "./checkInErrors";
 export type { DataService } from "./service";
 export type * from "./types";
+export { XP_PER_LEVEL, levelProgress } from "./levels";

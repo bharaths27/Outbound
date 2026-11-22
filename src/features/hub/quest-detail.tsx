@@ -12,6 +12,10 @@ import { ArrowLeft, Clock } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { CheckInButton } from "@/features/checkin";
+import { ShareQuestButton } from "@/features/share/share-quest-button";
+import { ShareStampButton } from "@/features/share/share-stamp-button";
+import { QuestOfWeekBadge } from "@/features/weekly/quest-of-the-week";
+import { RecommendButton } from "@/features/weekly/recommend-button";
 import { Stamp, TIER_NAME } from "@/features/passport/stamp";
 import { data } from "@/lib/data";
 import type { Deal, Quest, Station } from "@/lib/data/types";
@@ -85,8 +89,35 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
     />
   ) : null;
 
+  const share =
+    visit && player.profile ? (
+      <ShareStampButton
+        variant="ghost"
+        size="sm"
+        label="Share stamp"
+        className="font-semibold text-maroon"
+        questId={quest.id}
+        questTitle={quest.title}
+        neighborhood={station.neighborhood}
+        stationId={quest.station_id}
+        stationName={station.name}
+        tier={tier ?? "bronze"}
+        crossSchool={visit.cross_school}
+        at={visit.checked_in_at}
+        xp={visit.xp_awarded}
+        playerName={player.profile.display_name}
+      />
+    ) : null;
+
   const checkIn = (
-    <CheckInButton quest={quest} profile={player.profile} tier={tier} now={now} onCheckedIn={onCheckedIn} />
+    <CheckInButton
+      quest={quest}
+      profile={player.profile}
+      tier={tier}
+      now={now}
+      onCheckedIn={onCheckedIn}
+      stationName={station.name}
+    />
   );
 
   const titleBlock = (
@@ -98,7 +129,10 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
         <StationLine station={station} href={stationHref} />
       </div>
       {/* On the desktop page the stamp lives in the side column. */}
-      <div className={page ? "desk:hidden" : undefined}>{stamp}</div>
+      <div className={cn("flex flex-col items-center gap-1", page && "desk:hidden")}>
+        {stamp}
+        {share}
+      </div>
     </div>
   );
 
@@ -114,9 +148,16 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   const timeLine = <TimeLine quest={quest} />;
   const dealsBox = deals.length > 0 && <DealsBox deals={deals} />;
   const reward = (
-    <div className="flex items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-3 text-sm text-ink-2">
+    <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-3 text-sm text-ink-2">
       <XpChip xp={quest.xp} className="text-sm" />
+      <QuestOfWeekBadge questId={quest.id} className="text-[13px]" />
       <span>{rewardText}</span>
+    </div>
+  );
+  const actions = (
+    <div className="flex flex-wrap gap-2">
+      <ShareQuestButton questId={quest.id} questTitle={quest.title} />
+      <RecommendButton questId={quest.id} visits={player.visits} />
     </div>
   );
 
@@ -143,6 +184,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
         </section>
         {dealsBox}
         {reward}
+        {actions}
         <StickyCheckIn>{checkIn}</StickyCheckIn>
       </article>
     );
@@ -171,6 +213,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
           <div className="flex flex-col gap-4 desk:hidden">
             {dealsBox}
             {reward}
+            {actions}
           </div>
         </div>
       </div>
@@ -184,6 +227,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
               <p className="text-sm text-ink-2">
                 You have this stamp · <b>{TIER_NAME[tier ?? "bronze"]} in {station.neighborhood}</b>
               </p>
+              {share}
             </>
           ) : (
             <p className="text-sm text-muted-foreground">Check in to collect this stamp.</p>
@@ -191,6 +235,10 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
           {reward}
           <div className="w-full">{checkIn}</div>
           <p className="text-[13px] text-muted-foreground">You&apos;ll need to be within {quest.checkin_radius_m} m.</p>
+          <div className="flex w-full flex-col gap-2 [&>button]:w-full">
+            <ShareQuestButton questId={quest.id} questTitle={quest.title} />
+            <RecommendButton questId={quest.id} visits={player.visits} />
+          </div>
         </div>
         {dealsBox}
       </aside>

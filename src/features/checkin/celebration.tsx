@@ -67,11 +67,13 @@ export interface CelebrationProps {
   squadName?: string;
   /** The buttons (See your passport / Done), rendered under the summary. */
   actions: React.ReactNode;
+  /** Shown under the XP lines once they're in, e.g. the "+N OUT ready to claim" link. */
+  reward?: React.ReactNode;
   /** Renders the accessible title; the dialog supplies its own Title component. */
   renderTitle: (text: string) => React.ReactNode;
 }
 
-export function Celebration({ quest, result, prevTier, squadName, actions, renderTitle }: CelebrationProps) {
+export function Celebration({ quest, result, prevTier, squadName, actions, reward, renderTitle }: CelebrationProps) {
   const reduced = usePrefersReducedMotion();
   const { t, skip } = useTimeline(reduced);
   const f = frameAt(t, result, prevTier);
@@ -161,6 +163,8 @@ export function Celebration({ quest, result, prevTier, squadName, actions, rende
           </li>
         ))}
       </ul>
+
+      {reward && <div className={cn("w-full", show(f.done))}>{reward}</div>}
 
       <p className={cn("text-sm leading-relaxed text-on-maroon-muted", show(f.done))} aria-hidden>
         {result.next_tier === null ? (

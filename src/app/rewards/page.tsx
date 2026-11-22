@@ -1,13 +1,30 @@
 "use client";
 // Outbound Rewards: earn OUT tokens on Solana devnet from your XP, then spend them on discounts.
-// Owner: Bharath (backend). Self-contained so it doesn't touch Angie's pages; link to /rewards from the nav.
+// Wallet and ledger logic: Bharath (backend). Look: the maroon/gold app style (DESIGN.md),
+// with the shell's title band, a gold balance card, and sample coupon cards.
+import { Check, ExternalLink, Loader2, Ticket, Wallet } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Connection, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
-import { TOKEN_2022_PROGRAM_ID, createTransferCheckedInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
-import QRCode from "qrcode";
-import { createClient } from "@/lib/supabase/client";
 import {
-  DEFAULT_RPC, MEMO_PROGRAM_ID, OUT_DECIMALS, TIERS, explorerAddress, explorerTx, redeemMemo, type Tier,
+  TOKEN_2022_PROGRAM_ID,
+  createTransferCheckedInstruction,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
+import QRCode from "qrcode";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/features/shell/page-header";
+import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
+import {
+  DEFAULT_RPC,
+  MEMO_PROGRAM_ID,
+  OUT_DECIMALS,
+  TIERS,
+  explorerAddress,
+  explorerTx,
+  redeemMemo,
+  type Tier,
 } from "@/lib/rewards";
 
 interface PhantomProvider {
@@ -17,15 +34,30 @@ interface PhantomProvider {
   disconnect: () => Promise<void>;
   signAndSendTransaction: (tx: Transaction) => Promise<{ signature: string }>;
 }
-interface Summary { earned: number; minted: number; pending: number; redeemed: number; claimable: number }
+interface Summary {
+  earned: number;
+  minted: number;
+  pending: number;
+  redeemed: number;
+  claimable: number;
+}
 interface RewardEvent {
-  id: number; kind: "mint" | "redeem"; amount: number; status: string; tx_sig: string | null;
-  tier: number | null; coupon: string | null; created_at: string;
+  id: number;
+  kind: "mint" | "redeem";
+  amount: number;
+  status: string;
+  tx_sig: string | null;
+  tier: number | null;
+  coupon: string | null;
+  created_at: string;
 }
 
 const phantom = (): PhantomProvider | null => {
   if (typeof window === "undefined") return null;
-  const w = window as unknown as { phantom?: { solana?: PhantomProvider }; solana?: PhantomProvider };
+  const w = window as unknown as {
+    phantom?: { solana?: PhantomProvider };
+    solana?: PhantomProvider;
+  };
   const p = w.phantom?.solana ?? w.solana;
   return p?.isPhantom ? p : null;
 };
@@ -42,7 +74,35 @@ async function waitForConfirm(conn: Connection, signature: string) {
   throw new Error("Solana is slow right now. Your OUT may still arrive; check History in a minute.");
 }
 
+const LIVE = process.env.NEXT_PUBLIC_DATA_SOURCE === "supabase";
+
+/** Rewards need Supabase (the ledger) and Solana; the mock data source shows a note instead. */
 export default function RewardsPage() {
+  return LIVE ? (
+    <LiveRewards />
+  ) : (
+    <Frame>
+      {<Notice>Rewards run on the live backend. Switch NEXT_PUBLIC_DATA_SOURCE to supabase to claim OUT.</Notice>}
+    </Frame>
+  );
+}
+
+function Frame({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <PageHeader title="Rewards" />
+      <div className="mx-auto w-full max-w-[720px] px-4 pt-4 pb-10 desk:max-w-[1360px] desk:px-8 desk:pt-6">
+        <p className="mb-5 max-w-[62ch] text-[15px] leading-relaxed text-muted-2">
+          Every XP you earn is 1 OUT, a token on Solana. Claim it to your Phantom wallet, then spend it on discounts at
+          quest spots. OUT is a devnet test token, and the coupons are samples.
+        </p>
+        {children}
+      </div>
+    </>
+  );
+}
+
+function LiveRewards() {
   const supabase = useMemo(() => createClient(), []);
   const conn = useMemo(() => new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL || DEFAULT_RPC, "confirmed"), []);
   const mintAddr = process.env.NEXT_PUBLIC_OUT_MINT;
@@ -56,10 +116,17 @@ export default function RewardsPage() {
   const [events, setEvents] = useState<RewardEvent[]>([]);
   const [treasury, setTreasury] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [note, setNote] = useState<{ text: string; link?: string; error?: boolean } | null>(null);
-  const [coupon, setCoupon] = useState<{ code: string; percent: number; qr: string; link: string } | null>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [note, setNote] = useState<{
+    text: string;
+    link?: string;
+    error?: boolean;
+  } | null>(null);
+  const [coupon, setCoupon] = useState<{
+    code: string;
+    percent: number;
+    qr: string;
+    link: string;
+  } | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -76,9 +143,15 @@ export default function RewardsPage() {
 
   const refresh = useCallback(async () => {
     if (!token) return;
-    const res = await fetch("/api/rewards", { headers: { authorization: `Bearer ${token}` } });
+    const res = await fetch("/api/rewards", {
+      headers: { authorization: `Bearer ${token}` },
+    });
     const data = await res.json();
-    if (!res.ok) return setNote({ text: data.error ?? "Couldn't load rewards", error: true });
+    if (!res.ok)
+      return setNote({
+        text: data.error ?? "Couldn't load rewards",
+        error: true,
+      });
     setSummary(data.summary);
     setEvents(data.events ?? []);
     setTreasury(data.treasury);
@@ -95,20 +168,21 @@ export default function RewardsPage() {
     }
   }, [wallet, mintAddr, conn]);
 
-  useEffect(() => { refresh(); }, [refresh]);
-  useEffect(() => { refreshBalance(); }, [refreshBalance]);
-
-  async function signIn(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy("signin");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setBusy(null);
-    if (error) setNote({ text: error.message, error: true });
-  }
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+  useEffect(() => {
+    refreshBalance();
+  }, [refreshBalance]);
 
   async function connect() {
     const p = phantom();
-    if (!p) return setNote({ text: "Install the Phantom wallet, switch it to Devnet, then reload.", link: "https://phantom.com", error: true });
+    if (!p)
+      return setNote({
+        text: "Install the Phantom wallet, switch it to Devnet, then reload.",
+        link: "https://phantom.com",
+        error: true,
+      });
     try {
       const { publicKey } = await p.connect();
       setWallet(new PublicKey(publicKey.toString()));
@@ -124,13 +198,23 @@ export default function RewardsPage() {
     try {
       const res = await fetch("/api/rewards/claim", {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ wallet: wallet.toBase58() }),
       });
       const data = await res.json();
       if (!res.ok) setNote({ text: data.error ?? "Claim failed", error: true });
-      else if (!data.minted) setNote({ text: "Nothing new to claim. Check in at a quest to earn more XP." });
-      else setNote({ text: `Minted ${data.minted} OUT to your wallet.`, link: data.explorer });
+      else if (!data.minted)
+        setNote({
+          text: "Nothing new to claim. Check in at a quest to earn more XP.",
+        });
+      else
+        setNote({
+          text: `Minted ${data.minted} OUT to your wallet.`,
+          link: data.explorer,
+        });
     } finally {
       setBusy(null);
       await Promise.all([refresh(), refreshBalance()]);
@@ -146,9 +230,19 @@ export default function RewardsPage() {
       const mint = new PublicKey(mintAddr);
       const from = getAssociatedTokenAddressSync(mint, wallet, false, TOKEN_2022_PROGRAM_ID);
       const tx = new Transaction().add(
-        createTransferCheckedInstruction(from, mint, new PublicKey(treasury), wallet, BigInt(tier.cost), OUT_DECIMALS, [], TOKEN_2022_PROGRAM_ID),
+        createTransferCheckedInstruction(
+          from,
+          mint,
+          new PublicKey(treasury),
+          wallet,
+          BigInt(tier.cost),
+          OUT_DECIMALS,
+          [],
+          TOKEN_2022_PROGRAM_ID,
+        ),
         new TransactionInstruction({
-          programId: new PublicKey(MEMO_PROGRAM_ID), keys: [],
+          programId: new PublicKey(MEMO_PROGRAM_ID),
+          keys: [],
           data: new TextEncoder().encode(redeemMemo(userId, tier.percent)) as unknown as Buffer,
         }),
       );
@@ -159,135 +253,241 @@ export default function RewardsPage() {
       await waitForConfirm(conn, signature);
       const res = await fetch("/api/rewards/redeem", {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({ signature, wallet: wallet.toBase58(), percent: tier.percent }),
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          signature,
+          wallet: wallet.toBase58(),
+          percent: tier.percent,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) return setNote({ text: data.error ?? "Redeem failed", error: true, link: explorerTx(signature) });
+      if (!res.ok)
+        return setNote({
+          text: data.error ?? "Redeem failed",
+          error: true,
+          link: explorerTx(signature),
+        });
       const qr = await QRCode.toDataURL(data.coupon, { margin: 1, width: 220 });
-      setCoupon({ code: data.coupon, percent: data.percent, qr, link: data.explorer });
+      setCoupon({
+        code: data.coupon,
+        percent: data.percent,
+        qr,
+        link: data.explorer,
+      });
     } catch (e) {
-      setNote({ text: (e as Error).message?.slice(0, 160) || "Redeem was cancelled.", error: true });
+      setNote({
+        text: (e as Error).message?.slice(0, 160) || "Redeem was cancelled.",
+        error: true,
+      });
     } finally {
       setBusy(null);
       await Promise.all([refresh(), refreshBalance()]);
     }
   }
 
-  if (!checked) return <main className="p-6 text-sm text-neutral-500">Loading…</main>;
-
-  if (!token) {
-    return (
-      <main className="mx-auto max-w-md p-6">
-        <h1 className="text-2xl font-bold">Outbound Rewards</h1>
-        <p className="mt-1 text-sm text-neutral-500">Sign in with your school email to see your OUT rewards.</p>
-        <form onSubmit={signIn} className="mt-4 space-y-2">
-          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@bu.edu" required className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 dark:border-neutral-700" />
-          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" required className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 dark:border-neutral-700" />
-          <button disabled={busy === "signin"} className="w-full rounded-lg bg-emerald-600 py-2 font-medium text-white disabled:opacity-50">Sign in</button>
-        </form>
-        {note && <p className="mt-3 text-sm text-red-500">{note.text}</p>}
-      </main>
-    );
-  }
-
   return (
-    <main className="mx-auto max-w-xl space-y-5 p-6">
-      <header>
-        <h1 className="text-2xl font-bold">Outbound Rewards</h1>
-        <p className="text-sm text-neutral-500">
-          Every XP earns 1 OUT, a token on Solana. Spend OUT on discounts: the more you spend, the bigger the deal.{" "}
-          <span className="whitespace-nowrap">(Devnet test token. Discounts are samples.)</span>
-        </p>
-      </header>
+    <Frame>
+      {!checked ? (
+        <div
+          className="h-40 animate-pulse rounded-xl bg-sand motion-reduce:animate-none"
+          aria-busy
+          aria-label="Loading rewards"
+        />
+      ) : !token ? (
+        <section className="flex flex-col items-start gap-3 rounded-xl border border-border bg-surface p-5">
+          <h2 className="font-display text-xl font-semibold text-maroon">Sign in to see your OUT</h2>
+          <p className="text-sm text-muted-2">Your OUT comes from the XP on your account.</p>
+          <Button asChild>
+            <Link href="/login?next=/rewards">Sign in</Link>
+          </Button>
+        </section>
+      ) : null}
 
-      {!mintAddr && (
-        <p className="rounded-lg bg-amber-100 p-2 text-sm text-amber-900">Rewards aren&apos;t set up on this server yet (NEXT_PUBLIC_OUT_MINT is missing).</p>
-      )}
-      <section className="grid grid-cols-3 gap-2 text-center">
-        {[
-          ["Earned", summary?.earned],
-          ["Ready to claim", summary?.claimable],
-          ["In wallet", wallet ? balance : "–"],
-        ].map(([label, v]) => (
-          <div key={label as string} className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
-            <p className="text-2xl font-bold">{v ?? "…"}</p>
-            <p className="text-xs text-neutral-500">{label} {label === "In wallet" ? "" : "OUT"}</p>
-          </div>
-        ))}
-      </section>
+      {checked && token && (
+        <div className="flex flex-wrap items-start gap-6">
+          <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-5">
+            {!mintAddr && <Notice>Rewards aren’t set up on this server yet (NEXT_PUBLIC_OUT_MINT is missing).</Notice>}
 
-      <section className="space-y-2">
-        {!wallet ? (
-          <button onClick={connect} className="w-full rounded-xl bg-violet-600 py-3 font-semibold text-white">Connect Phantom wallet</button>
-        ) : (
-          <>
-            <p className="text-xs text-neutral-500">
-              Wallet{" "}
-              <a href={explorerAddress(wallet.toBase58())} target="_blank" rel="noreferrer" className="underline">
-                {wallet.toBase58().slice(0, 4)}…{wallet.toBase58().slice(-4)}
-              </a>
-            </p>
-            <button onClick={claim} disabled={!!busy || !summary?.claimable} className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white disabled:opacity-40">
-              {busy === "claim" ? "Minting on Solana…" : `Claim ${summary?.claimable ?? 0} OUT`}
-            </button>
-          </>
-        )}
-        {note && (
-          <p className={`text-sm ${note.error ? "text-red-500" : "text-emerald-600"}`}>
-            {note.text}{" "}
-            {note.link && <a href={note.link} target="_blank" rel="noreferrer" className="underline">View on Solana Explorer</a>}
-          </p>
-        )}
-      </section>
-
-      <section>
-        <h2 className="mb-2 font-semibold">Spend OUT</h2>
-        <div className="space-y-2">
-          {TIERS.map((t) => {
-            const short = balance == null || balance < t.cost;
-            return (
-              <div key={t.percent} className="flex items-center justify-between rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
-                <div>
-                  <p className="font-medium">{t.label}</p>
-                  <p className="text-xs text-neutral-500">{t.cost} OUT</p>
+            {/* Balance */}
+            <section className="rounded-xl bg-maroon p-5 text-white">
+              <p className="type-eyebrow text-gold">Ready to claim</p>
+              <p className="mt-1 font-display text-[44px] leading-none font-bold text-gold tabular-nums">
+                {summary ? summary.claimable.toLocaleString("en-US") : "…"} <span className="text-2xl">OUT</span>
+              </p>
+              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg bg-white/10 px-3 py-2.5">
+                  <dt className="text-on-maroon-muted">Earned from XP</dt>
+                  <dd className="text-lg font-bold tabular-nums">
+                    {summary ? summary.earned.toLocaleString("en-US") : "…"} OUT
+                  </dd>
                 </div>
-                <button onClick={() => redeem(t)} disabled={!wallet || !!busy || short} className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-30 dark:bg-white dark:text-neutral-900">
-                  {busy === `redeem-${t.percent}` ? "Confirm in Phantom…" : "Redeem"}
-                </button>
+                <div className="rounded-lg bg-white/10 px-3 py-2.5">
+                  <dt className="text-on-maroon-muted">In your wallet</dt>
+                  <dd className="text-lg font-bold tabular-nums">
+                    {wallet ? `${balance ?? "…"} OUT` : "Not connected"}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="mt-4">
+                {!wallet ? (
+                  <Button variant="gold" size="xl" className="w-full" onClick={connect}>
+                    <Wallet aria-hidden />
+                    Connect Phantom wallet
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="gold"
+                      size="xl"
+                      className="w-full"
+                      onClick={claim}
+                      disabled={!!busy || !summary?.claimable}
+                    >
+                      {busy === "claim" ? <Loader2 className="animate-spin" aria-hidden /> : null}
+                      {busy === "claim" ? "Minting on Solana…" : `Claim ${summary?.claimable ?? 0} OUT`}
+                    </Button>
+                    <p className="mt-2 text-center text-xs text-on-maroon-muted">
+                      Wallet{" "}
+                      <a
+                        href={explorerAddress(wallet.toBase58())}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold underline"
+                      >
+                        {wallet.toBase58().slice(0, 4)}…{wallet.toBase58().slice(-4)}
+                      </a>{" "}
+                      · Solana devnet
+                    </p>
+                  </>
+                )}
               </div>
-            );
-          })}
+            </section>
+
+            {note && (
+              <p
+                role="status"
+                className={cn(
+                  "rounded-lg px-3.5 py-2.5 text-sm",
+                  note.error ? "bg-[#FBE3E3] text-[#9B1C1C]" : "bg-[#DDF1E4] text-[#1F6B3A]",
+                )}
+              >
+                {note.text}{" "}
+                {note.link && (
+                  <a href={note.link} target="_blank" rel="noreferrer" className="font-semibold underline">
+                    View on Solana Explorer
+                  </a>
+                )}
+              </p>
+            )}
+
+            {/* Coupons */}
+            <section>
+              <h2 className="mb-1 font-display text-2xl font-semibold text-ink">Spend OUT</h2>
+              <p className="mb-3 text-sm text-muted-2">The more OUT you spend, the bigger the discount.</p>
+              <ul className="grid gap-3 sm:grid-cols-3">
+                {TIERS.map((t) => {
+                  const short = balance == null || balance < t.cost;
+                  return (
+                    <li key={t.percent} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-display text-[32px] leading-none font-bold text-maroon">{t.percent}%</p>
+                        <span className="rounded-md bg-sample px-2 py-0.5 text-[11px] font-bold tracking-[0.06em] text-sample-foreground uppercase">
+                          Sample
+                        </span>
+                      </div>
+                      <p className="flex-1 text-sm text-ink-2">{t.label}</p>
+                      <p className="text-sm font-bold tabular-nums">{t.cost} OUT</p>
+                      <Button
+                        variant="outline"
+                        onClick={() => redeem(t)}
+                        disabled={!wallet || !!busy || short}
+                        className="w-full"
+                      >
+                        {busy === `redeem-${t.percent}` ? "Confirm in Phantom…" : "Redeem"}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {!wallet && <p className="mt-2 text-[13px] text-muted-foreground">Connect your wallet to redeem.</p>}
+            </section>
+          </div>
+
+          <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-5">
+            {coupon && (
+              <section className="rounded-xl border-2 border-dashed border-gold-600 bg-[#FFF4D6] p-5 text-center">
+                <p className="type-eyebrow text-muted-2">Show this at the counter (sample)</p>
+                <p className="mt-1 font-display text-[40px] leading-none font-bold text-maroon">
+                  {coupon.percent}% off
+                </p>
+                {/* eslint-disable-next-line @next/next/no-img-element -- generated QR data URL */}
+                <img
+                  src={coupon.qr}
+                  alt={`Coupon ${coupon.code}`}
+                  className="mx-auto my-3 size-44 rounded-lg bg-white p-1"
+                />
+                <p className="font-mono text-sm font-bold">{coupon.code}</p>
+                <a
+                  href={coupon.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-maroon underline"
+                >
+                  Paid on Solana
+                  <ExternalLink className="size-3" aria-hidden />
+                </a>
+              </section>
+            )}
+
+            <section className="rounded-xl border border-border bg-surface p-5">
+              <h2 className="mb-2 text-[15px] font-bold">History</h2>
+              {events.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Claims and coupons will show up here.</p>
+              ) : (
+                <ul className="flex flex-col">
+                  {events.map((e) => (
+                    <li
+                      key={e.id}
+                      className="flex items-center gap-2.5 border-t border-sand py-2.5 text-sm first:border-t-0"
+                    >
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sand text-maroon">
+                        {e.kind === "mint" ? (
+                          <Check className="size-4" aria-hidden />
+                        ) : (
+                          <Ticket className="size-4" aria-hidden />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        {e.kind === "mint" ? `+${e.amount} OUT claimed` : `−${e.amount} OUT for ${e.tier}% off`}
+                        {e.coupon && <span className="block font-mono text-xs text-muted-foreground">{e.coupon}</span>}
+                        {e.status !== "done" && <span className="block text-xs text-muted-foreground">{e.status}</span>}
+                      </span>
+                      {e.tx_sig && (
+                        <a
+                          href={explorerTx(e.tx_sig)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="shrink-0 text-xs font-semibold text-maroon underline"
+                        >
+                          Explorer
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </aside>
         </div>
-      </section>
-
-      {coupon && (
-        <section className="rounded-2xl border-2 border-dashed border-emerald-500 p-4 text-center">
-          <p className="text-sm text-neutral-500">Show this at the counter (sample)</p>
-          <p className="text-3xl font-bold">{coupon.percent}% off</p>
-          {/* eslint-disable-next-line @next/next/no-img-element -- generated QR data URL */}
-          <img src={coupon.qr} alt={`Coupon ${coupon.code}`} className="mx-auto my-2 h-44 w-44 rounded-lg bg-white p-1" />
-          <p className="font-mono">{coupon.code}</p>
-          <a href={coupon.link} target="_blank" rel="noreferrer" className="text-xs underline">Paid on Solana: view transaction</a>
-        </section>
       )}
-
-      {events.length > 0 && (
-        <section>
-          <h2 className="mb-2 font-semibold">History</h2>
-          <ul className="space-y-1 text-sm">
-            {events.map((e) => (
-              <li key={e.id} className="flex justify-between gap-2">
-                <span>
-                  {e.kind === "mint" ? `+${e.amount} OUT claimed` : `−${e.amount} OUT for ${e.tier}% off (${e.coupon})`}
-                  {e.status !== "done" && <span className="text-neutral-500"> · {e.status}</span>}
-                </span>
-                {e.tx_sig && <a href={explorerTx(e.tx_sig)} target="_blank" rel="noreferrer" className="shrink-0 text-xs underline">Explorer</a>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </main>
+    </Frame>
   );
+}
+
+function Notice({ children }: { children: React.ReactNode }) {
+  return <p className="rounded-lg border border-[#F0D58E] bg-[#FFF4D6] px-3.5 py-2.5 text-sm text-ink-2">{children}</p>;
 }

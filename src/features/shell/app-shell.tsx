@@ -4,11 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { NAV, NavIcon, NotificationsBell, ProfileLink, XpPill, isActive } from "./shell-parts";
+import { NAV, NavIcon, PHONE_NAV, NotificationsBell, ProfileLink, XpPill, isActive } from "./shell-parts";
 import { useShellPlayer } from "./use-shell-player";
 
 /** Routes that render without the shell (full-screen flows and dev pages). */
 const BARE_ROUTES = ["/login", "/onboarding", "/squad/join", "/dev"];
+
+export const isBareRoute = (pathname: string) => BARE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
 
 /**
  * App frame (DESIGN.md §4). Phones and tablets (< 1024 px): a maroon header on Explore
@@ -19,7 +21,7 @@ const BARE_ROUTES = ["/login", "/onboarding", "/squad/join", "/dev"];
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const player = useShellPlayer();
-  if (BARE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))) return <>{children}</>;
+  if (isBareRoute(pathname)) return <>{children}</>;
   const onExplore = pathname === "/";
 
   return (
@@ -77,7 +79,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         aria-label="Primary"
         className="flex shrink-0 justify-around border-t border-divider bg-paper px-1.5 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] desk:hidden"
       >
-        {NAV.map((item) => {
+        {PHONE_NAV.map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <Link

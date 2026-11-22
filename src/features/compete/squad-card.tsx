@@ -52,7 +52,7 @@ export function SquadCard({
   const cross = isCrossSchool(squad);
   const schools = [...new Map(squad.members.map((m) => [m.school_id, m.school_name])).values()];
   return (
-    <article className="flex flex-col gap-4 rounded-xl border bg-card p-4">
+    <article className="flex flex-col gap-4 rounded-xl border bg-card p-4 text-card-foreground">
       <header className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h3 className="type-heading truncate">{squadName(squad)}</h3>

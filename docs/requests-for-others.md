@@ -1,7 +1,9 @@
 # Requests for others
 
-Notes from Angie (app frontend) about things in someone else's area. Answer inline or in
-the team chat, then check the item off.
+Notes from the app frontend (Angie and Bharath) about things in someone else's area.
+Answer inline or in the team chat, then check the item off. Last updated 2026-11-22 for the
+hi-fi redesign (`DESIGN.md` v1 · Maroon): light mode only, Fraunces + DM Sans, 1024 px
+desktop breakpoint, 5-item nav.
 
 **Decision:** the backend is the source of truth. Every shape that matches the database
 lives in `src/lib/types.ts`. `src/lib/data/types.ts` re-exports it and adds only
@@ -56,14 +58,18 @@ frontend-derived shapes.
   times "from the station". Is there a source planned (an API route, or Verna's map)?
 - [ ] **QR quests.** Which quests will have a `qr_code`, and where will judges see the
   codes? The frontend can take a typed code without adding a scanner library.
-- [ ] **Vercel env var.** Set `NEXT_PUBLIC_DATA_SOURCE` in the Vercel project (`mock`
-  until integration).
-- [ ] **Squad score.** The plan's squad cards show a score, but there's no squad score in
-  the schema (no view or column). The Squads tab shows members and a cross-school badge
-  for now. Want a `squad_weekly` view (sum of `visits.xp_awarded` with that `squad_id` this
-  week), or skip squad scores?
-- [ ] **Leaderboard wording.** Unless you want different wording, the Schools tab will
-  say: "Total XP earned this week. Schools need 5 active players to rank. Resets Monday."
+- [ ] **Vercel env var.** Set `NEXT_PUBLIC_DATA_SOURCE=supabase` in the Vercel project. The
+  Supabase data service is done; `mock` stays the local default.
+- [ ] **Level size.** The level bars (Quests, Passport, Profile) need the XP a level spans
+  to draw progress, and `profiles` only has `xp_to_next_level`. The app uses one constant,
+  `XP_PER_LEVEL = 250` in `src/lib/data/levels.ts`, to match `check_in()`. If levels will
+  ever grow, please add `xp_for_level` (or `level_start_xp`) to `profiles` and the
+  `check_in` result, and the app will read it there instead.
+- [ ] **Today's Quests list** (low priority). The new Quests tab (`/quests`) picks 5 quests
+  per Boston date on the client (`src/features/quests/daily.ts`), the same for everyone,
+  skipping `requires_qr` quests and places with no hours that day. If
+  you want a curated or personalized daily list, a `daily_quests` view or RPC would replace
+  it; the page only needs quest ids.
 - [ ] **One craving per search** (low priority). `Filters.craving` holds one value, so
   "cheap spicy noodles" keeps `spicy` and drops `noodles`. A `cravings: string[]` would
   allow both. Fine to leave as is.
@@ -108,18 +114,35 @@ in `content/README.md`; `npm test` checks every row.
 - [ ] **`build --turbopack`.** PR #1 adds `--turbopack` back to `npm run build`. Main
   removed it because `npm run start` crashed with `routesManifest.dataRoutes is not
   iterable`. Please keep `build` without it.
-- [ ] **Shared layout.** `src/app/layout.tsx` now wraps every page, including the map,
-  in the app shell (bottom tab bar on phones, left rail on desktop), Archivo, and dark
-  mode. The map gets the space that's left; please check it still fills it.
+- [ ] **Shared layout (changed with the redesign).** `src/app/layout.tsx` wraps every page,
+  including the map, in the app shell. Phones: a bottom tab bar (Explore, Quests, Passport,
+  Leaderboard, Events), and on Explore a maroon header with the logo, XP and avatar.
+  Desktop (1024 px and up, not 768): a maroon top bar with nav pills; the left rail is gone.
+  Light mode only (no dark theme), fonts are Fraunces and DM Sans (Archivo is gone). The map
+  gets the space that's left; please check it still fills it.
+- [ ] **Explore chrome (DESIGN.md §6–7).** Over the map: a white "Explore Boston" card with
+  Craving / Budget / Time chips and map controls (2D/3D, Live T, layers, locate) on phones;
+  on desktop, a full-width map with a leaderboard drawer tab on the right edge, and the hub
+  as a 420 px panel right of the map (§7). The frontend builds the drawer and chips once the map is on main; tell us
+  if you'd rather own the controls.
 - [ ] **Hub contract.** Station markers call `openStationHub(stationId: string)` from
-  `src/features/hub`. On mobile it's a bottom drawer, and at 768 px and up a 420 px right
-  sheet. The map stays mounted and usable underneath. OK?
-- [ ] **Arrival slot.** The hub header renders `<ArrivalSlot stationId={id} />`. Tell us
-  its file path and export name when it exists. Until then it shows "Next train: —".
-- [ ] **Theme.** Line colors stay in `src/lib/lines.ts`. Please use the theme tokens in
-  `src/app/globals.css` instead of hard-coded colors in map UI chrome.
+  `@/features/hub`. Phones get a bottom drawer; 1024 px and up a 420 px right sheet. The map
+  stays mounted and usable underneath. OK?
+- [x] **Arrival slot.** Not needed from the map: `<ArrivalSlot/>` in the hub header reads
+  `GET /api/trains?stop=<id>` itself and shows the next trains per direction.
+- [ ] **Theme.** Line colors stay in `src/lib/lines.ts` (orange badges use `#C46A00` behind
+  white text). Use the maroon/gold tokens in `src/app/globals.css` (`bg-maroon`,
+  `bg-paper`, `text-ink`, `shadow-float`) for map controls instead of hard-coded colors.
+- [ ] **Grok guide.** The "Ask Guide" button is fixed bottom-right, above the tab bar on
+  phones. If it covers map controls, tell us where you'd like it.
 
 ## Resolved
+
+- [x] **Squad score:** not shown; there's no backend support (DESIGN.md §11.6).
+- [x] **Leaderboard wording:** "Schools need 5 active players to rank. Resets Monday at
+  12:00 AM." Weekly only.
+- [x] **Share card:** built on the frontend (`src/features/share/`); the QR opens
+  `/q/<id>`. No backend needed.
 
 From Bharath's answers and `backend/supabase/002_frontend_requests.sql`:
 
