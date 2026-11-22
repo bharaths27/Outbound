@@ -23,6 +23,13 @@ export const WALK_MIN_PER_KM = 12 / 0.75; // straight-line km; streets add ~1/3
 export const RIDE_MIN_PER_KM = 2.2; // ~27 km/h including stops
 export const WAIT_MIN = 4;
 export const TRANSFER_MIN = 5;
+/** MBTA subway fare (CharlieCard or ticket, 2026); subway-to-subway transfers are free. */
+export const SUBWAY_FARE = 2.4;
+
+/** One subway fare if the trip rides the T at all; walking is free. */
+export function fareFor(steps: { mode: string }[]): number {
+  return steps.some((s) => s.mode === "transit") ? SUBWAY_FARE : 0;
+}
 
 export function km(a: LngLat, b: LngLat) {
   const r = (d: number) => (d * Math.PI) / 180;
@@ -148,6 +155,8 @@ export interface TransitRoute {
   path: LngLat[];
   segments: { mode: "walk" | "transit"; color: string; path: LngLat[] }[];
   steps: RouteStep[];
+  /** dollars: one subway fare, or 0 for a walk */
+  fare: number;
   source: "outbound";
 }
 
@@ -219,7 +228,7 @@ function search(g: Graph, from: LngLat) {
 export function planRoute(g: Graph, from: LngLat, to: LngLat, toName = "your destination"): TransitRoute {
   const walkOnly = (): TransitRoute => {
     const s = walkStep(from, to, `Walk to ${toName}`);
-    return { minutes: s.minutes, distanceKm: Math.round(km(from, to) * 13.3) / 10, path: [from, to], segments: [{ mode: "walk", color: WALK_COLOR, path: [from, to] }], steps: [s], source: "outbound" };
+    return { minutes: s.minutes, distanceKm: Math.round(km(from, to) * 13.3) / 10, path: [from, to], segments: [{ mode: "walk", color: WALK_COLOR, path: [from, to] }], steps: [s], fare: 0, source: "outbound" };
   };
   const goals = nearestStations(g, to);
   const { dist, prev, via } = search(g, from);
@@ -290,6 +299,7 @@ export function planRoute(g: Graph, from: LngLat, to: LngLat, toName = "your des
     path,
     segments,
     steps,
+    fare: fareFor(steps),
     source: "outbound",
   };
 }

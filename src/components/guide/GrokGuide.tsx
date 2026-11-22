@@ -183,7 +183,7 @@ function ReportCard({ r, onRetryPhoto, onType, onRoute }: { r: FinalReport; onRe
                 <span className="text-muted-foreground">({d.station.lines.join("/")}) · {d.station.walkMin} min walk</span>
               </p>
             )}
-            {d.ride && <p className="mt-1 ml-5 text-xs text-muted-foreground">About {d.ride.minutes} min from {d.ride.from} by T</p>}
+            {d.ride && <p className="mt-1 ml-5 text-xs text-muted-foreground">About {d.ride.minutes} min from {d.ride.from} by T{d.ride.fare ? ` · ${"$"}${d.ride.fare.toFixed(2)} fare` : ""}</p>}
             <RouteButton t={{ name: d.name, lat: d.lat, lng: d.lng }} onRoute={onRoute} big />
           </div>
         )}

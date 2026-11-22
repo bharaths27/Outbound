@@ -16,6 +16,7 @@ describe("our own T routing", () => {
     expect(r.minutes).toBeGreaterThan(10);
     expect(r.minutes).toBeLessThan(50);
     expect(r.steps.at(-1)?.text).toBe("Walk to Chinatown Gate");
+    expect(r.fare).toBe(2.4); // one subway fare, transfers free
     console.log(r.minutes, r.steps.map((s) => (s.mode === "walk" ? `${s.text} ${s.minutes}m` : `${s.line} ${s.from}->${s.to} ${s.stops} stops ${s.minutes}m`)).join(" | "));
   });
   it("BU to Harvard needs a transfer", () => {
@@ -27,6 +28,7 @@ describe("our own T routing", () => {
     const r = planRoute(g, BU, [-71.1045, 42.3505], "Marsh Plaza");
     expect(r.steps).toHaveLength(1);
     expect(r.steps[0].mode).toBe("walk");
+    expect(r.fare).toBe(0);
   });
 });
 

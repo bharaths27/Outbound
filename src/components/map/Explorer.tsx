@@ -40,7 +40,11 @@ interface Route {
   distanceKm: number;
   segments: { mode: string; color: string; path: [number, number][] }[];
   steps: Step[];
+  fare?: number;
 }
+/** " · $2.40 fare", " · free (walk)", or nothing when the route didn't say. */
+const fareLabel = (fare?: number) => (fare === undefined ? "" : fare > 0 ? ` · ${"$"}${fare.toFixed(2)} fare` : " · free (walk)");
+
 export interface ExplorerHandle {
   search: (q: string) => void;
   show: (p: Place) => void;
@@ -317,7 +321,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
           {route && (
             <div className="mt-3">
               <div className="text-xs font-medium text-[var(--ob-ink)]">
-                {route.minutes} min · {route.distanceKm} km {fromLabel}
+                {route.minutes} min · {route.distanceKm} km{fareLabel(route.fare)} {fromLabel}
               </div>
               <ol className="mt-1.5 flex flex-col gap-1.5">
                 {route.steps.map((s, i) => (

@@ -3,7 +3,7 @@
 // Falls back to a walking route if there is no transit option. Env: GOOGLE_MAPS_KEY or NEXT_PUBLIC_GOOGLE_MAPS_KEY.
 // ?engine=outbound forces our own routing; &name= labels the last walk step.
 // With no Google key (or when Google fails) we route on our own MBTA track data instead (src/lib/transit-route.ts).
-import { loadGraph, planRoute } from "@/lib/transit-route";
+import { fareFor, loadGraph, planRoute } from "@/lib/transit-route";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +103,7 @@ export async function GET(req: Request) {
       path: route.polyline?.encodedPolyline ? decode(route.polyline.encodedPolyline) : [],
       segments,
       steps,
+      fare: fareFor(steps),
     });
   } catch (e) {
     console.warn("[route] Google Routes failed, using our own T routing:", (e as Error).message);

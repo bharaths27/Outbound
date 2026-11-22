@@ -18,7 +18,7 @@ export interface Destination extends Located {
   /** false when the photo isn't Boston and this is the closest Boston match. */
   inBoston?: boolean | null;
   station: { id: string; name: string; lines: string[]; walkMin: number } | null;
-  ride: { minutes: number; from: string; steps: string[] } | null;
+  ride: { minutes: number; from: string; steps: string[]; fare?: number } | null;
 }
 
 // [aliases (lowercase), name, lat, lng, address]
@@ -153,7 +153,7 @@ export async function toDestination(place: Located, why: string | null, origin: 
     const g = await loadGraph(origin);
     const station = closestStation(g, [place.lng, place.lat]);
     const r = planRoute(g, from, [place.lng, place.lat], place.name);
-    return { ...place, why, station, ride: { minutes: r.minutes, from: "BU Central", steps: describeRoute(r) } };
+    return { ...place, why, station, ride: { minutes: r.minutes, from: "BU Central", steps: describeRoute(r), fare: r.fare } };
   } catch (e) {
     console.warn("[guide] route to destination failed:", (e as Error).message);
     return { ...place, why, station: null, ride: null };
