@@ -150,7 +150,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   const reward = (
     <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-border bg-surface px-3.5 py-3 text-sm text-ink-2">
       <XpChip xp={quest.xp} className="text-sm" />
-      <QuestOfWeekBadge questId={quest.id} className="text-[13px]" />
+      <QuestOfWeekBadge questId={quest.id} visits={player.visits} className="text-[13px]" />
       <span>{rewardText}</span>
     </div>
   );

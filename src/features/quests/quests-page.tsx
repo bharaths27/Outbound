@@ -9,7 +9,7 @@ import { Check } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { XP_PER_LEVEL, data, levelProgress } from "@/lib/data";
-import type { Quest, QuestType, Station } from "@/lib/data/types";
+import type { Quest, QuestType, Station, Visit } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { CATEGORY, QuestThumb } from "@/features/hub/category";
 import { LineLetter, groupLines } from "@/features/hub/line-badge";
@@ -118,7 +118,7 @@ export function QuestsPage() {
               ))}
             </div>
 
-            <QuestOfTheWeekCard />
+            <QuestOfTheWeekCard visits={player.visits} />
 
             <div className="desk:hidden">
               <BonusBanner />
@@ -140,7 +140,7 @@ export function QuestsPage() {
             {shown.length > 0 && loaded && loaded !== "error" && (
               <ul className="grid grid-cols-1 gap-2.5 desk:grid-cols-[repeat(auto-fill,minmax(min(100%,360px),1fr))] desk:gap-3.5">
                 {shown.map((q) => (
-                  <QuestRow key={q.id} quest={q} station={loaded.stations.get(q.station_id)} done={done.has(q.id)} />
+                  <QuestRow key={q.id} quest={q} station={loaded.stations.get(q.station_id)} done={done.has(q.id)} visits={player.visits} />
                 ))}
               </ul>
             )}
@@ -260,7 +260,17 @@ function BonusBanner({ large = false }: { large?: boolean }) {
   );
 }
 
-function QuestRow({ quest, station, done }: { quest: Quest; station: Station | undefined; done: boolean }) {
+function QuestRow({
+  quest,
+  station,
+  done,
+  visits,
+}: {
+  quest: Quest;
+  station: Station | undefined;
+  done: boolean;
+  visits: Visit[];
+}) {
   const line = station ? groupLines(station.lines)[0] : undefined;
   const where = station ? `${station.neighborhood} · ${station.name}` : "";
   const cat = CATEGORY[quest.type];
@@ -287,7 +297,7 @@ function QuestRow({ quest, station, done }: { quest: Quest; station: Station | u
             {cat.label}
           </span>
           <XpChip xp={quest.xp} className="text-xs" />
-          <QuestOfWeekBadge questId={quest.id} />
+          <QuestOfWeekBadge questId={quest.id} visits={visits} />
         </div>
       </div>
       {done ? (

@@ -9,21 +9,40 @@ import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { data } from "@/lib/data";
-import type { Quest, Station } from "@/lib/data/types";
+import type { Quest, Station, Visit } from "@/lib/data/types";
+import { bostonDateKey, bostonWeekStart } from "@/features/quests/daily";
 import { cn } from "@/lib/utils";
 import { QuestThumb } from "@/features/hub/category";
+import { usePlayer } from "@/features/hub/use-player";
 
-// One request per page load, shared by every badge.
-let featured: Promise<string | null> | null = null;
+const thisWeek = () => bostonWeekStart(bostonDateKey(new Date()));
+
+// One request per Boston week, shared by every badge. A long-lived tab asks again after
+// Monday, and "no featured quest yet" or an error is retried on the next mount, not kept.
+let featured: { week: string; id: Promise<string | null> } | null = null;
 function loadFeaturedId(): Promise<string | null> {
-  featured ??= data
-    .getQuestOfTheWeek()
-    .then((q) => q?.quest_id ?? null)
-    .catch(() => {
-      featured = null; // retry on the next mount
-      return null;
-    });
-  return featured;
+  const week = thisWeek();
+  if (featured?.week !== week) {
+    const entry = {
+      week,
+      id: data
+        .getQuestOfTheWeek()
+        .then((q) => q?.quest_id ?? null)
+        .catch(() => null)
+        .then((id) => {
+          if (id === null && featured === entry) featured = null;
+          return id;
+        }),
+    };
+    featured = entry;
+  }
+  return featured.id;
+}
+
+/** Whether the player already checked in to this quest this week (the bonus is used). */
+export function bonusClaimed(questId: string, visits: Visit[] | undefined): boolean {
+  const week = thisWeek();
+  return Boolean(visits?.some((v) => v.quest_id === questId && v.visit_date >= week));
 }
 
 /** This week's featured quest id, or null (loading, none, or unavailable). */
@@ -55,10 +74,22 @@ export function DoubleXpBadge({ className }: { className?: string }) {
   );
 }
 
-/** Renders the badge only on this week's quest. */
-export function QuestOfWeekBadge({ questId, className }: { questId: string; className?: string }) {
+/**
+ * Renders the badge only on this week's quest. Pass the player's visits so it says the
+ * bonus is used once they've checked in there this week (it's once per week).
+ */
+export function QuestOfWeekBadge({ questId, visits, className }: { questId: string; visits?: Visit[]; className?: string }) {
   const id = useQuestOfTheWeekId();
-  return id === questId ? <DoubleXpBadge className={className} /> : null;
+  if (id !== questId) return null;
+  if (bonusClaimed(questId, visits)) {
+    return (
+      <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full bg-sand px-2.5 py-[3px] text-xs font-semibold whitespace-nowrap text-muted-2", className)}>
+        <Crown className="size-3.5" aria-hidden />
+        2× XP claimed
+      </span>
+    );
+  }
+  return <DoubleXpBadge className={className} />;
 }
 
 type Loaded = { quest: Quest; station: Station | null } | null;
@@ -90,10 +121,28 @@ function useFeaturedQuest(): Loaded {
  * The Quest of the Week card. `compact` is the slim version that floats over the map on
  * Explore; the full card leads the Quests page.
  */
-export function QuestOfTheWeekCard({ compact = false, className }: { compact?: boolean; className?: string }) {
+export function QuestOfTheWeekCard({
+  compact = false,
+  visits,
+  className,
+}: {
+  compact?: boolean;
+  /** The player's visits, so the card says when this week's bonus is already used. */
+  visits?: Visit[];
+  className?: string;
+}) {
   const loaded = useFeaturedQuest();
   if (!loaded) return null;
   const { quest, station } = loaded;
+  const claimed = bonusClaimed(quest.id, visits);
+  const badge = claimed ? (
+    <span className="inline-flex shrink-0 items-center gap-1 self-start rounded-full bg-white/15 px-2.5 py-[3px] text-xs font-semibold whitespace-nowrap text-white">
+      <Crown className="size-3.5" aria-hidden />
+      Claimed
+    </span>
+  ) : (
+    <DoubleXpBadge className="self-start" />
+  );
   const where = station ? `${station.name} · ${station.neighborhood}` : null;
 
   if (compact) {
@@ -110,7 +159,7 @@ export function QuestOfTheWeekCard({ compact = false, className }: { compact?: b
           <span className="block text-[11px] font-bold tracking-[0.08em] text-gold uppercase">Quest of the Week</span>
           <span className="block truncate text-sm font-bold">{quest.title}</span>
         </span>
-        <DoubleXpBadge />
+        {badge}
       </Link>
     );
   }
@@ -128,9 +177,13 @@ export function QuestOfTheWeekCard({ compact = false, className }: { compact?: b
         <p className="type-eyebrow text-gold">Quest of the Week</p>
         <p className="mt-0.5 font-display text-xl leading-tight font-semibold">{quest.title}</p>
         {where && <p className="mt-1 truncate text-[13px] text-on-maroon-muted">{where}</p>}
-        <p className="mt-1.5 text-[13px] text-on-maroon-muted">Your first check-in this week earns its XP twice.</p>
+        <p className="mt-1.5 text-[13px] text-on-maroon-muted">
+          {claimed
+            ? "You've claimed this week's double XP. A new Quest of the Week comes Monday."
+            : "Your first check-in this week earns its XP twice."}
+        </p>
       </div>
-      <DoubleXpBadge className="self-start" />
+      {badge}
     </Link>
   );
 }
@@ -146,6 +199,7 @@ export function ExploreQuestOfTheWeek() {
 
 function ExploreCard() {
   const hubOpen = useSearchParams().has("station");
+  const { player } = usePlayer();
   return (
     // Phones: above the Ask Guide button, clear of the zoom buttons. Desktop: bottom center.
     <div
@@ -154,7 +208,7 @@ function ExploreCard() {
         hubOpen && "hidden",
       )}
     >
-      <QuestOfTheWeekCard compact className="pointer-events-auto" />
+      <QuestOfTheWeekCard compact visits={player.visits} className="pointer-events-auto" />
     </div>
   );
 }

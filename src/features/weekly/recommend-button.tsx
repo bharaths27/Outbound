@@ -12,10 +12,13 @@ import { data } from "@/lib/data";
 import type { Visit } from "@/lib/data/types";
 import { bostonDateKey, bostonWeekStart } from "@/features/quests/daily";
 
-const voted = new Set<string>(); // this page load; the backend ignores repeat votes anyway
+// Votes cast in this page load, keyed by player and quest, so signing in as someone else
+// doesn't show their button as already voted. The backend ignores repeat votes anyway.
+const voted = new Set<string>();
 
 export function RecommendButton({ questId, visits, className }: { questId: string; visits: Visit[]; className?: string }) {
-  const [state, setState] = useState<"idle" | "busy" | "done">(voted.has(questId) ? "done" : "idle");
+  const key = `${visits[0]?.user_id ?? "anon"}:${questId}`;
+  const [state, setState] = useState<"idle" | "busy" | "done">(voted.has(key) ? "done" : "idle");
   const week = bostonWeekStart(bostonDateKey(new Date()));
   const eligible = visits.some((v) => v.quest_id === questId && v.visit_date >= week);
   if (!eligible) return null;
@@ -24,7 +27,7 @@ export function RecommendButton({ questId, visits, className }: { questId: strin
     setState("busy");
     try {
       await data.recommendQuest(questId);
-      voted.add(questId);
+      voted.add(key);
       setState("done");
       toast.success("Thanks! Your vote counts toward next week’s Quest of the Week.");
     } catch {

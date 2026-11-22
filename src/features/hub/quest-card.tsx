@@ -51,16 +51,19 @@ export function Reward({
   tier,
   neighborhood,
   questId,
+  visit,
 }: {
   xp: number;
   tier: Tier | null;
   neighborhood: string;
   questId?: string;
+  /** The player's latest visit to this quest, so the Quest of the Week badge knows if it's used. */
+  visit?: Visit;
 }) {
   return (
     <p className="flex flex-wrap items-center gap-1.5 text-[13px] text-muted-foreground">
       <XpChip xp={xp} />
-      {questId && <QuestOfWeekBadge questId={questId} />}
+      {questId && <QuestOfWeekBadge questId={questId} visits={visit ? [visit] : []} />}
       {tier && (
         <span>
           · {TIER_NAME[tier]} in {neighborhood}
@@ -107,7 +110,7 @@ export function QuestCard({ quest, neighborhood, now, tier, visit, onOpen }: Que
         </h3>
         <QuestMeta quest={quest} now={now} />
         <TagList tags={quest.vibe_tags} />
-        <Reward xp={quest.xp} tier={tier} neighborhood={neighborhood} questId={quest.id} />
+        <Reward xp={quest.xp} tier={tier} neighborhood={neighborhood} questId={quest.id} visit={visit} />
       </div>
       {visit && (
         <div className="pointer-events-none absolute top-2 right-2">
