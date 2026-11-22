@@ -16,9 +16,8 @@ import { Input } from "@/components/ui/input";
 import { isCrossSchool, squadName } from "@/features/compete/compete";
 import { openState } from "@/features/hub/hours";
 import { notifyPlayerChanged } from "@/features/shell/use-shell-player";
-import { data } from "@/lib/data";
+import { REWARDS_LIVE, data } from "@/lib/data";
 import type { Profile, Quest, SquadWithMembers, Tier } from "@/lib/data/types";
-import { OUT_PER_XP } from "@/lib/rewards";
 import { cn } from "@/lib/utils";
 import { Celebration } from "./celebration";
 import { ShareStampButton } from "@/features/share/share-stamp-button";
@@ -344,20 +343,24 @@ export function CheckInButton({ quest, profile, tier, now, onCheckedIn, stationN
                 renderTitle={(text) => (
                   <DialogTitle className="font-display text-[32px] leading-[1.15] font-bold">{text}</DialogTitle>
                 )}
+                // The claimable OUT amount is the server's to decide (it can differ from this
+                // check-in's XP), so this links to Rewards without a number, live backend only.
                 reward={
+                  REWARDS_LIVE && (
                   <Link
                     href="/rewards"
                     onClick={close}
                     className="flex items-center justify-between gap-3 rounded-2xl border border-gold/60 bg-gold/15 px-4 py-3 text-left text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-gold"
                   >
                     <span>
-                      <b className="text-gold tabular-nums">+{state.result.xp_awarded * OUT_PER_XP} OUT</b> ready to claim
+                      <b className="text-gold">Earn OUT</b> for this XP
                     </span>
                     <span className="inline-flex items-center gap-1 text-sm font-bold text-gold">
                       Rewards
                       <ArrowRight className="size-4" aria-hidden />
                     </span>
                   </Link>
+                  )
                 }
                 actions={
                   <>

@@ -15,6 +15,9 @@ export const data: DataService = useSupabase ? supabaseService : mockService;
 /** Demo logins for the login screen, matching the active data source. */
 export const DEMO_ACCOUNTS: DemoAccount[] = useSupabase ? SUPABASE_DEMO_ACCOUNTS : MOCK_DEMO_ACCOUNTS;
 
+/** OUT rewards only run on the live backend (the mock can't claim or mint). */
+export const REWARDS_LIVE = useSupabase;
+
 export { parseCheckInError } from "./checkInErrors";
 export type { DataService } from "./service";
 export type * from "./types";
