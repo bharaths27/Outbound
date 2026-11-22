@@ -75,19 +75,22 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
     </>
   );
 
-  const stamp = visit ? (
+  // Earned: the stamp in its tier colors. Not yet: the same art greyed out, as on Passport.
+  const stamp = (
     <Stamp
       questId={quest.id}
       title={quest.title}
       neighborhood={station.neighborhood}
       stationId={quest.station_id}
+      type={quest.type}
       tier={tier ?? "bronze"}
-      crossSchool={visit.cross_school}
-      size={page ? 96 : 64}
-      rotate={-8}
-      label={`You have this stamp, ${TIER_NAME[tier ?? "bronze"]}`}
+      crossSchool={visit?.cross_school ?? false}
+      locked={!visit}
+      size={page ? 132 : 84}
+      rotate={visit ? -8 : undefined}
+      label={visit ? `You have this stamp, ${TIER_NAME[tier ?? "bronze"]}` : `${quest.title} stamp, not collected yet`}
     />
-  ) : null;
+  );
 
   const share =
     visit && player.profile ? (
@@ -223,9 +226,9 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
       {/* Desktop side column */}
       <aside className="hidden desk:flex desk:flex-[1_1_340px] desk:flex-col desk:gap-4 desk:self-start desk:sticky desk:top-6">
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-5 text-center">
-          {stamp ? (
+          {stamp}
+          {visit ? (
             <>
-              {stamp}
               <p className="text-sm text-ink-2">
                 You have this stamp · <b>{TIER_NAME[tier ?? "bronze"]} in {station.neighborhood}</b>
               </p>
