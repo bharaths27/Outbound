@@ -179,7 +179,7 @@ export const quests: Quest[] = [
       "coffee"
     ],
     "hours": "07:00-19:00",
-    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Boston_University_scene_-_DSC03050.JPG?width=960",
+    "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -244,7 +244,7 @@ export const quests: Quest[] = [
       "coffee"
     ],
     "hours": "Mon-Sat 07:00-20:00; Sun 07:30-19:00",
-    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tatte_Bakery,_Beacon_Hill.jpg?width=960",
+    "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -309,7 +309,7 @@ export const quests: Quest[] = [
       "pastry"
     ],
     "hours": "Mon-Thu 07:00-19:00; Fri-Sun 07:00-21:00",
-    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Newbury_Street_Boston_(pic.g5).jpg?width=960",
+    "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -374,7 +374,7 @@ export const quests: Quest[] = [
       "takeout"
     ],
     "hours": "07:00-19:00",
-    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Boston_Common_(2014)_IMG_2995.JPG?width=960",
+    "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -572,7 +572,7 @@ export const quests: Quest[] = [
       "indoors"
     ],
     "hours": "Mon,Tue,Thu-Sat 07:00-20:30; Wed 07:00-19:00; Sun 07:30-19:00",
-    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Harvard_Square,_Cambridge_MA.jpg?width=960",
+    "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -594,7 +594,7 @@ export const quests: Quest[] = [
       "outdoors"
     ],
     "hours": "always",
-    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Central_Square_from_above.jpg?width=960",
+    "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -616,7 +616,7 @@ export const quests: Quest[] = [
       "indoors"
     ],
     "hours": "Mon,Fri 10:00-18:00; Tue-Thu 10:00-21:00; Sat 10:00-14:00",
-    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Cambridge_Public_Library,_Cambridge,_Massachusetts.JPG?width=960",
+    "photo_url": null,
     "xp": 80,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -638,7 +638,7 @@ export const quests: Quest[] = [
       "indoors"
     ],
     "hours": "Mon-Fri 07:00-15:00; Sat,Sun 08:00-16:00",
-    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Savings_Bank_Building,_689_Mass_Ave,_Cambridge,_Massachusetts.jpg?width=960",
+    "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -682,7 +682,7 @@ export const quests: Quest[] = [
       "quiet"
     ],
     "hours": "always",
-    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Paifang_Boston_Chinatown_1.jpg?width=960",
+    "photo_url": null,
     "xp": 50,
     "checkin_radius_m": 75,
     "requires_qr": false,
@@ -704,7 +704,7 @@ export const quests: Quest[] = [
       "sit-down"
     ],
     "hours": "10:00-20:00",
-    "photo_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Wonton_noodle_soup_boston.jpg?width=960",
+    "photo_url": null,
     "xp": 60,
     "checkin_radius_m": 75,
     "requires_qr": false,

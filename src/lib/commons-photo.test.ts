@@ -25,7 +25,7 @@ describe("commonsFileName", () => {
   });
 
   it("finds a Commons file for every seeded quest photo, so each one gets a credit", () => {
-    for (const q of quests) expect(commonsFileName(q.photo_url), q.id).not.toBeNull();
+    for (const q of quests) if (q.photo_url) expect(commonsFileName(q.photo_url), q.id).not.toBeNull();
   });
 });
 
