@@ -37,6 +37,23 @@ export function LoginPage() {
       <section className="relative overflow-hidden bg-maroon px-6 pt-7 pb-[52px] text-white desk:flex desk:flex-1 desk:flex-col desk:px-14 desk:py-12">
         {/* eslint-disable-next-line @next/next/no-img-element -- static SVG wordmark */}
         <img src="/outbound-wordmark.svg" alt="Outbound" className="block h-[26px] w-auto self-start desk:h-8" />
+        {/* T-line art behind the stamp: Green, Orange and Red lines meeting at a gold hub (design handoff login). */}
+        <svg
+          aria-hidden
+          viewBox="0 0 600 420"
+          preserveAspectRatio="xMidYMid slice"
+          className="pointer-events-none absolute top-[90px] right-[-40px] hidden h-[440px] w-[640px] opacity-90 desk:block"
+        >
+          <g fill="none" strokeWidth={12} strokeLinecap="round">
+            <path d="M-20 300 C140 290 280 250 380 230 S560 200 640 190" stroke="#00843D" />
+            <path d="M220 -20 C250 100 320 190 380 230 S420 360 400 460" stroke="#ED8B00" />
+            <path d="M560 -20 L470 120 L430 180 L420 300 L450 460" stroke="#DA291C" />
+          </g>
+          <circle cx="380" cy="230" r="20" fill="#F2C14E" stroke="#FFFFFF" strokeWidth={7} />
+          <circle cx="120" cy="293" r="11" fill="#FFFFFF" stroke="#00843D" strokeWidth={6} />
+          <circle cx="430" cy="180" r="11" fill="#FFFFFF" stroke="#DA291C" strokeWidth={6} />
+          <circle cx="300" cy="140" r="11" fill="#FFFFFF" stroke="#ED8B00" strokeWidth={6} />
+        </svg>
         <div aria-hidden className="pointer-events-none absolute top-[150px] right-[120px] hidden rotate-[-8deg] rounded-full bg-page shadow-[0_12px_30px_rgb(0_0_0/0.25)] desk:block">
           <Stamp questId="login-hero" title="Kenmore" neighborhood="Fenway-Kenmore" stationId="place-kencl" type="scenic" tier="gold" size={150} />
         </div>
