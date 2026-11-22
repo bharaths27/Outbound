@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Outbound · Privacy (desktop)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#6B1F33}a:hover{color:#4A1424}
+</style>
+</helmet>
+<div style="min-height: 100vh; font-family: 'DM Sans', system-ui, sans-serif; color: #2B1A1F; background-color: #FFF8EF">
+  <header style="background: #6B1F33; color: #FFFFFF">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 12px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px">
+      <a href="explore-default.html" style="display: flex; align-items: center; padding: 8px 0; text-decoration: none"><img src="../../assets/outbound-wordmark.svg" alt="Outbound home" style="height: 28px; width: auto; display: block"></a>
+      <nav aria-label="Primary" style="flex: 1; display: flex; flex-wrap: wrap; gap: 4px">
+        <a href="explore-default.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Explore</a>
+        <a href="quests.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Quests</a>
+        <a href="passport.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Passport</a>
+        <a href="leaderboard-schools.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Leaderboard</a>
+        <a href="#" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Events</a>
+      </nav>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; background: #F2C14E; color: #4A1424; font-size: 14px; font-weight: 700"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z"></path></svg>3,420 XP</span>
+        <button aria-label="Notifications" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: rgba(255, 255, 255, 0.12); color: #FFFFFF; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"></path></svg></button>
+        <a href="passport.html" aria-label="Your profile" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #F2C14E; color: #4A1424; border: 2px solid #FBF6EC; box-sizing: border-box; font-family: 'Fraunces', Georgia, serif; font-size: 18px; font-weight: 700; text-decoration: none">V</a>
+      </div>
+    </div>
+  </header>
+  <main style="max-width: 760px; margin: 0 auto; padding: 24px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px">
+    <a href="profile.html" style="display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; min-height: 44px; font-size: 15px; font-weight: 700; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg>Profile</a>
+    <h1 style="margin: -8px 0 0; font-family: 'Fraunces', Georgia, serif; font-size: 40px; font-weight: 600; color: #6B1F33">Privacy</h1>
+    <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px">
+      <legend style="font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; margin-bottom: 10px">Who can see your visits</legend>
+      <sc-for list="{{opts}}" as="o" hint-placeholder-count="3">
+        <button role="radio" aria-checked="{{o.aria}}" onClick="{{o.pick}}" style="display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: {{o.border}}; border-radius: 16px; background: #FFFFFF; text-align: left; font-family: 'DM Sans', sans-serif; cursor: pointer">
+          <span style="width: 20px; height: 20px; flex: none; margin-top: 1px; border-radius: 50%; border: {{o.dot}}; box-sizing: border-box"></span>
+          <span><span style="display: block; font-size: 15px; font-weight: 700; color: #2B1A1F">{{o.name}}</span><span style="display: block; margin-top: 2px; font-size: 13px; line-height: 1.4; color: #5A4549">{{o.note}}</span></span>
+        </button>
+      </sc-for>
+      <div role="status" style="font-size: 13px; font-weight: 600; color: #2F6B4F">Saved</div>
+    </fieldset>
+
+    <div style="display: flex; gap: 12px; padding: 14px; border-radius: 16px; background: #F1E6D3">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B1F33" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
+      <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #3D2A2E">Your live location is never shared. Outbound checks it only when you check in.</p>
+    </div>
+
+    <section>
+      <h2 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600">Hide single visits</h2>
+      <p style="margin: 4px 0 10px; font-size: 13px; color: #6E5A5E">Hidden visits still count for your XP and your school.</p>
+      <ul style="margin: 0; padding: 0; border-radius: 22px; background: #FFFFFF; border: 1px solid #EADDC8; box-shadow: 0px 8px 24px 0px #4a142433; overflow: hidden">
+        <sc-for list="{{visits}}" as="v" hint-placeholder-count="4">
+          <li style="list-style: none; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #F1E6D3">
+            <div style="flex: 1; min-width: 0">
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700">{{v.quest}}<sc-if value="{{v.hidden}}" hint-placeholder-val="{{false}}"><span style="padding: 1px 7px; border-radius: 6px; background: #EFE7DA; color: #5A4549; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em">Hidden</span></sc-if></div>
+              <div style="font-size: 13px; color: #6E5A5E">{{v.date}}</div>
+            </div>
+            <button role="switch" aria-checked="{{v.aria}}" aria-label="Hide {{v.quest}}" onClick="{{v.toggle}}" style="position: relative; width: 48px; height: 28px; flex: none; border: 0; border-radius: 999px; background: {{v.track}}; cursor: pointer"><span style="position: absolute; top: 4px; left: {{v.knob}}; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; transition: left .15s"></span></button>
+          </li>
+        </sc-for>
+      </ul>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { who: 'everyone', hidden: { 2: true } }; }
+  renderVals() {
+    const O = [['everyone', 'Everyone on Outbound', 'Your stamps show on your profile and next to your name on the leaderboard.'], ['friends', 'Friends only', 'Only people you add can see where you’ve been.'], ['me', 'Only me', 'Ghost mode. Nobody sees your visits, and your XP still counts for your school.']];
+    const opts = O.map(([id, name, note]) => { const on = this.state.who === id; return { name, note, aria: on ? 'true' : 'false', border: on ? '2px solid #6B1F33' : '1px solid #E2D3BC', dot: on ? '6px solid #6B1F33' : '2px solid #CDBBA3', pick: () => this.setState({ who: id }) }; });
+    const V = [['Tatte on Boylston', 'Today'], ['MFA Meetup', 'Nov 18'], ['Trident Booksellers', 'Nov 14'], ['Esplanade Views', 'Nov 9']];
+    const visits = V.map(([quest, date], i) => { const h = !!this.state.hidden[i]; return { quest, date, hidden: h, aria: h ? 'true' : 'false', track: h ? '#6B1F33' : '#CDBBA3', knob: h ? '24px' : '4px', toggle: () => this.setState({ hidden: { ...this.state.hidden, [i]: !h } }) }; });
+    return { opts, visits };
+  }
+}
+</script>
+</body>
+</html>
