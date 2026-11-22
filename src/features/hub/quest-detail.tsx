@@ -12,6 +12,7 @@ import { ArrowLeft, Clock } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { CheckInButton } from "@/features/checkin";
+import { ShareStampButton } from "@/features/share/share-stamp-button";
 import { Stamp, TIER_NAME } from "@/features/passport/stamp";
 import { data } from "@/lib/data";
 import type { Deal, Quest, Station } from "@/lib/data/types";
@@ -84,8 +85,34 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
     />
   ) : null;
 
+  const share =
+    visit && player.profile ? (
+      <ShareStampButton
+        variant="ghost"
+        size="sm"
+        label="Share"
+        className="font-semibold text-maroon"
+        questId={quest.id}
+        questTitle={quest.title}
+        neighborhood={station.neighborhood}
+        stationName={station.name}
+        tier={tier ?? "bronze"}
+        crossSchool={visit.cross_school}
+        at={visit.checked_in_at}
+        xp={visit.xp_awarded}
+        playerName={player.profile.display_name}
+      />
+    ) : null;
+
   const checkIn = (
-    <CheckInButton quest={quest} profile={player.profile} tier={tier} now={now} onCheckedIn={onCheckedIn} />
+    <CheckInButton
+      quest={quest}
+      profile={player.profile}
+      tier={tier}
+      now={now}
+      onCheckedIn={onCheckedIn}
+      stationName={station.name}
+    />
   );
 
   const titleBlock = (
@@ -97,7 +124,10 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
         <StationLine station={station} href={stationHref} />
       </div>
       {/* On the desktop page the stamp lives in the side column. */}
-      <div className={page ? "desk:hidden" : undefined}>{stamp}</div>
+      <div className={cn("flex flex-col items-center gap-1", page && "desk:hidden")}>
+        {stamp}
+        {share}
+      </div>
     </div>
   );
 
@@ -183,6 +213,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
               <p className="text-sm text-ink-2">
                 You have this stamp · <b>{TIER_NAME[tier ?? "bronze"]} in {station.neighborhood}</b>
               </p>
+              {share}
             </>
           ) : (
             <p className="text-sm text-muted-foreground">Check in to collect this stamp.</p>

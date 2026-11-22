@@ -20,6 +20,7 @@ import { data } from "@/lib/data";
 import type { Profile, Quest, SquadWithMembers, Tier } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { Celebration } from "./celebration";
+import { ShareStampButton } from "@/features/share/share-stamp-button";
 import { directionsUrl, errorCopy, type NextStep } from "./errors";
 import { useCheckIn, type CheckInOptions } from "./use-check-in";
 
@@ -31,6 +32,8 @@ export interface CheckInButtonProps {
   now: Date;
   /** Called when the dialog closes after a successful check-in. */
   onCheckedIn?: () => void;
+  /** For the share card's "Station · date" line. */
+  stationName?: string | null;
 }
 
 // Bottom sheet on phones, centered dialog from 1024 px.
@@ -189,7 +192,7 @@ function OptionsStep({
   );
 }
 
-export function CheckInButton({ quest, profile, tier, now, onCheckedIn }: CheckInButtonProps) {
+export function CheckInButton({ quest, profile, tier, now, onCheckedIn, stationName = null }: CheckInButtonProps) {
   const [squads, setSquads] = useState<SquadWithMembers[]>([]);
   const [chosenSquad, setChosenSquad] = useState<string | undefined>(undefined);
   const needsOptions = squads.length > 0 || quest.requires_qr;
@@ -347,11 +350,25 @@ export function CheckInButton({ quest, profile, tier, now, onCheckedIn }: CheckI
                         See your passport
                       </Link>
                     </Button>
+                    <ShareStampButton
+                      size="xl"
+                      className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white desk:flex-1"
+                      label="Share"
+                      questId={quest.id}
+                      questTitle={quest.title}
+                      neighborhood={state.result.neighborhood}
+                      stationName={stationName}
+                      tier={state.result.tier}
+                      crossSchool={state.result.cross_school}
+                      at={new Date().toISOString()}
+                      xp={state.result.xp_awarded}
+                      playerName={profile?.display_name ?? null}
+                    />
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="xl"
                       onClick={close}
-                      className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white desk:flex-1"
+                      className="text-on-maroon-muted hover:bg-white/10 hover:text-white desk:flex-1"
                     >
                       Done
                     </Button>
