@@ -1,8 +1,8 @@
 // The Outbound Guide pipeline, as Mastra workflows.
 //
-// Photo:  Grok looks at it ─┬─ food     → Food Researcher (Mastra agent) → Trip Planner (Mastra agent) ─┐
-//                           ├─ location → Trip Planner (Mastra agent) ──────────────────────────────────┤→ Report tool → answer
-//                           └─ other    → "try another photo or type" ───────────────────────────────────┘
+// Photo:  Grok describes it → Photo Decider (Mastra agent) ─┬─ food     → Food Researcher (Mastra agent) → Trip Planner ─┐
+//                                                           ├─ location → Trip Planner (Mastra agent, finds where it is) ──┤→ Report tool
+//                                                           └─ other    → "try another photo or type" ─────────────────────┘
 // Text:   Grok answers → Report tool → answer
 //
 // Every answer goes through the Report tool (Mastra agent with Gemini structured output), so the UI
@@ -14,13 +14,14 @@ import { z } from "zod";
 import { bostonNow, questLine, type GuideQuest, type GuideTurn } from "@/lib/guide";
 import { makeFoodResearcher, type FoundSpot } from "./food";
 import { destinationBrief, locate, toDestination, type Destination } from "./geo";
+import { decidePhoto } from "./decider";
 import { askGrok, seePhoto, type PhotoInfo } from "./grok";
 import { AGENT_MODEL, filterQuests, geminiModels, makePlanner } from "./planner";
 import {
   GuideReportSchema, fallbackReport, finalizeReport, retryReport, type Detected, type FinalReport,
 } from "./report";
 
-export type StageId = "vision" | "where" | "food" | "trip" | "grok" | "report";
+export type StageId = "vision" | "decide" | "where" | "food" | "trip" | "grok" | "report";
 export type StageStatus = "running" | "done" | "skipped" | "error";
 export interface StageEvent {
   stage: StageId;
@@ -31,6 +32,7 @@ export type Emit = (e: StageEvent) => void;
 
 export const STAGE_LABELS: Record<StageId, string> = {
   vision: "Grok looks at your photo",
+  decide: "Photo Decider: food or a place?",
   where: "Trip Planner finds where it is in Boston",
   food: "Food Researcher finds spots",
   trip: "Trip Planner plans your ride",
@@ -100,9 +102,11 @@ async function runStage<T>(ctx: Ctx, stage: StageId, fn: () => Promise<{ value: 
   try {
     const { value, detail } = await fn();
     ctx.emit({ stage, status: "done", detail });
+    console.info(`[guide] ${stage}: ${detail ?? "done"}`);
     return value;
   } catch (e) {
-    ctx.emit({ stage, status: "error", detail: (e as Error).message.slice(0, 120) });
+    console.warn(`[guide] ${stage} failed:`, (e as Error).message);
+    ctx.emit({ stage, status: "error", detail: (e as Error).message.slice(0, 200) });
     throw e;
   }
 }
@@ -177,10 +181,25 @@ export function makePhotoWorkflow(ctx: Ctx) {
     execute: async ({ inputData }) => {
       const photo = await runStage(ctx, "vision", async () => {
         const p = await seePhoto(inputData.image, inputData.note);
-        const what = p.category === "other" ? "not food or a place" : p.category === "food" ? "food" : "a place";
-        return { value: p, detail: `${p.label} (${what})` };
+        return { value: p, detail: p.by === "note" ? `couldn't see it, using your note: ${p.label}` : `${p.label}${p.by === "gemini" ? " (Gemini backup)" : ""}` };
       });
       return { photo, note: inputData.note };
+    },
+  });
+
+  const decide = createStep({
+    id: "photo-decider",
+    description: "Photo Decider agent: food goes to the Food Researcher, a place goes straight to the Trip Planner.",
+    inputSchema: PhotoOut,
+    outputSchema: PhotoOut,
+    execute: async ({ inputData }) => {
+      const p = inputData.photo as PhotoInfo;
+      const d = await runStage(ctx, "decide", async () => {
+        const d = await decidePhoto(p, inputData.note);
+        const where = d.category === "food" ? "Food → Food Researcher" : d.category === "location" ? "Place → Trip Planner" : "Not food or a place";
+        return { value: d, detail: `${where}${d.reason ? ` · ${d.reason}` : ""}${d.by === "rules" ? " (rules)" : ""}` };
+      });
+      return { photo: { ...p, category: d.category }, note: inputData.note };
     },
   });
 
@@ -298,6 +317,7 @@ export function makePhotoWorkflow(ctx: Ctx) {
     outputSchema: ReportOut,
   })
     .then(see)
+    .then(decide)
     .branch([
       [async ({ inputData }) => (inputData.photo as PhotoInfo).category === "food", research],
       [async ({ inputData }) => (inputData.photo as PhotoInfo).category === "location", place],

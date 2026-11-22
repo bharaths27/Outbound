@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { FinalReport } from "@/lib/agent/report";
 
-type StageId = "vision" | "where" | "food" | "trip" | "grok" | "report";
+type StageId = "vision" | "decide" | "where" | "food" | "trip" | "grok" | "report";
 type StageStatus = "running" | "done" | "skipped" | "error";
 interface Stage {
   stage: StageId;
@@ -29,13 +29,16 @@ interface Msg {
 
 const STAGE_TEXT: Record<StageId, { label: string; who: string }> = {
   vision: { label: "Looking at your photo", who: "Grok" },
+  decide: { label: "Deciding: food or a place?", who: "Photo Decider · Mastra" },
   where: { label: "Finding where it is in Boston", who: "Trip Planner" },
   food: { label: "Researching food spots", who: "Food Researcher · Mastra" },
   trip: { label: "Planning your ride", who: "Trip Planner · Mastra" },
   grok: { label: "Finding quests", who: "Grok" },
   report: { label: "Writing your plan", who: "Report tool" },
 };
-const PHOTO_FLOW: StageId[] = ["vision", "where", "food", "trip", "report"];
+const PHOTO_FLOW: StageId[] = ["vision", "decide", "where", "food", "trip", "report"];
+// Only one of these runs, picked by the Photo Decider, so they stay hidden until they start.
+const BRANCH: StageId[] = ["where", "food"];
 const TEXT_FLOW: StageId[] = ["grok", "report"];
 const PRICE = ["Free", "$", "$$", "$$$"];
 const STARTERS = ["Cheap eats open now", "Photo spot on the Green Line", "Date night, about 2 hours"];
@@ -67,7 +70,7 @@ function StageList({ stages, photo }: { stages: Stage[]; photo: boolean }) {
       {(photo ? PHOTO_FLOW : TEXT_FLOW).map((id) => {
         const s = byId.get(id);
         const status = s?.status ?? "waiting";
-        if (status === "skipped") return null;
+        if (status === "skipped" || (status === "waiting" && BRANCH.includes(id))) return null;
         return (
           <li key={id} className="flex items-start gap-2 text-[13px]">
             <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center">
@@ -85,6 +88,7 @@ function StageList({ stages, photo }: { stages: Stage[]; photo: boolean }) {
               <span className="font-semibold">{STAGE_TEXT[id].label}</span>
               <span className="text-muted-foreground"> · {STAGE_TEXT[id].who}</span>
               {s?.detail && status === "done" && id === "vision" && <span className="block text-muted-foreground">Saw: {s.detail}</span>}
+              {s?.detail && status === "done" && id === "decide" && <span className="block text-muted-foreground">{s.detail}</span>}
               {s?.detail && status === "done" && id === "where" && <span className="block text-muted-foreground">Found: {s.detail}</span>}
               {s?.detail && status === "error" && <span className="block break-words text-[11px] text-danger">{s.detail}</span>}
             </span>

@@ -39,8 +39,14 @@ function fakeGemini() {
     doGenerate: async (options: any) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const system = JSON.stringify(options.prompt.filter((m: any) => m.role === "system"));
-      const who = system.includes("Food Researcher") ? "food" : system.includes("Trip Planner") ? "trip" : system.includes("Report Writer") || system.includes("structured answer") ? "report" : "other";
+      const who = system.includes("Photo Decider") ? "decider" : system.includes("You check photos") ? "vision" : system.includes("Food Researcher") ? "food" : system.includes("Trip Planner") ? "trip" : system.includes("Report Writer") || system.includes("structured answer") ? "report" : "other";
       calls[who] = (calls[who] ?? 0) + 1;
+      if (who === "decider" && deciderFails) throw Object.assign(new Error("429 RESOURCE_EXHAUSTED"), { statusCode: 429 });
+      if (who === "decider") return text(JSON.stringify(deciderSays ?? { category: photoCategory, reason: "test" }));
+      if (who === "vision") {
+        visionPrompt = options.prompt;
+        return text("Here you go:\n```json\n" + JSON.stringify(PORT) + "\n```");
+      }
       if (who === "food") return calls.food === 1 ? tool("findFoodPlaces", { query: "croissant" }) : text("Croissant. Best: Flour Bakery 4.7, Kenmore 6 min walk. Quest: tatte-fenway-pastry");
       if (who === "trip" && tripFails) throw Object.assign(new Error("429 RESOURCE_EXHAUSTED"), { statusCode: 429 });
       if (who === "trip") return calls.trip === 1 ? tool("nextTrains", { stationId: "place-kencl" }) : text("Ride Green B to Kenmore, next train in 3 min.\nQUESTS: tatte-fenway-pastry");
@@ -53,9 +59,21 @@ vi.mock("@ai-sdk/google", () => ({ createGoogleGenerativeAI: () => () => fakeGem
 
 let photoCategory = "food";
 let tripFails = false;
+let deciderFails = false;
+let deciderSays: { category: string; reason: string } | null = null;
+let grokPhoto: Record<string, unknown> | null = null; // overrides Grok's photo answer
+let grokFails = false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let visionPrompt: any = null;
+const PORT = { category: "other", label: "aerial view of a container port with cranes", details: "Ships and stacked containers at a busy port.", searchTerms: ["port", "harbor"], placeGuess: null, confidence: 0.8 };
 const fetchLog: string[] = [];
 beforeEach(() => {
   tripFails = false;
+  deciderFails = false;
+  deciderSays = null;
+  grokPhoto = null;
+  grokFails = false;
+  visionPrompt = null;
   for (const k of Object.keys(calls)) delete calls[k];
   fetchLog.length = 0;
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
@@ -66,9 +84,12 @@ beforeEach(() => {
     fetchLog.push(String(url));
     const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
     if (String(url).includes("api.x.ai")) {
+      if (grokFails) return new Response("upstream timeout", { status: 504 });
       const body = JSON.parse(String(init?.body));
       const isPhoto = JSON.stringify(body.input).includes("input_image");
-      const out = isPhoto
+      const out = isPhoto && grokPhoto
+        ? grokPhoto
+        : isPhoto
         ? photoCategory === "location"
           ? { category: "location", label: "Chinatown Gate", details: "A green paifang gate with Chinese characters over Beach St.", searchTerms: ["chinatown", "gate"], placeGuess: "Chinatown Gate, Chinatown", confidence: 0.9 }
           : { category: photoCategory, label: photoCategory === "other" ? "a cat" : "croissant", details: "A flaky croissant.", searchTerms: ["croissant", "pastry"], placeGuess: null, confidence: 0.9 }
@@ -96,7 +117,7 @@ describe("photo pipeline", () => {
       { image: IMG, note: "" },
     );
     expect(events).toEqual([
-      "vision:running", "vision:done", "where:skipped", "food:running", "food:done", "trip:running", "trip:done", "report:running", "report:done",
+      "vision:running", "vision:done", "decide:running", "decide:done", "where:skipped", "food:running", "food:done", "trip:running", "trip:done", "report:running", "report:done",
     ]);
     expect(calls.food).toBe(2);
     expect(calls.trip).toBe(2);
@@ -138,6 +159,94 @@ describe("photo pipeline", () => {
     expect(report.summary).toContain("a cat");
     expect(calls.food ?? 0).toBe(0);
     expect(calls.trip ?? 0).toBe(0);
+  });
+});
+
+describe("Photo Decider", () => {
+  const run = async (note = "") => {
+    const events: string[] = [];
+    const report = await runWorkflow(
+      makePhotoWorkflow({ origin: "http://app", quests: QUESTS, emit: (e) => events.push(`${e.stage}:${e.status}`) }),
+      { image: IMG, note },
+    );
+    return { events, report };
+  };
+
+  it("a port photo Grok called 'other' goes straight to the Trip Planner", async () => {
+    grokPhoto = PORT;
+    deciderSays = { category: "location", reason: "A harbor you can visit" };
+    const { events, report } = await run();
+    expect(events).toContain("decide:done");
+    expect(events).toContain("food:skipped");
+    expect(events).not.toContain("food:running");
+    expect(events).toContain("where:done");
+    expect(calls.food).toBeUndefined();
+    expect(calls.trip).toBe(2);
+    expect(report.kind).toBe("plan");
+    expect(report.detected?.kind).toBe("location");
+    expect(report.destination?.name).toBe("Long Wharf, Boston Harbor");
+  });
+
+  it("overrides Grok when Grok said food but it's a place", async () => {
+    photoCategory = "food";
+    deciderSays = { category: "location", reason: "It's a storefront" };
+    const { events } = await run();
+    expect(events).not.toContain("food:running");
+    expect(calls.food).toBeUndefined();
+  });
+
+  it("food stays food", async () => {
+    photoCategory = "food";
+    const { events } = await run();
+    expect(events).toContain("food:done");
+    expect(events).toContain("where:skipped");
+  });
+
+  it("uses keyword rules when the decider is rate limited", async () => {
+    grokPhoto = PORT;
+    deciderFails = true;
+    const { events, report } = await run();
+    expect(events).toContain("decide:done");
+    expect(calls.food).toBeUndefined();
+    expect(report.detected?.kind).toBe("location");
+  });
+
+  it("Gemini reads the photo when Grok is down, with the image as JPEG", async () => {
+    grokFails = true;
+    deciderSays = { category: "location", reason: "port" };
+    const { events, report } = await run();
+    expect(events).toContain("vision:done");
+    expect(JSON.stringify(visionPrompt)).toContain("image/jpeg");
+    expect(report.detected?.label).toContain("container port");
+  });
+
+  it("when nobody can see the photo, a typed note still works", async () => {
+    grokFails = true;
+    process.env.GEMINI_API_KEY = "";
+    const { report } = await run("chinatown gate");
+    // Gemini is off too, so the decider uses rules on the note.
+    expect(report.detected?.kind).toBe("location");
+    expect(report.destination?.name).toBe("Chinatown Gate");
+  });
+
+  it("with no note and no vision, says why", async () => {
+    grokFails = true;
+    process.env.GEMINI_API_KEY = "";
+    await expect(run()).rejects.toThrow(/Grok: .*504.*\| Gemini:/);
+  });
+});
+
+describe("decideByRules", async () => {
+  const { decideByRules } = await import("./decider");
+  const photo = (label: string, details = "", placeGuess: string | null = null) =>
+    ({ category: "other" as const, label, details, searchTerms: [], placeGuess, confidence: 0.8, by: "grok" as const });
+  it("sorts food from places", () => {
+    expect(decideByRules(photo("tonkotsu ramen", "A bowl of noodles")).category).toBe("food");
+    expect(decideByRules(photo("Chinatown dumplings")).category).toBe("food");
+    expect(decideByRules(photo("aerial view of a container port with cranes")).category).toBe("location");
+    expect(decideByRules(photo("Chinatown Gate", "", "Chinatown Gate, Chinatown")).category).toBe("location");
+    expect(decideByRules(photo("Boston skyline at night")).category).toBe("location");
+    expect(decideByRules(photo("a cat on a couch")).category).toBe("other");
   });
 });
 

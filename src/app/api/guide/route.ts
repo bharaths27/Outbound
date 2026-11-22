@@ -5,8 +5,8 @@
 // With "stream": true the answer is NDJSON: one {"type":"stage",...} line per pipeline stage as it
 // happens, then one {"type":"result",...} line with the object above.
 //
-// Outbound Guide. Text: Grok answers, then the Report tool structures it. Photo: Grok decides food /
-// place / neither; food goes to the Food Researcher agent, then the Trip Planner agent; a place goes
+// Outbound Guide. Text: Grok answers, then the Report tool structures it. Photo: Grok describes it and the
+// Photo Decider agent decides food / place / neither; food goes to the Food Researcher agent, then the Trip Planner agent; a place goes
 // straight to the Trip Planner; neither asks for another photo. Agents are Mastra + Gemini
 // (src/lib/agent/pipeline.ts). A keyword matcher answers if everything is down.
 // Env: XAI_API_KEY, GEMINI_API_KEY (server-only). Optional GROK_MODEL, MASTRA_MODEL.
@@ -17,7 +17,7 @@ import { makeChatWorkflow, makePhotoWorkflow, runWorkflow, type StageEvent } fro
 import { fallbackReport, type FinalReport } from "@/lib/agent/report";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120; // photo: Grok (up to 40 s) + decider + agents
 
 const IMAGE_RE = /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/;
 const MAX_IMAGE_CHARS = 4_000_000; // ~3 MB of base64; Vercel's request limit is 4.5 MB

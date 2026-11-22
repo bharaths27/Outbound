@@ -48,7 +48,7 @@ export const PhotoSchema = z.object({
   placeGuess: z.string().nullable().describe("A specific Boston place or neighborhood if you can tell, else null"),
   confidence: z.number().describe("0 to 1"),
 });
-export type PhotoInfo = z.infer<typeof PhotoSchema> & { by: "grok" | "gemini" };
+export type PhotoInfo = z.infer<typeof PhotoSchema> & { by: "grok" | "gemini" | "note" };
 
 const PHOTO_RULES = `You check photos for Outbound, an app where Boston students ride the T to food spots and places.
 Classify the photo:
@@ -66,8 +66,11 @@ const PHOTO_JSON =
   'Answer with JSON only: {"category":"food|location|other","label":"...","details":"...","searchTerms":["..."],"placeGuess":"... or null","confidence":0.0}';
 
 const CATEGORY: Record<string, PhotoInfo["category"]> = {
-  food: "food", drink: "food", dish: "food", meal: "food", dessert: "food", beverage: "food",
+  food: "food", drink: "food", dish: "food", meal: "food", dessert: "food", beverage: "food", snack: "food",
   location: "location", place: "location", landmark: "location", building: "location", street: "location",
+  harbor: "location", harbour: "location", port: "location", waterfront: "location", city: "location", cityscape: "location",
+  landscape: "location", outdoor: "location", outdoors: "location", architecture: "location", travel: "location",
+  scenic: "location", attraction: "location", neighborhood: "location", transit: "location",
   view: "location", park: "location", storefront: "location", station: "location", scenery: "location",
 };
 
@@ -134,26 +137,28 @@ async function seeWithGemini(image: string, note: string): Promise<PhotoInfo> {
   const agent = new Agent({
     id: "photo-checker",
     name: "Photo Checker",
-    instructions: PHOTO_RULES,
+    instructions: `${PHOTO_RULES}\n${PHOTO_JSON}`,
     model: geminiModels(),
   });
-  const [, mimeType, base64] = image.match(/^data:(image\/\w+);base64,(.*)$/) ?? [];
+  const [, mediaType, base64] = image.match(/^data:(image\/\w+);base64,(.*)$/) ?? [];
+  if (!base64) throw new Error("photo is not a base64 data URL");
+  // Plain JSON text + our lenient parser: sturdier than structured output when the model adds extra words.
   const result = await agent.generate(
     [
       {
         role: "user",
         content: [
-          { type: "image", image: base64, mimeType },
+          { type: "image", image: base64, mediaType },
           { type: "text", text: note ? `User's note: ${note}` : "What is in this photo?" },
         ],
       },
     ],
-    { structuredOutput: { schema: PhotoSchema } },
+    { abortSignal: AbortSignal.timeout(20000) },
   );
-  return parsePhoto(result.object, "gemini");
+  return parsePhoto(readJson(result.text), "gemini");
 }
 
-/** Grok looks at the photo; Gemini takes over if Grok fails. */
+/** Grok looks at the photo; Gemini takes over if Grok fails. If both fail, a typed note still gets used. */
 export async function seePhoto(image: string, note: string): Promise<PhotoInfo> {
   let grokError = "";
   try {
@@ -166,6 +171,10 @@ export async function seePhoto(image: string, note: string): Promise<PhotoInfo> 
     return await seeWithGemini(image, note);
   } catch (e) {
     console.warn("[guide] Gemini vision failed too:", (e as Error).message);
+    if (note.trim().length > 2) {
+      // Neither model could see it, but the student told us what it is: let the Photo Decider use the note.
+      return { category: "other", label: note.trim().slice(0, 80), details: `The student says: ${note.trim()}`, searchTerms: [], placeGuess: null, confidence: 0.5, by: "note" };
+    }
     throw new Error(`Grok: ${grokError.slice(0, 120)} | Gemini: ${(e as Error).message.slice(0, 120)}`);
   }
 }
