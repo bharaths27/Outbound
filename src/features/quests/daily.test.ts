@@ -98,6 +98,13 @@ describe("xpToday", () => {
     const v = (xp_awarded: number, visit_date: string) => ({ xp_awarded, visit_date }) as Visit;
     expect(xpToday([v(72, "2026-11-21"), v(120, "2026-11-21"), v(50, "2026-11-20")], "2026-11-21")).toBe(192);
   });
+
+  it("counts only today's quests when given their ids", () => {
+    const visit = (quest_id: string, xp_awarded: number, visit_date: string) => ({ quest_id, xp_awarded, visit_date }) as Visit;
+    const visits = [visit("a", 72, "2026-11-21"), visit("b", 120, "2026-11-21"), visit("a", 50, "2026-11-20")];
+    expect(xpToday(visits, "2026-11-21", new Set(["a"]))).toBe(72);
+    expect(xpToday(visits, "2026-11-21", new Set(["c"]))).toBe(0);
+  });
 });
 
 describe("bostonWeekStart", () => {

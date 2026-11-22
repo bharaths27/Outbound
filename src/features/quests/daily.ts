@@ -65,9 +65,14 @@ export function pickDailyQuests(quests: Quest[], dateKey: string, count = DAILY_
   return picked;
 }
 
-/** XP the player earned on this Boston date (what check_in awarded, bonuses included). */
-export function xpToday(visits: Visit[], dateKey: string): number {
-  return visits.filter((v) => v.visit_date === dateKey).reduce((sum, v) => sum + (v.xp_awarded ?? 0), 0);
+/**
+ * XP the player earned on this Boston date (what check_in awarded, bonuses included).
+ * Pass `questIds` to count only those quests (today's list), so "+XP" agrees with "N of 5 done".
+ */
+export function xpToday(visits: Visit[], dateKey: string, questIds?: ReadonlySet<string>): number {
+  return visits
+    .filter((v) => v.visit_date === dateKey && (!questIds || questIds.has(v.quest_id)))
+    .reduce((sum, v) => sum + (v.xp_awarded ?? 0), 0);
 }
 
 /** Quest ids the player checked in to on this Boston date. */

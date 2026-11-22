@@ -59,7 +59,11 @@ export function QuestsPage() {
   const done = useMemo(() => doneToday(player.visits, dateKey), [player.visits, dateKey]);
   const doneQuests = daily.filter((q) => done.has(q.id));
   // Everything earned today, from check_in's xp_awarded (bonuses included), not base quest XP.
-  const doneXp = useMemo(() => xpToday(player.visits, dateKey), [player.visits, dateKey]);
+  // Only today's quests, so the XP agrees with "N of 5 done".
+  const doneXp = useMemo(
+    () => xpToday(player.visits, dateKey, new Set(daily.map((q) => q.id))),
+    [player.visits, dateKey, daily],
+  );
   const total = daily.length || DAILY_COUNT;
   const shown = filter === "all" ? daily : daily.filter((q) => q.type === filter);
   const progressLabel = `${doneQuests.length} of ${total} done · +${doneXp} XP today`;
