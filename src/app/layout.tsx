@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { StationHubHost } from "@/features/hub";
 import { AppShell } from "@/features/shell/app-shell";
 import "./globals.css";
+import GrokGuide from "@/components/guide/GrokGuide";
 
 // Fraunces for display headings, DM Sans for UI (DESIGN.md §3 Type).
 const fraunces = Fraunces({
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         {/* The station hub opens over any page from ?station=<id> (src/features/hub). */}
         <StationHubHost />
         <Toaster />
+        <GrokGuide />
       </body>
     </html>
   );
