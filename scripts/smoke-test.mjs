@@ -110,12 +110,15 @@ await check("Gemini search", async () => {
   if (j.source !== "gemini") return { warn: `used the keyword fallback, not Gemini (check GEMINI_API_KEY). ${summary}` };
   return `source=gemini ${summary}`;
 });
-await check("Grok guide", async () => {
+await check("Guide: Grok + Report tool (text)", async () => {
   const j = await json("/api/guide?q=" + encodeURIComponent("cheap food near Kenmore, about an hour"));
-  assert(j.reply, "no reply");
-  const picks = (j.quests ?? []).map((q) => q.title).join(", ");
-  if (j.source !== "grok") return { warn: `used the fallback, not Grok (check XAI_API_KEY). picks: ${picks}` };
-  return `source=grok, picks: ${picks || "none"}`;
+  const r = j.report;
+  assert(r?.title, "no structured report");
+  const grok = (j.stages ?? []).find((s) => s.stage === "grok");
+  const picks = (r.picks ?? []).map((q) => q.title).join(", ") || "none";
+  if (j.source !== "pipeline" || grok?.status !== "done") return { warn: `used the fallback, not Grok (check XAI_API_KEY). picks: ${picks}` };
+  const rep = (j.stages ?? []).find((s) => s.stage === "report");
+  return `"${r.title}", picks: ${picks}, report tool: ${rep?.status ?? "?"}`;
 });
 
 await check("Mastra trip planner (/api/agent)", async () => {

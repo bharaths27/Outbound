@@ -1,88 +1,83 @@
 // POST /api/guide  { "message": "cheap food near Kenmore, I have an hour", "history": [{ role, content }],
-//                   "image"?: "data:image/jpeg;base64,..." }   (optional photo of food or a place, jpeg/png, < 3 MB)
-// -> { reply: string, quests: [{ id, title, station_id, station_name, xp, price_tier }], source: "grok" | "fallback" }
+//                   "image"?: "data:image/jpeg;base64,...", "stream"?: true }
+// -> { reply, quests: [{ id, title, station_id, station_name, xp, price_tier }], report: FinalReport,
+//      source: "pipeline" | "fallback", stages: [{ stage, status, detail }] }
+// With "stream": true the answer is NDJSON: one {"type":"stage",...} line per pipeline stage as it
+// happens, then one {"type":"result",...} line with the object above.
 //
-// Outbound Guide: a chat helper powered by Grok (xAI) that recommends real quests from our
-// Supabase data. Falls back to a keyword matcher if Grok fails or takes over 15 s.
-// Env: XAI_API_KEY (server-only). Optional GROK_MODEL (default grok-4.7).
+// Outbound Guide. Text: Grok answers, then the Report tool structures it. Photo: Grok decides food /
+// place / neither; food goes to the Food Researcher agent, then the Trip Planner agent; a place goes
+// straight to the Trip Planner; neither asks for another photo. Agents are Mastra + Gemini
+// (src/lib/agent/pipeline.ts). A keyword matcher answers if everything is down.
+// Env: XAI_API_KEY, GEMINI_API_KEY (server-only). Optional GROK_MODEL, MASTRA_MODEL.
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import {
-  buildSystemPrompt, cleanHistory, fallbackGuide, parseGuideReply,
-  type GuideQuest, type GuideTurn,
-} from "@/lib/guide";
+import { cleanHistory, fallbackGuide, type GuideQuest, type GuideTurn } from "@/lib/guide";
+import { loadQuests } from "@/lib/agent/planner";
+import { makeChatWorkflow, makePhotoWorkflow, runWorkflow, type StageEvent } from "@/lib/agent/pipeline";
+import { fallbackReport, type FinalReport } from "@/lib/agent/report";
 
 export const dynamic = "force-dynamic";
-
-const MODEL = process.env.GROK_MODEL || "grok-4.7";
-const QUEST_FIELDS =
-  "id,title,type,description,price_tier,vibe_tags,hours,xp,duration_min,walk_min,station_id,stations(name,lines,neighborhood)";
-
-// Quests are public data, so the publishable key is enough. Cached for 5 minutes.
-let cache: { at: number; quests: GuideQuest[] } | null = null;
-async function loadQuests(): Promise<GuideQuest[]> {
-  if (cache && Date.now() - cache.at < 5 * 60_000) return cache.quests;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase env not set");
-  const supabase = createClient(url, key, { auth: { persistSession: false } });
-  const { data, error } = await supabase.from("quests").select(QUEST_FIELDS).limit(300);
-  if (error) throw new Error(`quests: ${error.message}`);
-  cache = { at: Date.now(), quests: (data ?? []) as unknown as GuideQuest[] };
-  return cache.quests;
-}
+export const maxDuration = 60;
 
 const IMAGE_RE = /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/;
 const MAX_IMAGE_CHARS = 4_000_000; // ~3 MB of base64; Vercel's request limit is 4.5 MB
-const PHOTO_PROMPT = "Here's a photo. What is it, and which quest is the closest match?";
 
-async function askGrok(message: string, history: GuideTurn[], quests: GuideQuest[], image: string | null) {
-  // Tolerate stray spaces or quotes pasted around the key.
-  const key = process.env.XAI_API_KEY?.trim().replace(/^["']|["']$/g, "");
-  if (!key) throw new Error("XAI_API_KEY not set");
-  const res = await fetch("https://api.x.ai/v1/responses", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: MODEL,
-      input: [
-        { role: "system", content: buildSystemPrompt(quests) },
-        ...history,
-        image
-          ? {
-              role: "user",
-              content: [
-                { type: "input_image", image_url: image },
-                { type: "input_text", text: message || PHOTO_PROMPT },
-              ],
-            }
-          : { role: "user", content: message },
-      ],
-      temperature: 0.5,
-      store: false,
-    }),
-    signal: AbortSignal.timeout(image ? 25000 : 15000),
-  });
-  if (!res.ok) throw new Error(`Grok ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const data = await res.json();
-  const text: string | undefined =
-    data?.output_text ??
-    data?.output
-      ?.filter((o: { type?: string }) => o?.type === "message")
-      .flatMap((o: { content?: { type?: string; text?: string }[] }) => o.content ?? [])
-      .find((c: { type?: string }) => c?.type === "output_text")?.text;
-  if (!text) throw new Error("Grok returned no text");
-  return parseGuideReply(text, quests);
+function photoDown(): FinalReport {
+  return {
+    kind: "retry", detected: null, title: "I couldn't look at that photo just now",
+    summary: "Try the photo again in a moment, or type what you're craving and I'll find a quest.",
+    steps: [], picks: [], places: [], transit: null, tips: [],
+  };
+}
+
+async function answer(origin: string, message: string, history: GuideTurn[], image: string | null, emit: (e: StageEvent) => void) {
+  const stages: StageEvent[] = [];
+  const track = (e: StageEvent) => {
+    stages.push(e);
+    emit(e);
+  };
+  let quests: GuideQuest[];
+  try {
+    quests = await loadQuests();
+  } catch (e) {
+    console.error("[guide]", (e as Error).message);
+    return { error: "Couldn't load quests", status: 503 as const };
+  }
+  let report: FinalReport;
+  let source: "pipeline" | "fallback" = "pipeline";
+  try {
+    report = image
+      ? await runWorkflow(makePhotoWorkflow({ origin, quests, emit: track }), { image, note: message })
+      : await runWorkflow(makeChatWorkflow({ origin, quests, emit: track }), { message, history });
+  } catch (e) {
+    console.warn("[guide] pipeline failed, using fallback:", (e as Error).message);
+    source = "fallback";
+    if (image) report = photoDown();
+    else {
+      const fb = fallbackGuide(message, quests);
+      report = fallbackReport(fb.reply, fb.quests.map((q) => q.id), quests, null);
+    }
+  }
+  const latest = new Map(stages.map((s) => [s.stage, s]));
+  return {
+    reply: report.summary,
+    quests: report.picks.map(({ id, title, station_id, station_name, xp, price_tier }) => ({ id, title, station_id, station_name, xp, price_tier })),
+    report,
+    source,
+    stages: [...latest.values()],
+  };
 }
 
 export async function POST(req: Request) {
   let message = "";
   let history: GuideTurn[] = [];
   let image: string | null = null;
+  let stream = false;
   try {
     const body = await req.json();
     message = String(body?.message ?? "").trim().slice(0, 500);
     history = cleanHistory(body?.history);
+    stream = body?.stream === true;
     if (body?.image != null) {
       image = String(body.image);
       if (image.length > MAX_IMAGE_CHARS) return NextResponse.json({ error: "Photo is too big. Try a smaller one." }, { status: 413 });
@@ -92,22 +87,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Send JSON like { "message": "cheap food near Kenmore" }' }, { status: 400 });
   }
   if (!message && !image) return NextResponse.json({ error: "message is empty" }, { status: 400 });
+  const origin = new URL(req.url).origin;
 
-  let quests: GuideQuest[];
-  try {
-    quests = await loadQuests();
-  } catch (e) {
-    console.error("[guide]", (e as Error).message);
-    return NextResponse.json({ error: "Couldn't load quests" }, { status: 503 });
+  if (!stream) {
+    const out = await answer(origin, message, history, image, () => {});
+    return "error" in out ? NextResponse.json({ error: out.error }, { status: out.status }) : NextResponse.json(out);
   }
-  try {
-    return NextResponse.json(await askGrok(message, history, quests, image));
-  } catch (e) {
-    console.warn("[guide] Grok failed, using fallback:", (e as Error).message);
-    const fb = fallbackGuide(message, quests);
-    if (image) fb.reply = `I couldn't look at the photo just now. ${fb.reply}`;
-    return NextResponse.json(fb);
-  }
+
+  const enc = new TextEncoder();
+  const body = new ReadableStream({
+    async start(controller) {
+      const send = (obj: unknown) => controller.enqueue(enc.encode(`${JSON.stringify(obj)}\n`));
+      try {
+        const out = await answer(origin, message, history, image, (e) => send({ type: "stage", ...e }));
+        send("error" in out ? { type: "error", error: out.error } : { type: "result", ...out });
+      } catch (e) {
+        send({ type: "error", error: (e as Error).message });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+  return new Response(body, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" } });
 }
 
 // GET /api/guide?q=... for quick testing in the browser
