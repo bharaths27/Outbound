@@ -34,6 +34,9 @@ export interface TrainNow {
   heading: number; // radians, 0 = east, ccw
 }
 
+/** Half the distance between the two tracks (meters, before the zoom scale): wider than half a car, so cars never touch. */
+const TRACK_HALF_GAP = 1.9;
+
 const ease = (t: number) => t * t * (3 - 2 * t);
 
 export class TrainAnimator {
@@ -148,6 +151,7 @@ export class TrainAnimator {
       if (!spec) continue;
       const c = this.current(a, now);
       const step = (spec.length + spec.gap) * scale;
+      const side = TRACK_HALF_GAP * scale; // meters right of the line's center
       for (let k = 0; k < spec.cars; k++) {
         if (c.pos) {
           // walk backwards from the lead car, against the direction of travel
@@ -155,11 +159,13 @@ export class TrainAnimator {
           const w = k === 0 ? { ...c.pos, dir: back } : this.net.walk(c.pos.poly, c.pos.along, k * step, back);
           const p = this.net.pointAt(w.poly, w.along);
           const travelDir = -w.dir;
-          const [lng, lat] = toLngLat(p.x, p.y);
-          out.push({ line: a.line, lng, lat, heading: p.heading + (travelDir < 0 ? Math.PI : 0) });
+          const h = p.heading + (travelDir < 0 ? Math.PI : 0);
+          // each direction runs on its own track, to the right of the line, so passing trains go side by side
+          const [lng, lat] = toLngLat(p.x + Math.sin(h) * side, p.y - Math.cos(h) * side);
+          out.push({ line: a.line, lng, lat, heading: h });
         } else {
           const h = a.info.bearing != null ? Math.PI / 2 - (a.info.bearing * Math.PI) / 180 : 0;
-          const [lng, lat] = toLngLat(c.x - Math.cos(h) * k * step, c.y - Math.sin(h) * k * step);
+          const [lng, lat] = toLngLat(c.x - Math.cos(h) * k * step + Math.sin(h) * side, c.y - Math.sin(h) * k * step - Math.cos(h) * side);
           out.push({ line: a.line, lng, lat, heading: h });
         }
       }

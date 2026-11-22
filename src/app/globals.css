@@ -95,3 +95,21 @@ body {
 .ob-quest { cursor: pointer; display: flex; align-items: center; gap: 3px; padding: 3px 7px 3px 4px; border-radius: 999px; background: #fffbeb; border: 2px solid #f59e0b; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.25); }
 .ob-quest-icon { display: grid; place-items: center; line-height: 0; color: #b45309; }
 .ob-quest-pts { font: 700 10px/1 var(--font-dm-sans, system-ui), system-ui, sans-serif; color: #b45309; }
+/* game layer: pins grow with distance (--s), show ride time in the line color (--lc), Expedition pins glow gold */
+.ob-quest { transform-origin: bottom center; scale: var(--s, 1); transition: scale .15s; }
+.ob-quest:hover { scale: calc(var(--s, 1) * 1.08); }
+.ob-quest-ride { display: flex; align-items: center; gap: 2px; margin-left: 2px; padding-left: 4px; border-left: 1px solid #f3d9a4; font: 600 9px/1 system-ui, sans-serif; color: #78716c; }
+.ob-quest-ride i { width: 6px; height: 6px; border-radius: 50%; background: var(--lc); }
+.ob-quest-exp { background: linear-gradient(135deg, #fde68a, #f59e0b); border-color: #fff7d6; animation: ob-exp-glow 2.2s ease-in-out infinite; }
+.ob-quest-exp .ob-quest-icon, .ob-quest-exp .ob-quest-pts { color: #6b2e00; }
+.ob-quest-exp .ob-quest-ride { color: #6b2e00; border-left-color: #fcd34d; }
+.ob-quest-tag { position: absolute; left: 50%; bottom: calc(100% + 3px); translate: -50% 0; white-space: nowrap; padding: 2px 6px; border-radius: 999px; background: #6b1f33; color: #fff; font: 700 8.5px/1.2 system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.ob-quest-done { background: #f0fdf4; border-color: #86efac; opacity: .85; }
+.ob-quest-done .ob-quest-icon, .ob-quest-done .ob-quest-pts { color: #15803d; }
+@keyframes ob-exp-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, .55), 0 3px 10px rgba(15, 23, 42, .25); } 50% { box-shadow: 0 0 0 9px rgba(245, 158, 11, 0), 0 3px 10px rgba(15, 23, 42, .25); } }
+.ob-xp-pop { animation: ob-xp-pop 2.4s ease-out forwards; }
+@keyframes ob-xp-pop { 0% { opacity: 0; transform: translateY(16px) scale(.7); } 12% { opacity: 1; transform: translateY(0) scale(1.08); } 22% { transform: scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-46px); } }
+.ob-levelup { animation: ob-levelup 3s ease-out forwards; }
+@keyframes ob-levelup { 0% { opacity: 0; transform: translate(-50%, -10px) scale(.8); } 10% { opacity: 1; transform: translate(-50%, 0) scale(1.05); } 85% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ob-quest-exp { animation: none; } .ob-xp-pop, .ob-levelup { animation-duration: 1.6s; animation-name: ob-fade; } }
+@keyframes ob-fade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
