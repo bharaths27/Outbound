@@ -102,9 +102,11 @@ export default function MapPanel(props: {
       {!collapsed && (
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto border-t border-[var(--ob-line)] px-4 pt-3 pb-4">
           {/* view */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* wraps to two rows when the panel is too narrow for both toggles side by side */}
+          <div className="flex flex-wrap gap-2">
             <BigSeg
               label="View"
+              className="grow basis-[140px]"
               options={[
                 { label: "3D", icon: <Box size={16} aria-hidden />, on: props.is3D, pick: () => props.setIs3D(true) },
                 { label: "2D", icon: <MapIcon size={16} aria-hidden />, on: !props.is3D, pick: () => props.setIs3D(false) },
@@ -113,6 +115,7 @@ export default function MapPanel(props: {
             {props.setRealistic && (
               <BigSeg
                 label="Look"
+                className="grow-[2] basis-[250px]"
                 options={[
                   { label: "Illustrated", icon: <Palette size={16} aria-hidden />, on: !props.realistic, pick: () => props.setRealistic?.(false) },
                   { label: "Realistic", icon: <Satellite size={16} aria-hidden />, on: props.realistic, pick: () => props.setRealistic?.(true) },
@@ -196,9 +199,17 @@ export function LinesPanel(props: {
   );
 }
 
-function BigSeg({ label, options }: { label: string; options: { label: string; icon: ReactNode; on: boolean; pick: () => void }[] }) {
+function BigSeg({
+  label,
+  options,
+  className = "",
+}: {
+  label: string;
+  options: { label: string; icon: ReactNode; on: boolean; pick: () => void }[];
+  className?: string;
+}) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex rounded-xl bg-[var(--ob-sand)] p-1">
+    <div role="radiogroup" aria-label={label} className={`flex min-w-0 rounded-xl bg-[var(--ob-sand)] p-1 ${className}`}>
       {options.map((o) => (
         <button
           key={o.label}
@@ -206,7 +217,7 @@ function BigSeg({ label, options }: { label: string; options: { label: string; i
           role="radio"
           aria-checked={o.on}
           onClick={o.pick}
-          className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-[14px] font-semibold transition-colors ${
+          className={`flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-[14px] font-semibold whitespace-nowrap transition-colors ${
             o.on ? "bg-[var(--ob-maroon)] text-white shadow-sm" : "text-[var(--ob-ink-2)] hover:bg-[var(--ob-sand)]"
           }`}
         >
