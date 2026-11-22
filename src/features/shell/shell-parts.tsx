@@ -28,8 +28,16 @@ export const NAV = [
     label: "Leaderboard",
     d: "M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8",
   },
-  { href: "/events", label: "Events", d: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" },
-] as const;
+  {
+    href: "/rewards",
+    label: "Rewards",
+    d: "M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 7h18v4H3zM12 7v14M12 7c-1.4-2.8-5-3.2-5-1.2C7 7 9.5 7 12 7zm0 0c1.4-2.8 5-3.2 5-1.2C17 7 14.5 7 12 7z",
+  },
+  { href: "/events", label: "Events", d: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4", desktopOnly: true },
+] as const satisfies readonly { href: string; label: string; d: string; desktopOnly?: boolean }[];
+
+/** The phone tab bar keeps 5 items (DESIGN.md §4); Events (not designed yet) is desktop only. */
+export const PHONE_NAV = NAV.filter((item) => !("desktopOnly" in item && item.desktopOnly));
 
 export const isActive = (pathname: string, href: string) =>
   href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);

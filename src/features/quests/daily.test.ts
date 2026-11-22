@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Quest, Visit } from "@/lib/data/types";
-import { bostonDateKey, dailyEligible, doneToday, pickDailyQuests, xpToday } from "./daily";
+import { bostonDateKey, bostonWeekStart, dailyEligible, doneToday, pickDailyQuests, xpToday } from "./daily";
 
 function quest(id: string, station_id: string, type: Quest["type"]): Quest {
   return {
@@ -97,5 +97,13 @@ describe("xpToday", () => {
   it("sums xp_awarded from that date's visits", () => {
     const v = (xp_awarded: number, visit_date: string) => ({ xp_awarded, visit_date }) as Visit;
     expect(xpToday([v(72, "2026-11-21"), v(120, "2026-11-21"), v(50, "2026-11-20")], "2026-11-21")).toBe(192);
+  });
+});
+
+describe("bostonWeekStart", () => {
+  it("returns that week's Monday", () => {
+    expect(bostonWeekStart("2026-11-22")).toBe("2026-11-16"); // Sunday
+    expect(bostonWeekStart("2026-11-16")).toBe("2026-11-16"); // Monday
+    expect(bostonWeekStart("2026-11-18")).toBe("2026-11-16");
   });
 });

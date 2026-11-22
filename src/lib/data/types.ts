@@ -5,18 +5,22 @@
 import type { CheckInErrorHint, CheckInResult, Profile, SquadMemberProfile, Squad } from "@/lib/types";
 
 export type {
+  BadgeId,
   CheckInErrorHint,
   CheckInResult,
   Deal,
   Filters,
   Friendship,
+  GameProgress,
   LeaderboardRow,
   Line,
   PassportNeighborhood,
   PassportStamp,
+  PlayerLeaderboardRow,
   Privacy,
   Profile,
   Quest,
+  QuestOfTheWeek,
   QuestType,
   School,
   Squad,

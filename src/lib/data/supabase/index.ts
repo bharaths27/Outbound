@@ -19,10 +19,13 @@ import type {
   AuthError,
   AuthResult,
   CheckInResult,
+  GameProgress,
   LeaderboardRow,
   PassportNeighborhood,
+  PlayerLeaderboardRow,
   Profile,
   Quest,
+  QuestOfTheWeek,
   School,
   Squad,
   SquadMemberProfile,
@@ -229,6 +232,28 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
     // ---------- leaderboard ----------
     async getSchoolLeaderboard() {
       return must(await db().from("leaderboard_weekly").select("*"), "leaderboard") as LeaderboardRow[];
+    },
+
+    async getPlayerLeaderboard() {
+      return must(
+        await db().from("leaderboard_players_weekly").select("*").order("rank").limit(50),
+        "player leaderboard",
+      ) as PlayerLeaderboardRow[];
+    },
+
+    // ---------- weekly game ----------
+    async getQuestOfTheWeek() {
+      const rows = must(await db().rpc("quest_of_the_week"), "quest of the week") as QuestOfTheWeek[];
+      return rows[0] ?? null;
+    },
+
+    async recommendQuest(questId) {
+      must(await db().rpc("recommend_quest", { p_quest_id: questId }), "recommend quest");
+    },
+
+    async getGameProgress() {
+      if (!(await myId())) return null;
+      return must(await db().rpc("my_game_progress"), "game progress") as GameProgress;
     },
 
     // ---------- squads ----------

@@ -1,10 +1,10 @@
 "use client";
 
-// Leaderboard (/leaderboard; "Compete" before DESIGN.md v1): Schools and Squads as a
+// Leaderboard (/leaderboard; "Compete" before DESIGN.md v1): Schools, Players and Squads as a
 // segmented toggle (DESIGN.md §2.2, references leaderboard-schools and leaderboard-squads).
 // Phones: the toggle and the podium sit in the maroon title band. Desktop: the toggle is
 // beside the title and the podium is a maroon card. Weekly only (§11.2).
-// /leaderboard?tab=squads opens the Squads tab (the join page sends players there).
+// /leaderboard?tab=squads (or players) opens that tab; the join page sends players to Squads.
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -17,9 +17,12 @@ import { usePlayer } from "@/features/hub/use-player";
 import { PageHeader } from "@/features/shell/page-header";
 import { rankSchools } from "./compete";
 import { Podium, SchoolsTab, type SchoolsLoad } from "./schools-tab";
+import { PlayersTab } from "./players-tab";
 import { SquadsTab } from "./squads-tab";
 
-type Tab = "schools" | "squads";
+type Tab = "schools" | "players" | "squads";
+const TAB_IDS: Tab[] = ["schools", "players", "squads"];
+const TITLE: Record<Tab, string> = { schools: "School Leaderboard", players: "Top Players", squads: "Squads" };
 
 export function CompetePage() {
   return (
@@ -32,7 +35,8 @@ export function CompetePage() {
 const TROPHY = "M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8";
 
 function Leaderboard() {
-  const initial: Tab = useSearchParams().get("tab") === "squads" ? "squads" : "schools";
+  const param = useSearchParams().get("tab");
+  const initial: Tab = TAB_IDS.find((t) => t === param) ?? "schools";
   const [tab, setTab] = useState<Tab>(initial);
   const { player, loaded: playerLoaded } = usePlayer();
   const [load, setLoad] = useState<SchoolsLoad>({ status: "loading" });
@@ -52,7 +56,7 @@ function Leaderboard() {
   const selectTab = (t: Tab) => {
     setTab(t);
     const url = new URL(window.location.href);
-    if (t === "squads") url.searchParams.set("tab", "squads");
+    if (t !== "schools") url.searchParams.set("tab", t);
     else url.searchParams.delete("tab");
     window.history.replaceState(null, "", url);
   };
@@ -64,7 +68,7 @@ function Leaderboard() {
   return (
     <>
       <PageHeader
-        title={tab === "schools" ? "School Leaderboard" : "Squads"}
+        title={TITLE[tab]}
         icon={
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0 text-gold">
             <path d={TROPHY} />
@@ -81,7 +85,9 @@ function Leaderboard() {
         <p className="mb-6 hidden text-base text-muted-foreground desk:block">
           {tab === "schools"
             ? "Every quest you finish adds XP to your school’s total."
-            : "Squads can mix schools. Check in together for bonus XP."}
+            : tab === "players"
+              ? "This week’s top explorers across every school."
+              : "Squads can mix schools. Check in together for bonus XP."}
         </p>
         <div id="panel-schools" role="tabpanel" aria-labelledby="tab-schools" hidden={tab !== "schools"}>
           <SchoolsTab
@@ -94,6 +100,9 @@ function Leaderboard() {
               setAttempt((n) => n + 1);
             }}
           />
+        </div>
+        <div id="panel-players" role="tabpanel" aria-labelledby="tab-players" hidden={tab !== "players"}>
+          <PlayersTab myId={profile?.id ?? null} active={tab === "players"} />
         </div>
         <div id="panel-squads" role="tabpanel" aria-labelledby="tab-squads" hidden={tab !== "squads"}>
           {playerLoaded && profile === null && (
@@ -116,6 +125,7 @@ function Leaderboard() {
 function Segmented({ tab, onChange, onMaroon = false }: { tab: Tab; onChange: (t: Tab) => void; onMaroon?: boolean }) {
   const tabs: { id: Tab; label: string }[] = [
     { id: "schools", label: "Schools" },
+    { id: "players", label: "Players" },
     { id: "squads", label: "Squads" },
   ];
   return (

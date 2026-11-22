@@ -15,17 +15,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ ques
     (
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        width: "100%", height: "100%", padding: 72, background: "#102719", color: "#f6f7eb",
+        width: "100%", height: "100%", padding: 72, background: "#6b1f33", color: "#ffffff",
       }}>
         <div style={{ display: "flex", flexDirection: "column", width: 740, gap: 20 }}>
-          <div style={{ display: "flex", fontSize: 28, color: "#c1ed96" }}>Outbound · Boston Passport</div>
+          <div style={{ display: "flex", fontSize: 28, fontWeight: 700, color: "#f2c14e", letterSpacing: 2 }}>OUTBOUND · BOSTON PASSPORT</div>
           <div style={{ display: "flex", fontSize: 56, fontWeight: 700 }}>{quest.title}</div>
-          <div style={{ display: "flex", fontSize: 32 }}>{quest.station?.name ?? "Boston"}</div>
-          <div style={{ display: "flex", fontSize: 28 }}>{quest.xp} base XP</div>
+          <div style={{ display: "flex", fontSize: 32, color: "#f3e3e7" }}>
+            {quest.station ? `${quest.station.name} · ${quest.station.neighborhood}` : "Boston"}
+          </div>
+          <div style={{ display: "flex", alignSelf: "flex-start", padding: "8px 20px", borderRadius: 999, background: "#f2c14e", color: "#4a1424", fontSize: 28, fontWeight: 700 }}>
+            +{quest.xp} XP
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", flexDirection: "column", gap: 14 }}>
-          <img alt="Quest QR code" src={qr} width={220} height={220} />
-          <div style={{ display: "flex", fontSize: 22 }}>Scan to try this quest</div>
+          <div style={{ display: "flex", padding: 14, borderRadius: 24, background: "#fbf6ec" }}>
+            <img alt="Quest QR code" src={qr} width={220} height={220} />
+          </div>
+          <div style={{ display: "flex", fontSize: 22, color: "#f3e3e7" }}>Scan to try this quest</div>
         </div>
       </div>
     ),

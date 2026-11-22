@@ -16,6 +16,7 @@ import { data, levelProgress as sharedLevelProgress } from "@/lib/data";
 import type { Profile, School, Tier } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { TIER_LABEL, buildPassport, progressLine, type NeighborhoodView, type PassportView } from "./build-passport";
+import { BadgesAndStreak } from "./badges";
 import { Stamp } from "./stamp";
 import { PageHeader } from "@/features/shell/page-header";
 import { PlayerAvatar } from "@/features/shell/shell-parts";
@@ -275,6 +276,8 @@ function Passport({ profile, view }: { profile: Profile; view: PassportView }) {
           </span>
         </span>
       </div>
+
+      <BadgesAndStreak />
 
       <Tabs defaultValue={empty ? "explore" : "stamps"} className="gap-4">
         <TabsList className="w-full desk:w-fit">

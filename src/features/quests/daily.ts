@@ -74,3 +74,10 @@ export function xpToday(visits: Visit[], dateKey: string): number {
 export function doneToday(visits: Visit[], dateKey: string): Set<string> {
   return new Set(visits.filter((v) => v.visit_date === dateKey).map((v) => v.quest_id));
 }
+
+/** The Monday (YYYY-MM-DD) of a Boston date's week, like date_trunc('week', …) in the backend. */
+export function bostonWeekStart(dateKey: string): string {
+  const d = new Date(`${dateKey}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}

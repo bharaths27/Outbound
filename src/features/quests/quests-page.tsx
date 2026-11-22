@@ -16,6 +16,7 @@ import { LineLetter, groupLines } from "@/features/hub/line-badge";
 import { XpChip } from "@/features/hub/quest-card";
 import { usePlayer } from "@/features/hub/use-player";
 import { PageHeader } from "@/features/shell/page-header";
+import { QuestOfTheWeekCard, QuestOfWeekBadge } from "@/features/weekly/quest-of-the-week";
 import { DAILY_COUNT, bostonDateKey, dailyEligible, doneToday, pickDailyQuests, xpToday } from "./daily";
 
 type Filter = "all" | QuestType;
@@ -61,7 +62,7 @@ export function QuestsPage() {
   const doneXp = useMemo(() => xpToday(player.visits, dateKey), [player.visits, dateKey]);
   const total = daily.length || DAILY_COUNT;
   const shown = filter === "all" ? daily : daily.filter((q) => q.type === filter);
-  const progressLabel = `${doneQuests.length} of ${total} done · +${doneXp} XP`;
+  const progressLabel = `${doneQuests.length} of ${total} done · +${doneXp} XP today`;
   const profile = player.profile;
 
   return (
@@ -112,6 +113,8 @@ export function QuestsPage() {
                 </button>
               ))}
             </div>
+
+            <QuestOfTheWeekCard />
 
             <div className="desk:hidden">
               <BonusBanner />
@@ -280,6 +283,7 @@ function QuestRow({ quest, station, done }: { quest: Quest; station: Station | u
             {cat.label}
           </span>
           <XpChip xp={quest.xp} className="text-xs" />
+          <QuestOfWeekBadge questId={quest.id} />
         </div>
       </div>
       {done ? (

@@ -203,6 +203,32 @@ export interface PassportNeighborhood {
 }
 
 /** View public.leaderboard_weekly, ordered by eligible desc, weekly_xp desc. */
+/** quest_of_the_week() (migration 005_gamification): this week's featured quest. */
+export interface QuestOfTheWeek {
+  quest_id: string;
+  week_start: string; // YYYY-MM-DD, Monday in Boston
+  base_xp_multiplier: number; // 2
+}
+
+export type BadgeId = "line_collector" | "night_owl" | "squad_goals" | "cross_town";
+
+/** my_game_progress(): earned badges and the check-in streak, in Boston days. */
+export interface GameProgress {
+  badges: BadgeId[];
+  current_streak: number;
+  longest_streak: number;
+}
+
+/** View leaderboard_players_weekly: public players ranked by this week's XP. */
+export interface PlayerLeaderboardRow {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  school_name: string;
+  weekly_xp: number;
+  rank: number;
+}
+
 export interface LeaderboardRow {
   school_id: number;
   name: string;

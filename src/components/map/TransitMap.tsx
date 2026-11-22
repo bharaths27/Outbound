@@ -793,10 +793,9 @@ export default function TransitMap() {
     <div className="absolute inset-0 bg-[#dfe9f3]">
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
       <WeatherFx weather={weather} active={loaded && is3D} />
-      {/* top-left: brand, feed status, Tiger Data badges */}
+      {/* top-left: feed status, Tiger Data badges (the app bar already shows the logo) */}
       <div className="absolute left-3 top-3 flex max-w-[calc(100vw-212px)] sm:max-w-[calc(100vw-24px)] flex-col gap-2 sm:left-4 sm:top-4">
         <div className="ob-panel flex items-center gap-3 px-3 py-2">
-          <span className="text-base font-semibold tracking-tight text-slate-900">Outbound</span>
           <span className="flex items-center gap-1.5 text-xs text-slate-600">
             <span
               className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white ${feedMode === "live" && lastUpdate ? "bg-emerald-600" : feedMode === "replay" ? "bg-sky-600" : "bg-amber-500"}`}

@@ -3,6 +3,7 @@
 // Self-contained: drop <GrokGuide /> anywhere (it's in the root layout so it shows on every page).
 import { Camera, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { OPEN_GUIDE_EVENT, type OpenGuideDetail } from "@/features/guide/open-guide";
 import { useEffect, useRef, useState } from "react";
 
 interface Pick {
@@ -43,7 +44,12 @@ const STARTERS = ["Cheap eats open now", "Photo spot on the Green Line", "Date n
 const WELCOME =
   "Hey! Tell me your craving, budget, or how much time you have, or tap the camera to snap a photo of food or a place. I'll find you a quest on the T.";
 
-export default function GrokGuide() {
+/**
+ * The launcher sits bottom-left, clear of the map's zoom buttons (bottom-right) and the
+ * station hub (right sheet on desktop). `hideLauncher` hides only the button, e.g. while the
+ * phone hub drawer is up; the hub has its own Ask Guide button that opens the same chat.
+ */
+export default function GrokGuide({ hideLauncher = false }: { hideLauncher?: boolean }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
     { role: "assistant", content: WELCOME },
@@ -57,6 +63,18 @@ export default function GrokGuide() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, busy]);
+
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const prompt = (e as CustomEvent<OpenGuideDetail>).detail?.prompt;
+      setOpen(true);
+      if (prompt) setInput(prompt);
+    };
+    window.addEventListener(OPEN_GUIDE_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_GUIDE_EVENT, onOpen);
+  }, []);
+
+  if (hideLauncher && !open) return null;
 
   async function pickPhoto(file: File | undefined) {
     if (!file) return;
@@ -101,7 +119,7 @@ export default function GrokGuide() {
   }
 
   return (
-    <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 desk:bottom-6 desk:right-6 z-50 flex flex-col items-end gap-2">
+    <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-4 z-[60] flex flex-col items-start gap-2 desk:bottom-6 desk:left-6">
       {open && (
         <div className="flex h-[480px] max-h-[75vh] w-[340px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-white text-ink shadow-2xl">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -202,13 +220,14 @@ export default function GrokGuide() {
       )}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 rounded-full bg-maroon px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-maroon-600"
+        aria-expanded={open}
+        className="flex h-14 items-center gap-2 rounded-full border-2 border-gold bg-maroon pr-5 pl-4 text-base font-bold text-white shadow-float outline-none hover:bg-maroon-600 focus-visible:ring-2 focus-visible:ring-gold"
       >
         {open ? (
-          "Close"
+          "Close guide"
         ) : (
           <>
-            <Sparkles className="size-4" aria-hidden />
+            <Sparkles className="size-5 text-gold" aria-hidden />
             Ask Guide
           </>
         )}

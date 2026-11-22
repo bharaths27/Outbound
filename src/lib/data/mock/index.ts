@@ -10,10 +10,14 @@ import type { DataService } from "../service";
 import type {
   CheckInErrorHint,
   CheckInResult,
+  BadgeId,
+  GameProgress,
   LeaderboardRow,
   PassportNeighborhood,
+  PlayerLeaderboardRow,
   Profile,
   Quest,
+  QuestOfTheWeek,
   Squad,
   SquadWithMembers,
   Tier,
@@ -75,6 +79,7 @@ const state = (() => {
     squads: clone(seed.squads),
     squadMembers: clone(seed.squadMembers) as { squad_id: string; user_id: string; joined_at?: string }[],
     friendships: clone(seed.friendships),
+    recommendations: [] as { user_id: string; quest_id: string; week_start: string }[],
     currentUserId: null as string | null,
   };
 })();
@@ -148,6 +153,57 @@ const nextTier = (count: number) => ({
 });
 
 // ---------- the service ----------
+
+// ---------- weekly game (copies migration 005_gamification) ----------
+
+/** quest_of_the_week(): the most-recommended code-free quest from last week, ties by id. */
+function questOfTheWeek(now = new Date()): QuestOfTheWeek | null {
+  const week = nyWeekStart(now);
+  const weekKey = seed.nyDate(week);
+  const lastWeek = seed.nyDate(new Date(week.getTime() - 7 * 86_400_000));
+  const votes = (id: string) => state.recommendations.filter((r) => r.quest_id === id && r.week_start === lastWeek).length;
+  const pick = seed.quests
+    .filter((q) => !seed.QR_CODES[q.id] && q.xp > 0)
+    .sort((a, b) => votes(b.id) - votes(a.id) || a.id.localeCompare(b.id))[0];
+  return pick ? { quest_id: pick.id, week_start: weekKey, base_xp_multiplier: 2 } : null;
+}
+
+/** my_game_progress(): badges and streaks from the player's visits, in Boston days. */
+function gameProgress(user: Profile, now = new Date()): GameProgress {
+  const visits = state.visits.filter((v) => v.user_id === user.id);
+  const stationOf = (v: Visit) => stationById(questById(v.quest_id)!.station_id)!;
+  const today = seed.nyDate(now);
+  const days = [...new Set(visits.map((v) => v.visit_date))].filter((d) => d <= today).sort();
+  const dayNum = (d: string) => Date.parse(`${d}T12:00:00Z`) / 86_400_000;
+  const runs: { last: string; days: number }[] = [];
+  for (const d of days) {
+    const run = runs.at(-1);
+    if (run && Math.round(dayNum(d) - dayNum(run.last)) === 1) {
+      run.last = d;
+      run.days += 1;
+    } else runs.push({ last: d, days: 1 });
+  }
+  const yesterday = seed.nyDate(new Date(now.getTime() - 86_400_000));
+  const latest = runs.at(-1);
+  const colors = new Set(visits.flatMap((v) => stationOf(v).lines.map((l) => l.split("-")[0])));
+  const hour = (v: Visit) =>
+    Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }).format(new Date(v.checked_in_at)));
+  const weekHoods = new Map<string, Set<string>>();
+  for (const v of visits) {
+    const wk = seed.nyDate(nyWeekStart(new Date(v.checked_in_at)));
+    weekHoods.set(wk, (weekHoods.get(wk) ?? new Set()).add(stationOf(v).neighborhood));
+  }
+  const badges: BadgeId[] = [];
+  if (["Red", "Orange", "Green"].every((c) => colors.has(c))) badges.push("line_collector");
+  if (visits.some((v) => hour(v) >= 22)) badges.push("night_owl");
+  if (visits.some((v) => v.squad_id)) badges.push("squad_goals"); // mock: any squad check-in
+  if ([...weekHoods.values()].some((h) => h.size >= 4)) badges.push("cross_town");
+  return {
+    badges,
+    current_streak: latest && (latest.last === today || latest.last === yesterday) ? latest.days : 0,
+    longest_streak: Math.max(0, ...runs.map((r) => r.days)),
+  };
+}
 
 export const mockService: DataService = {
   async getCurrentUser() {
@@ -294,6 +350,13 @@ export const mockService: DataService = {
         xp += bonus;
       }
 
+      // Weekly bonus after the others: base XP again, once per week (migration 005).
+      const featured = questOfTheWeek(now);
+      if (featured?.quest_id === q.id && !mine.some((v) => v.quest_id === q.id && v.visit_date >= featured.week_start)) {
+        breakdown.push({ reason: "quest_of_the_week", xp: q.xp });
+        xp += q.xp;
+      }
+
       const visit: Visit = {
         id: Math.max(0, ...state.visits.map((v) => v.id)) + 1,
         user_id: user.id,
@@ -384,6 +447,57 @@ export const mockService: DataService = {
       };
     });
     return rows.sort((a, b) => Number(b.eligible) - Number(a.eligible) || b.weekly_xp - a.weekly_xp);
+  },
+
+  async getPlayerLeaderboard() {
+    await wait();
+    const weekKey = seed.nyDate(nyWeekStart(new Date()));
+    const rows = state.profiles
+      .filter((p) => p.privacy === "public")
+      .map((p) => {
+        const week = state.visits.filter((v) => v.user_id === p.id && !v.hidden && v.visit_date >= weekKey);
+        return {
+          user_id: p.id,
+          display_name: p.display_name || "Outbound player",
+          avatar_url: p.avatar_url,
+          school_name: seed.schools.find((s) => s.id === p.school_id)?.name ?? "",
+          weekly_xp: week.reduce((sum, v) => sum + v.xp_awarded, 0),
+          checkIns: week.length,
+        };
+      })
+      .filter((r) => r.checkIns > 0)
+      .sort((a, b) => b.weekly_xp - a.weekly_xp);
+    return rows.map(({ user_id, display_name, avatar_url, school_name, weekly_xp }): PlayerLeaderboardRow => ({
+      user_id,
+      display_name,
+      avatar_url,
+      school_name,
+      weekly_xp,
+      rank: 1 + rows.filter((o) => o.weekly_xp > weekly_xp).length,
+    }));
+  },
+
+  async getQuestOfTheWeek() {
+    await wait();
+    return questOfTheWeek();
+  },
+
+  async recommendQuest(questId) {
+    await wait();
+    const user = requireMe();
+    const weekKey = seed.nyDate(nyWeekStart(new Date()));
+    if (!state.visits.some((v) => v.user_id === user.id && v.quest_id === questId && v.visit_date >= weekKey)) {
+      throw new Error("A check-in this week is required to recommend this quest");
+    }
+    if (!state.recommendations.some((r) => r.user_id === user.id && r.quest_id === questId && r.week_start === weekKey)) {
+      state.recommendations.push({ user_id: user.id, quest_id: questId, week_start: weekKey });
+    }
+  },
+
+  async getGameProgress() {
+    await wait();
+    const user = me();
+    return user ? gameProgress(user) : null;
   },
 
   async getMySquads() {
