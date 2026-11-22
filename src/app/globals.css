@@ -8,6 +8,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* dark: follows the app's own light/dark toggle (<html data-theme="dark">), not the OS setting. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 /* Desktop layout starts at 1024 px (DESIGN.md §2.5); 768–1023 uses the mobile shell.
    A breakpoint (not a custom variant) so both desk: and max-desk: exist. */
 @theme {
