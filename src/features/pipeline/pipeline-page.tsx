@@ -98,8 +98,8 @@ export function PipelinePage() {
           style={{ borderColor: stage.color }}
         >
           <div className="flex flex-wrap items-center gap-3">
-            <span className="grid size-12 place-items-center rounded-2xl text-2xl" style={{ background: `${stage.color}22` }} aria-hidden>
-              {stage.emoji}
+            <span className="grid size-12 place-items-center rounded-2xl" style={{ background: `${stage.color}22`, color: stage.color }} aria-hidden>
+              <stage.icon className="size-6" />
             </span>
             <h3 className="min-w-0 flex-1 text-2xl font-semibold text-ink desk:text-[28px]">{stage.title}</h3>
             <div className="flex items-center gap-1">
@@ -205,8 +205,8 @@ function StageNode({ stage, selected, playing, onClick }: { stage: Stage; select
         selected ? "shadow-lg desk:-translate-y-1" : "border-border hover:border-[var(--c)]",
       )}
     >
-      <span className="grid size-12 shrink-0 place-items-center rounded-2xl text-2xl desk:size-[52px] desk:text-[28px]" style={{ background: `${stage.color}22` }} aria-hidden>
-        {stage.emoji}
+      <span className="grid size-12 shrink-0 place-items-center rounded-2xl desk:size-[52px]" style={{ background: `${stage.color}22`, color: stage.color }} aria-hidden>
+        <stage.icon className="size-6 desk:size-7" />
       </span>
       <span className="min-w-0">
         <span className="block text-[18px] leading-tight font-semibold text-ink desk:text-[20px]">{stage.title}</span>

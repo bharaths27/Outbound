@@ -4,7 +4,7 @@
 // one line, and Craving / Budget / Time chips. Each chip opens a short menu. The picks carry
 // into every station hub opened afterwards (explore-filters.ts), where the full filters live.
 
-import { ChevronDown, ChevronUp, Clock, CircleDollarSign, Search, SlidersHorizontal, Utensils } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock, CircleDollarSign, PartyPopper, Search, SlidersHorizontal, Utensils } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { data } from "@/lib/data";
@@ -315,7 +315,7 @@ function HostedEventsLink() {
       href="/host"
       className="mt-3 flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-3 py-2 text-[15px] text-violet-900 hover:bg-violet-100 desk:mt-4 dark:bg-violet-950/50 dark:text-violet-100"
     >
-      <span aria-hidden>🎉</span>
+      <PartyPopper className="size-5 shrink-0 text-violet-700 dark:text-violet-300" aria-hidden />
       <span className="min-w-0 flex-1">
         {counts && counts.all > 0 ? (
           <>
