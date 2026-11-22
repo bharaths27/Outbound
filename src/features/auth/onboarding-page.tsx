@@ -17,6 +17,8 @@ import { data } from "@/lib/data";
 import { safeNext } from "./auth";
 import type { Privacy, Profile, School } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
+import { Stamp } from "@/features/passport/stamp";
+import { schoolAbbr } from "@/features/compete/compete";
 
 type Load = { status: "loading" } | { status: "signed-out" } | { status: "ready"; profile: Profile; school: School | null };
 
@@ -64,13 +66,13 @@ export function OnboardingPage() {
   }
 
   const skip = (
-    <Button variant="ghost" onClick={done}>
+    <Button variant="ghost" onClick={done} className="min-h-11 px-2 text-[15px] font-bold text-maroon">
       Skip
     </Button>
   );
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-8 px-4 py-10">
+    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 bg-page px-6 pt-3.5 pb-6 desk:max-w-[520px] desk:justify-center desk:py-14">
       {load.status === "loading" && <Skeleton className="h-64 w-full rounded-xl" />}
       {load.status === "signed-out" && (
         <div className="flex flex-col items-start gap-3">
@@ -85,50 +87,72 @@ export function OnboardingPage() {
           <div className="flex items-center justify-between">
             <ol className="flex gap-1.5" aria-label={`Step ${step + 1} of ${STEPS}`}>
               {Array.from({ length: STEPS }, (_, i) => (
-                <li key={i} className={cn("h-1.5 w-8 rounded-full", i <= step ? "bg-primary" : "bg-muted")} />
+                <li
+                  key={i}
+                  className={cn("h-2 rounded-full transition-all", i === step ? "w-6 bg-maroon" : "w-2 bg-stamp-dot-off")}
+                />
               ))}
             </ol>
             {step < STEPS - 1 && skip}
           </div>
 
           {step === 0 && (
-            <section className="flex flex-1 flex-col gap-4">
-              <h1 className="type-display">Every stop is a quest</h1>
-              <ul className="type-body flex flex-col gap-3 text-muted-foreground">
-                <li>Tap a station on the map to see food, events, and views a short walk away.</li>
-                <li>Filter by what you&apos;re craving, your budget, and how much time you have.</li>
-                <li>Check in at the spot to earn XP and a stamp. Collect enough in a neighborhood to go from Bronze to Gold.</li>
-              </ul>
+            <section className="flex flex-1 flex-col justify-center gap-[22px]">
+              <div aria-hidden className="relative flex h-[220px] items-center justify-center gap-1 overflow-hidden rounded-[28px] bg-maroon">
+                <Stamp questId="ob-1" title="Chinatown" neighborhood="Chinatown" tier="silver" size={92} rotate={-10} className="translate-y-3 rounded-full bg-page" />
+                <Stamp questId="ob-2" title="Back Bay" neighborhood="Back Bay" tier="gold" size={120} rotate={4} className="z-10 rounded-full bg-page" />
+                <Stamp questId="ob-3" title="North End" neighborhood="North End" tier="bronze" size={92} rotate={9} className="translate-y-4 rounded-full bg-page" />
+              </div>
+              <div>
+                <h1 className="font-display text-[32px] leading-[1.1] font-bold text-maroon">Every stop is a quest</h1>
+                <ol className="mt-3.5 flex flex-col gap-2.5 text-[15px] leading-[1.45] text-ink-2">
+                  {[
+                    "Tap any station on the map to see food, events and views a short walk away.",
+                    "Filter by what you’re craving, your budget and the time you have.",
+                    "Check in at the spot for XP and a passport stamp. Collect more to go from Bronze to Gold.",
+                  ].map((t, i) => (
+                    <li key={i} className="flex gap-2.5">
+                      <b className="text-maroon">{i + 1}</b>
+                      {t}
+                    </li>
+                  ))}
+                </ol>
+              </div>
             </section>
           )}
 
           {step === 1 && (
-            <section className="flex flex-1 flex-col gap-4">
-              <h1 className="type-display">You play for {load.school?.name ?? "your school"}</h1>
-              <div className="flex items-center gap-3 rounded-xl bg-muted p-4">
-                <span
-                  aria-hidden
-                  className="size-4 shrink-0 rounded-full bg-muted-foreground"
-                  style={load.school?.color ? { backgroundColor: load.school.color } : undefined}
-                />
-                <p className="type-body">
-                  Your XP counts toward your school&apos;s weekly total. Schools need 5 active players to rank, and the
-                  board resets every Monday.
+            <section className="flex flex-1 flex-col justify-center gap-[22px]">
+              <div
+                className="flex h-[220px] flex-col items-center justify-center gap-2.5 rounded-[28px] bg-maroon text-white"
+                style={load.school?.color ? { backgroundColor: load.school.color } : undefined}
+              >
+                <span aria-hidden className="flex size-[88px] items-center justify-center rounded-full border-4 border-white/90 text-[28px] font-bold">
+                  {load.school ? schoolAbbr(load.school.name) : "?"}
+                </span>
+                <p className="font-display text-[22px] font-semibold">{load.school?.name ?? "Your school"}</p>
+              </div>
+              <div>
+                <h1 className="font-display text-[32px] leading-[1.1] font-bold text-maroon">
+                  You play for {load.school ? schoolAbbr(load.school.name) : "your school"}
+                </h1>
+                <p className="mt-3 text-[15px] leading-normal text-ink-2">
+                  Every check-in adds XP to your school’s weekly total. Schools need 5 active players to rank, and the
+                  leaderboard resets every Monday.
+                </p>
+                <p className="mt-2.5 text-[15px] leading-normal text-ink-2">
+                  Squads can mix schools. Check in with a friend from another school for double XP.
                 </p>
               </div>
-              <p className="type-body text-muted-foreground">
-                Squads can mix schools. Checking in together earns bonus XP, and a squad from different schools earns
-                double.
-              </p>
             </section>
           )}
 
           {step === 2 && (
             <section className="flex flex-1 flex-col gap-6">
-              <h1 className="type-display">Make it yours</h1>
+              <h1 className="font-display text-[32px] leading-[1.1] font-bold text-maroon">Make it yours</h1>
               <div className="flex flex-col gap-2">
-                <label htmlFor="display-name" className="type-heading">
-                  Your name on Outbound
+                <label htmlFor="display-name" className="text-sm font-bold">
+                  Display name
                 </label>
                 <Input
                   id="display-name"
@@ -137,7 +161,7 @@ export function OnboardingPage() {
                   placeholder="First name or a nickname"
                   maxLength={40}
                   autoComplete="nickname"
-                  className="h-11"
+                  className="h-[50px] text-base"
                 />
               </div>
               <PrivacyChoice value={privacy} onChange={setPrivacy} />
@@ -146,16 +170,16 @@ export function OnboardingPage() {
 
           <div className="flex gap-2">
             {step > 0 && (
-              <Button variant="outline" onClick={() => setStep((s) => s - 1)}>
+              <Button variant="outline" className="h-[52px] rounded-2xl px-6 text-base font-bold" onClick={() => setStep((s) => s - 1)}>
                 Back
               </Button>
             )}
             {step < STEPS - 1 ? (
-              <Button className="flex-1" onClick={() => setStep((s) => s + 1)}>
+              <Button className="h-[52px] flex-1 rounded-2xl text-base font-bold" onClick={() => setStep((s) => s + 1)}>
                 Next
               </Button>
             ) : (
-              <Button className="flex-1" onClick={finish} disabled={saving}>
+              <Button variant="gold" className="h-[52px] flex-1 rounded-2xl text-base font-bold" onClick={finish} disabled={saving}>
                 {saving && <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden />}
                 Start exploring
               </Button>

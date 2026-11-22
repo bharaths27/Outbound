@@ -10,6 +10,8 @@ import { useShellPlayer } from "./use-shell-player";
 /** Routes that render without the shell (full-screen flows and dev pages). */
 const BARE_ROUTES = ["/login", "/onboarding", "/squad/join", "/dev"];
 
+export const isBareRoute = (pathname: string) => BARE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+
 /**
  * App frame (DESIGN.md §4). Phones and tablets (< 1024 px): a maroon header on Explore
  * (logo, XP, bell, avatar), page content, and a 5-item bottom tab bar. Desktop: a maroon
@@ -19,7 +21,7 @@ const BARE_ROUTES = ["/login", "/onboarding", "/squad/join", "/dev"];
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const player = useShellPlayer();
-  if (BARE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))) return <>{children}</>;
+  if (isBareRoute(pathname)) return <>{children}</>;
   const onExplore = pathname === "/";
 
   return (
