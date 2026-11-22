@@ -69,20 +69,13 @@ export default function MapPanel(props: {
   setShow: (s: MapShow) => void;
   delayColors: boolean;
   setDelayColors: (v: boolean) => void;
-  badge: "LIVE" | "REPLAY" | "DEMO";
-  status: string;
+  replaying: boolean;
   replayLabel: string;
   onReplay: () => void;
-  weather: ReactNode;
-  trains: Train[];
-  lateness: LineLateness[] | null;
-  stationName: (id: string | null) => string | null;
-  onTrain: (t: Train) => void;
 }) {
   const { collapsed, setCollapsed, show, setShow } = props;
-  const badgeClass = props.badge === "LIVE" ? "bg-emerald-600" : props.badge === "REPLAY" ? "bg-sky-600" : "bg-amber-500";
   return (
-    <section aria-label="Map view and live trains" className="ob-panel flex max-h-full min-h-0 flex-col overflow-hidden !rounded-2xl text-[15px]">
+    <section aria-label="Map view" className="ob-panel flex max-h-full min-h-0 flex-col overflow-hidden !rounded-2xl text-[15px]">
       {/* header: always visible, folds the panel */}
       <button
         type="button"
@@ -94,14 +87,13 @@ export default function MapPanel(props: {
           <MapIcon size={17} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[16px] leading-tight font-semibold text-[var(--ob-ink)]">Map and live trains</span>
-          <span className="flex items-center gap-1.5 text-[13px] text-[var(--ob-ink-2)]">
-            <span className={`rounded px-1.5 py-px text-[10px] font-bold tracking-wider text-white ${badgeClass}`}>{props.badge}</span>
-            <span className="truncate">{props.status}</span>
+          <span className="block text-[16px] leading-tight font-semibold text-[var(--ob-ink)]">Map view</span>
+          <span className="block truncate text-[13px] text-[var(--ob-ink-2)]">
+            {props.is3D ? "3D" : "2D"}
+            {props.setRealistic ? (props.realistic ? " · realistic" : " · illustrated") : ""} · {Object.values(show).filter(Boolean).length} layers on
           </span>
         </span>
-        {props.weather}
-        <span className="flex items-center gap-0.5 text-[13px] font-semibold text-[var(--ob-maroon)]">
+        <span className="ob-link flex items-center gap-0.5 text-[13px] font-semibold text-[var(--ob-maroon)]">
           {collapsed ? <ChevronDown size={18} aria-hidden /> : <ChevronUp size={18} aria-hidden />}
           {collapsed ? "Show" : "Hide"}
         </span>
@@ -141,7 +133,7 @@ export default function MapPanel(props: {
               <Tile icon={<PartyPopper size={18} />} label="Events" on={show.events} set={(v) => setShow({ ...show, events: v })} />
               <Tile icon={<Users size={18} />} label="Quests" on={show.friends} set={(v) => setShow({ ...show, friends: v })} />
               <Tile icon={<AlertTriangle size={18} />} label="Delays" on={show.delays} set={(v) => setShow({ ...show, delays: v })} />
-              <Tile icon={<History size={18} />} label={props.replayLabel} on={props.badge === "REPLAY"} set={() => props.onReplay()} />
+              <Tile icon={<History size={18} />} label={props.replayLabel} on={props.replaying} set={() => props.onReplay()} />
             </div>
             {show.delays && (
               <label className="mt-2 flex cursor-pointer items-center justify-between gap-2 rounded-lg px-1 text-[13px] text-[var(--ob-ink-2)]">
@@ -151,7 +143,52 @@ export default function MapPanel(props: {
             )}
           </div>
 
-          {/* lines */}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** The MBTA card under Explore Boston: live status, then the four lines. Folds to one line. */
+export function LinesPanel(props: {
+  collapsed: boolean;
+  setCollapsed: (v: boolean) => void;
+  badge: "LIVE" | "REPLAY" | "DEMO";
+  status: string;
+  weather: ReactNode;
+  trains: Train[];
+  lateness: LineLateness[] | null;
+  stationName: (id: string | null) => string | null;
+  onTrain: (t: Train) => void;
+}) {
+  const { collapsed, setCollapsed } = props;
+  const badgeClass = props.badge === "LIVE" ? "bg-emerald-600" : props.badge === "REPLAY" ? "bg-sky-600" : "bg-amber-500";
+  return (
+    <section aria-label="MBTA live trains" className="ob-panel flex min-h-[64px] shrink flex-col overflow-hidden !rounded-2xl text-[15px]">
+      <button
+        type="button"
+        onClick={() => setCollapsed(!collapsed)}
+        aria-expanded={!collapsed}
+        className="flex w-full shrink-0 items-center gap-2.5 px-4 py-3 text-left hover:bg-[var(--ob-cream)]"
+      >
+        <span className="grid size-8 place-items-center rounded-lg bg-[var(--ob-maroon)] text-white" aria-hidden>
+          <TrainFront size={17} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[16px] leading-tight font-semibold text-[var(--ob-ink)]">MBTA live trains</span>
+          <span className="flex items-center gap-1.5 text-[13px] text-[var(--ob-ink-2)]">
+            <span className={`rounded px-1.5 py-px text-[10px] font-bold tracking-wider text-white ${badgeClass}`}>{props.badge}</span>
+            <span className="truncate">{props.status}</span>
+          </span>
+        </span>
+        {props.weather}
+        <span className="ob-link flex items-center gap-0.5 text-[13px] font-semibold text-[var(--ob-maroon)]">
+          {collapsed ? <ChevronDown size={18} aria-hidden /> : <ChevronUp size={18} aria-hidden />}
+          {collapsed ? "Show" : "Hide"}
+        </span>
+      </button>
+      {!collapsed && (
+        <div className="min-h-0 overflow-y-auto border-t border-[var(--ob-line)] px-3 pt-2.5 pb-3">
           <Lines trains={props.trains} lateness={props.lateness} stationName={props.stationName} onTrain={props.onTrain} />
         </div>
       )}
@@ -170,7 +207,7 @@ function BigSeg({ label, options }: { label: string; options: { label: string; i
           aria-checked={o.on}
           onClick={o.pick}
           className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-[14px] font-semibold transition-colors ${
-            o.on ? "bg-[var(--ob-maroon)] text-white shadow-sm" : "text-[var(--ob-ink-2)] hover:bg-white/60"
+            o.on ? "bg-[var(--ob-maroon)] text-white shadow-sm" : "text-[var(--ob-ink-2)] hover:bg-[var(--ob-sand)]"
           }`}
         >
           {o.icon}
@@ -189,7 +226,7 @@ function Tile({ icon, label, on, set }: { icon: ReactNode; label: string; on: bo
       onClick={() => set(!on)}
       className={`flex flex-col items-center justify-center gap-1 rounded-xl border px-1 py-2 text-[12.5px] font-semibold transition-colors ${
         on
-          ? "border-[var(--ob-maroon)] bg-[color-mix(in_srgb,var(--ob-maroon)_10%,transparent)] text-[var(--ob-maroon)]"
+          ? "border-[var(--ob-maroon)] bg-[var(--ob-maroon)] text-white shadow-sm"
           : "border-[var(--ob-line)] text-[var(--ob-muted)] hover:bg-[var(--ob-cream)]"
       }`}
     >
@@ -232,7 +269,6 @@ function Lines({
 
   return (
     <div>
-      <p className="mb-1.5 text-[11px] font-bold tracking-[0.08em] text-[var(--ob-muted)] uppercase">Lines</p>
       <ul className="flex flex-col gap-2">
         {GROUPS.map((g) => {
           const count = g.routes.reduce((n, r) => n + (byRoute.get(r)?.length ?? 0), 0);
@@ -244,7 +280,7 @@ function Lines({
             <li key={g.id} className="overflow-hidden rounded-xl border border-[var(--ob-line)] bg-[var(--ob-cream)]" style={{ borderLeft: `5px solid ${g.color}` }}>
               <button
                 type="button"
-                className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-white/60"
+                className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--ob-sand)]"
                 onClick={() => setOpen(isOpen ? null : g.id)}
                 aria-expanded={isOpen}
               >
@@ -269,7 +305,7 @@ function Lines({
                 {isOpen ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}
               </button>
               {isOpen && (
-                <div className="flex flex-col gap-2.5 border-t border-[var(--ob-line)] bg-white/50 px-3 py-2.5 text-[13.5px]">
+                <div className="flex flex-col gap-2.5 border-t border-[var(--ob-line)] bg-[var(--ob-paper)] px-3 py-2.5 text-[13.5px]">
                   {g.routes.map((r) => {
                     const list = byRoute.get(r) ?? [];
                     const lastR = lastHere.filter((l) => l.route === r);

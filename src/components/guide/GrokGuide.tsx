@@ -375,6 +375,11 @@ export default function GrokGuide({
     if (open) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [msgs, busy, open]);
 
+  // Tell the map when the chat opens or closes, so its top-left panel folds out of the way.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("outbound:guide-state", { detail: { open } }));
+  }, [open]);
+
   // openGuide() from the hub, headers and empty states; an optional prompt is typed in, not sent.
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -509,7 +514,7 @@ export default function GrokGuide({
           className={`relative flex h-[680px] max-h-[calc(100dvh-8.5rem)] w-[460px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-border bg-white text-ink shadow-2xl ${
             // Phones/tablets on the map: stay below the Explore card. Desktop: the card is on the right.
             onMap && !openFromHeader
-              ? "min-[820px]:max-h-[max(320px,calc(100dvh-28rem))] desk:max-h-[calc(100dvh-10.5rem)]"
+              ? "min-[820px]:max-h-[max(320px,calc(100dvh-28rem))] desk:max-h-[calc(100dvh-15.5rem)]"
               : "desk:max-h-[calc(100dvh-6.5rem)]"
           }`}
         >

@@ -1,131 +1,133 @@
-// What the Pipeline page shows: how Outbound works end to end, the tracks we entered, every
-// agent and tool, and what we built it with. Plain data so the page stays a renderer.
+// What the Pipeline page shows: Outbound as one flow chart of six stages. Each stage opens to show
+// its steps, what to say about it in the demo, the tech, and the tracks it covers.
 
-export interface Node {
-  id: string;
+export type StageId = "trains" | "app" | "guide" | "play" | "rewards" | "host";
+
+export interface Stage {
+  id: StageId;
   title: string;
-  tech: string; // the service / library doing the work
-  what: string; // what happens here, one or two sentences
-  kind: "input" | "agent" | "tool" | "data" | "server" | "ui" | "chain";
-}
-export interface Flow {
-  id: string;
-  title: string;
-  blurb: string;
+  short: string; // one line under the title in the chart
+  color: string; // accent
+  emoji: string;
+  say: string; // the demo line: what this part does, in plain words
+  steps: { title: string; tech: string }[];
   tracks: string[];
-  nodes: Node[];
-  branchNote?: string;
+  notes?: string[]; // safety nets, honesty notes
 }
 
-export const FLOWS: Flow[] = [
+export const STAGES: Stage[] = [
   {
     id: "trains",
     title: "Live trains",
-    blurb: "Every Red, Orange and Green Line train on a 3D map, with delays measured against normal.",
-    tracks: ["Transit Gamification", "Tiger Data", "Vultr"],
-    nodes: [
-      { id: "mbta", kind: "input", title: "MBTA V3 API", tech: "Vehicle positions + predictions", what: "The official live feed: where every train is and when it is predicted at each stop." },
-      { id: "tracker", kind: "server", title: "Tracker", tech: "Python on Vultr (New York), 24/7", what: "Polls positions every 15 s and arrival predictions every 30 s, then writes them to the database." },
-      { id: "tiger", kind: "data", title: "Tiger Data", tech: "Postgres + TimescaleDB hypertables", what: "train_positions and arrival_predictions as time series. Lateness = predicted minus scheduled arrival, compared to the usual for that hour." },
-      { id: "api", kind: "server", title: "Next.js API", tech: "/api/trains, /api/lateness on Vercel", what: "Serves live positions (or a saved replay) and per-line delay badges like “Orange Line +8 min”." },
-      { id: "map", kind: "ui", title: "3D map", tech: "MapLibre GL + custom 3D train layer", what: "Trains glide along the real track, lines glow by delay, and the line list shows every train and tonight’s last train." },
+    short: "MBTA → Vultr → Tiger Data",
+    color: "#00843d",
+    emoji: "🚇",
+    say: "A tracker on Vultr reads every train from the MBTA every 15 seconds and stores it in Tiger Data, so we know where trains are and how late each line runs compared to normal.",
+    steps: [
+      { title: "MBTA V3 API", tech: "Train positions and predicted arrivals" },
+      { title: "Tracker", tech: "Python, runs 24/7 on Vultr (New York)" },
+      { title: "Tiger Data", tech: "Postgres + TimescaleDB time series: lateness vs normal" },
+      { title: "/api/trains, /api/lateness", tech: "Next.js on Vercel" },
     ],
+    tracks: ["Tiger Data", "Vultr", "Transit Gamification"],
+    notes: ["No live feed? The map replays saved trains and says so."],
+  },
+  {
+    id: "app",
+    title: "The map",
+    short: "Next.js + MapLibre 3D, Supabase",
+    color: "#6b1f33",
+    emoji: "🗺️",
+    say: "Students sign in with their school email and see Boston in 3D with live trains, quests and every restaurant and place worth XP. Tap anything for a card with reviews, cost and every way to ride there.",
+    steps: [
+      { title: "Sign in", tech: "Supabase Auth, school email only" },
+      { title: "3D map", tech: "MapLibre GL, live trains, campuses, XP on every place" },
+      { title: "Explore Boston", tech: "Craving, budget, time, line, open now, free food" },
+      { title: "Directions", tech: "Our own MBTA route graph: time, fare, transfers, ride preview" },
+    ],
+    tracks: ["Bos(tons) of Eats and Streets", "GoDaddy Registry (outboundwith.us)"],
+    notes: ["Routing works without any Google key."],
   },
   {
     id: "guide",
-    title: "Photo to trip (agents)",
-    blurb: "Snap or drop a photo of food or a place. A chain of agents figures out what it is, where to get it, and how to ride there.",
-    tracks: ["Cursor + Grok", "Gemini API", "Mastra"],
-    branchNote: "Food goes to the Food Researcher; a place goes straight to the Trip Planner; anything else asks for another photo.",
-    nodes: [
-      { id: "photo", kind: "input", title: "Your photo or question", tech: "Ask Guide chat", what: "Drag in a photo of dumplings, a skyline, a sign. Or just type what you want." },
-      { id: "vision", kind: "agent", title: "Photo checker", tech: "Grok vision (xAI Responses API)", what: "Describes the photo: what food or landmark it is, cues like signs and cuisine." },
-      { id: "decider", kind: "agent", title: "Photo Decider", tech: "Mastra agent on Gemini", what: "Decides the branch: food, a place, or neither. Keyword rules back it up if the model is down." },
-      { id: "food", kind: "agent", title: "Food Researcher", tech: "Mastra agent + findFoodPlaces tool", what: "Finds real spots near the T that serve it (Google Places when available, our quests otherwise)." },
-      { id: "trip", kind: "agent", title: "Trip Planner", tech: "Mastra agent + searchQuests, nextTrains, lineDelays, locatePlace", what: "Picks the best stop, checks the next trains and delays, and matches quests worth XP nearby." },
-      { id: "report", kind: "agent", title: "Report writer", tech: "structureReport tool, Gemini structured output", what: "Turns it all into one answer card: the spot, the ride, the quest, the XP." },
-      { id: "route", kind: "ui", title: "Route on the map", tech: "/api/route on our own MBTA track graph", what: "“Show route on map” draws up to 4 ways there with time, fare and transfers, then previews the ride." },
+    title: "AI Guide",
+    short: "Grok + Mastra agents on Gemini",
+    color: "#7c3aed",
+    emoji: "✨",
+    say: "Ask anything or drop a photo. Grok sees the photo, then Mastra agents on Gemini decide if it's food or a place, find where to get it near the T, plan the ride, and write one answer card.",
+    steps: [
+      { title: "Photo checker", tech: "Grok vision (xAI)" },
+      { title: "Photo Decider", tech: "Mastra agent: food, place or neither" },
+      { title: "Food Researcher", tech: "Mastra agent + findFoodPlaces" },
+      { title: "Trip Planner", tech: "Mastra agent + searchQuests, nextTrains, lineDelays, locatePlace" },
+      { title: "Report writer", tech: "Gemini structured output → answer card + route" },
     ],
+    tracks: ["Cursor + Grok", "Gemini API", "Mastra"],
+    notes: ["If Gemini runs out, Grok takes over in under a second for 10 minutes.", "The Guide also answers questions about the app itself."],
   },
   {
     id: "play",
-    title: "Check in to rewards",
-    blurb: "Go somewhere new, prove you are there, and earn XP, stamps, a spot on your school’s board, and tokens.",
-    tracks: ["Eats & Streets", "Transit Gamification", "Solana"],
-    nodes: [
-      { id: "tap", kind: "input", title: "Check in", tech: "Any quest, restaurant or place on the map", what: "Every spot shows its XP: kind of place + how far you rode + how cheap it is." },
-      { id: "rpc", kind: "server", title: "Location check", tech: "Supabase Postgres RPC check_in()", what: "The database checks you are within 75 m (or scanned the QR). The app can’t fake it: row-level security blocks direct writes." },
-      { id: "xp", kind: "data", title: "XP, stamps, streaks", tech: "005_gamification.sql", what: "XP and levels, Boston Passport stamps Bronze to Gold, badges, streaks, and double XP on the Quest of the Week." },
-      { id: "board", kind: "ui", title: "School leaderboard", tech: "Weekly view, cross-school bonus", what: "Your check-ins count for your school’s weekly rank. Visiting another campus earns a gold border." },
-      { id: "sol", kind: "chain", title: "OUT tokens", tech: "Solana Token-2022 on devnet + Phantom", what: "Claim 1 OUT per XP, then redeem sample coupons at 100 / 250 / 500 OUT." },
+    title: "Check in & play",
+    short: "Verified in the database",
+    color: "#d97706",
+    emoji: "📍",
+    say: "When you get there, tap Check in. The database checks you're within 75 meters, then gives XP, a passport stamp, streaks and badges, and points for your school's weekly leaderboard.",
+    steps: [
+      { title: "Check in", tech: "Your location, or the QR code at an event" },
+      { title: "check_in()", tech: "Supabase Postgres function, 75 m rule, row-level security" },
+      { title: "XP, passport, badges", tech: "Bronze → Silver → Gold per neighborhood, Quest of the Week 2×" },
+      { title: "School leaderboard", tech: "Weekly, cross-school gold border" },
     ],
+    tracks: ["Transit Gamification", "Bos(tons) of Eats and Streets"],
+    notes: ["The app can't fake XP: only the database can add it."],
+  },
+  {
+    id: "rewards",
+    title: "Rewards",
+    short: "OUT token on Solana",
+    color: "#0e7490",
+    emoji: "🎟️",
+    say: "Every XP is worth 1 OUT, our token on Solana. Claim it to your Phantom wallet, then spend it for discount coupons at spots. It's on devnet, Solana's test network, so it's free to try.",
+    steps: [
+      { title: "Earn XP", tech: "Check-ins (above)" },
+      { title: "Claim OUT", tech: "Our server mints 1 OUT per XP to your Phantom wallet (Token-2022)" },
+      { title: "Spend OUT", tech: "Phantom sends 100 / 250 / 500 OUT to the Outbound treasury" },
+      { title: "Coupon", tech: "We verify the transfer on Solana, then show a code and QR" },
+    ],
+    tracks: ["Solana"],
+    notes: ["Devnet test token and sample coupons, no real money."],
   },
   {
     id: "host",
     title: "Host an event",
-    blurb: "Students and clubs put events on the map: what it is, if there is free food, and what you can win.",
-    tracks: ["BU Spark!"],
-    nodes: [
-      { id: "form", kind: "input", title: "Create an event", tech: "Host tab", what: "Type (party, study jam…), description, food (free, cheap, paid), prizes, time and the closest T stop." },
-      { id: "db", kind: "data", title: "hosted_events", tech: "Supabase, row-level security", what: "Anyone signed in can publish as themselves; only the host can delete it." },
-      { id: "pins", kind: "ui", title: "On everyone’s map", tech: "Event pins + Explore count", what: "A purple pin (pink while it is happening) with a Free food tag, counted on the Explore card." },
-      { id: "go", kind: "ui", title: "Directions there", tech: "Place card", what: "Tap it: when, who, food, prizes and every way to ride there from where you are." },
+    short: "Students put events on the map",
+    color: "#db2777",
+    emoji: "🎉",
+    say: "Any student or club can publish an event: what it is, whether there's free food, and prizes. It shows up on everyone's map right away, so people from different schools actually meet.",
+    steps: [
+      { title: "Create an event", tech: "Host tab: type, description, food, prizes, time, T stop" },
+      { title: "hosted_events", tech: "Supabase, publish as yourself, delete your own" },
+      { title: "On every map", tech: "Event pin, Free food tag, count on Explore" },
     ],
+    tracks: ["BU Spark! Hack Our Space"],
   },
 ];
 
-export interface Track {
-  name: string;
-  kind: "BostonHacks" | "MLH";
-  how: string;
-}
-export const TRACKS: Track[] = [
-  { name: "Bos(tons) of Eats and Streets", kind: "BostonHacks", how: "Find food and things to do by craving, budget and time, with the T ride and cost to get there." },
-  { name: "Transit Gamification", kind: "BostonHacks", how: "XP for every ride and check-in, passport stamps, expeditions, school leaderboard." },
-  { name: "BU Spark! Hack Our Space", kind: "BostonHacks", how: "Host tab: put a real event on the map so students from different schools meet in person." },
-  { name: "Cursor + Grok (SpaceXSI)", kind: "MLH", how: "Grok powers the Ask Guide chat and photo vision; Verna built the badges in Cursor." },
-  { name: "Gemini API", kind: "MLH", how: "Search that turns “cheap dumplings 40 min” into filters, and the Mastra agents’ model." },
-  { name: "Mastra", kind: "MLH", how: "The Guide is a Mastra workflow: Photo Decider, Food Researcher, Trip Planner, Report writer." },
-  { name: "Tiger Data", kind: "MLH", how: "Train positions and arrival predictions as time series; lateness vs normal per line." },
-  { name: "Vultr", kind: "MLH", how: "The train tracker runs 24/7 on a Vultr instance in New York." },
-  { name: "Solana", kind: "MLH", how: "OUT, a Token-2022 token on devnet: claim XP as OUT, redeem sample coupons with Phantom." },
-  { name: "GoDaddy Registry", kind: "MLH", how: "outboundwith.us, a .us domain." },
+/** Chart layout: the main row, and Host feeding into the map from below. */
+export const MAIN_ROW: StageId[] = ["trains", "app", "guide", "play", "rewards"];
+
+export const TRACKS: { name: string; kind: "BostonHacks" | "MLH" }[] = [
+  { name: "Bos(tons) of Eats and Streets", kind: "BostonHacks" },
+  { name: "Transit Gamification", kind: "BostonHacks" },
+  { name: "BU Spark! Hack Our Space", kind: "BostonHacks" },
+  { name: "Cursor + Grok", kind: "MLH" },
+  { name: "Gemini API", kind: "MLH" },
+  { name: "Mastra", kind: "MLH" },
+  { name: "Tiger Data", kind: "MLH" },
+  { name: "Vultr", kind: "MLH" },
+  { name: "Solana", kind: "MLH" },
+  { name: "GoDaddy Registry", kind: "MLH" },
 ];
 
-export const AGENTS: { name: string; model: string; job: string; tools?: string[] }[] = [
-  { name: "Outbound Guide", model: "Grok (xAI)", job: "The chat: answers questions about Boston, quests and the T." },
-  { name: "Photo checker", model: "Grok vision, Gemini vision backup", job: "Says what food or place is in a photo." },
-  { name: "Photo Decider", model: "Gemini via Mastra", job: "Routes a photo to food, place or neither." },
-  { name: "Food Researcher", model: "Gemini via Mastra", job: "Finds spots near the T that serve it.", tools: ["findFoodPlaces"] },
-  { name: "Trip Planner", model: "Gemini via Mastra", job: "Best stop, next trains, delays, quests nearby.", tools: ["searchQuests", "nextTrains", "lineDelays", "locatePlace"] },
-  { name: "Report writer", model: "Gemini structured output", job: "One clean answer card for the UI.", tools: ["structureReport"] },
-  { name: "Search", model: "Gemini 2.5 Flash", job: "Free text to Craving / Budget / Time filters, keyword fallback." },
-];
-
-export const RELIABILITY = [
-  "Model chain: Gemini 2.5 Flash, then Flash-Lite, then Grok. After a Gemini quota or server error, Grok goes first for 10 minutes, so the demo never shows an error.",
-  "Routing works with no Google key: our own graph of MBTA track and stops.",
-  "No live MBTA feed? The map replays saved trains from Tiger Data and says so.",
-  "Check-ins are verified in the database (75 m), not in the app.",
-];
-
-export const STACK: { group: string; items: string[] }[] = [
-  { group: "App", items: ["Next.js 15", "React 19", "TypeScript", "Tailwind CSS v4", "MapLibre GL (3D)"] },
-  { group: "Data", items: ["Supabase (Auth with school email, Postgres, row-level security, RPCs)", "Tiger Data (TimescaleDB)", "MBTA V3 API"] },
-  { group: "AI", items: ["Mastra workflows and agents", "Gemini 2.5 Flash / Flash-Lite", "Grok (xAI) text and vision"] },
-  { group: "Infra", items: ["Vercel", "Vultr (tracker)", "Solana devnet + Phantom", "outboundwith.us"] },
-  { group: "How we built it", items: ["Cursor (badges, UI)", "Claude Code (backend, agents, tests)", "GitHub pull requests", "Vitest + Playwright"] },
-];
-
-export const TEAM: { name: string; role: string }[] = [
-  { name: "Verna", role: "Map and UI design: 3D map, trains, game layer" },
-  { name: "Angie", role: "App screens: sign-in, quests, passport, leaderboard, rewards" },
-  { name: "Bharath", role: "Backend: Supabase, Tiger Data tracker, agents, Solana, Vultr" },
-  { name: "Suki", role: "Content, game logic, survey, Mastra photo trip, pitch" },
-];
-
-export const HONESTY = [
-  "Reviews on place cards are samples, labeled “Sample reviews”.",
-  "Leaderboard players marked (sim) are simulated from our survey.",
-  "Coupons are samples; OUT is on Solana devnet, not real money.",
-];
+export const BUILT_WITH = "Built by Verna (map, design), Angie (app screens), Bharath (backend, agents, Solana) and Suki (content, game logic, pitch), with Cursor and Claude Code.";
+export const HONESTY = "Sample reviews, simulated leaderboard players (marked sim), sample coupons and a devnet token are labeled as such in the app.";

@@ -26,7 +26,7 @@ import { CityBuildingsLayer, fetchBpdaManifest, fetchRegionManifest, inBpda, inR
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
 import SearchBox, { pointInRing } from "./SearchBox";
 import Explorer, { type ExplorerHandle } from "./Explorer";
-import MapPanel, { type MapShow } from "./MapPanel";
+import MapPanel, { LinesPanel, type MapShow } from "./MapPanel";
 import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
@@ -132,6 +132,27 @@ export default function TransitMap() {
       localStorage.setItem("outbound.mapPanel.folded", v ? "1" : "0");
     } catch {}
   };
+  // The MBTA lines card under Explore Boston folds the same way (phones start folded).
+  const [linesFolded, setLinesFolded] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("outbound.lines.folded");
+      setLinesFolded(saved ? saved === "1" : window.matchMedia("(max-width: 63.99rem)").matches);
+    } catch {}
+  }, []);
+  const foldLines = (v: boolean) => {
+    setLinesFolded(v);
+    try {
+      localStorage.setItem("outbound.lines.folded", v ? "1" : "0");
+    } catch {}
+  };
+  // While the Ask Guide chat is open (bottom left) the map panel (top left) folds, so they never overlap.
+  const [guideOpen, setGuideOpen] = useState(false);
+  useEffect(() => {
+    const on = (e: Event) => setGuideOpen(!!(e as CustomEvent<{ open: boolean }>).detail?.open);
+    window.addEventListener("outbound:guide-state", on);
+    return () => window.removeEventListener("outbound:guide-state", on);
+  }, []);
   const [userLoc, setUserLoc] = useState<[number, number] | null>(null);
   const userLocRef = useRef<[number, number] | null>(null);
   const meMarker = useRef<maplibregl.Marker | null>(null);
@@ -328,9 +349,9 @@ export default function TransitMap() {
 
         // campuses: one outline + see-through fill per school (real campus areas from OpenStreetMap via Overture Maps)
         m.addSource("campuses", { type: "geojson", data: "/data/campuses.geojson" });
-        m.addLayer({ id: "campus-fill", type: "fill", source: "campuses", paint: { "fill-color": ["get", "color"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0.22, 16, 0.14] } }, beforeLines);
+        m.addLayer({ id: "campus-fill", type: "fill", source: "campuses", paint: { "fill-color": ["get", "color"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0.42, 16, 0.3] } }, beforeLines);
         m.addLayer({ id: "campus-halo", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.5, 16, 5], "line-opacity": 0.85 } }, beforeLines);
-        m.addLayer({ id: "campus-line", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 16, 2.4], "line-dasharray": [3, 2] } }, beforeLines);
+        m.addLayer({ id: "campus-line", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2, 16, 3.6], "line-dasharray": [3, 2] } }, beforeLines);
 
         // game-style 3D city: Boston's own building models (BPDA), Cambridge footprints + heights, trees
         const city = new CityBuildingsLayer(manifest, region);
@@ -1453,7 +1474,7 @@ export default function TransitMap() {
       <div className="pointer-events-none absolute top-[calc(var(--ob-map-top,0px)+10px)] right-[64px] bottom-[150px] left-3 flex flex-col gap-2 desk:contents">
         <div className="pointer-events-none flex *:pointer-events-auto min-h-0 shrink-0 flex-col desk:absolute desk:top-4 desk:bottom-[100px] desk:left-4 desk:w-[clamp(380px,29vw,440px)] desk:shrink">
           <MapPanel
-            collapsed={panelFolded}
+            collapsed={panelFolded || guideOpen}
             setCollapsed={foldPanel}
             is3D={is3D}
             setIs3D={setIs3D}
@@ -1463,15 +1484,9 @@ export default function TransitMap() {
             setShow={setShow}
             delayColors={delayColors}
             setDelayColors={setDelayColors}
-            badge={feedMode === "live" && lastUpdate ? "LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
-            status={statusText}
+            replaying={feedMode === "replay"}
             replayLabel={feedMode === "live" ? "Replay" : "Live"}
             onReplay={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
-            weather={weather ? <WeatherChip w={weather} night={isNight} /> : null}
-            trains={trainList}
-            lateness={lateness?.lines ?? null}
-            stationName={stationName}
-            onTrain={(t) => mapRef.current?.flyTo({ center: [t.lon, t.lat], zoom: Math.max(mapRef.current.getZoom(), 15), duration: 1500 })}
           />
         </div>
         <div className="pointer-events-none flex *:pointer-events-auto min-h-0 flex-col gap-2 desk:absolute desk:top-[calc(var(--ob-map-top,0px)+12px)] desk:right-4 desk:bottom-[76px] desk:w-[clamp(380px,29vw,440px)]">
@@ -1494,6 +1509,17 @@ export default function TransitMap() {
             );
             return searchSlot ? createPortal(search, searchSlot) : search;
           })()}
+          <LinesPanel
+            collapsed={linesFolded}
+            setCollapsed={foldLines}
+            badge={feedMode === "live" && lastUpdate ? "LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
+            status={statusText}
+            weather={weather ? <WeatherChip w={weather} night={isNight} /> : null}
+            trains={trainList}
+            lateness={lateness?.lines ?? null}
+            stationName={stationName}
+            onTrain={(t) => mapRef.current?.flyTo({ center: [t.lon, t.lat], zoom: Math.max(mapRef.current.getZoom(), 15), duration: 1500 })}
+          />
           <Explorer ref={explorer} map={ready ? mapRef.current : null} userLoc={userLoc} />
           {notice && (
             <button className="ob-panel px-3 py-2 text-left text-[13px] text-amber-800" onClick={() => setNotice(null)}>

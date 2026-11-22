@@ -98,7 +98,7 @@ export default function RewardsPage() {
     <LiveRewards />
   ) : (
     <Frame>
-      {<Notice>Rewards run on the live backend. Switch NEXT_PUBLIC_DATA_SOURCE to supabase to claim OUT.</Notice>}
+      <SetupCheck />
     </Frame>
   );
 }
@@ -112,6 +112,7 @@ function Frame({ children }: { children: React.ReactNode }) {
           Every XP you earn is 1 OUT, a token on Solana. Claim it to your Phantom wallet, then spend it on discounts at
           quest spots. OUT is a devnet test token, and the coupons are samples.
         </p>
+        <HowItWorks />
         {children}
       </div>
     </>
@@ -519,5 +520,100 @@ function LiveRewards() {
 }
 
 function Notice({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-lg border border-[#F0D58E] bg-[#FFF4D6] px-3.5 py-2.5 text-sm text-ink-2">{children}</p>;
+  return (
+    <p className="rounded-lg border border-[#F0D58E] bg-[#FFF4D6] px-3.5 py-2.5 text-sm text-[#3d2a2e] dark:border-amber-700/60 dark:bg-amber-950/50 dark:text-amber-100">
+      {children}
+    </p>
+  );
+}
+
+/** The whole Solana loop in four steps, so anyone (judges included) gets it at a glance. */
+function HowItWorks() {
+  const steps = [
+    { n: 1, t: "Earn XP", d: "Check in at quests and places on the map. The database checks you are really there." },
+    { n: 2, t: "Claim OUT", d: "1 XP = 1 OUT. Our server mints OUT straight to your Phantom wallet on Solana (devnet)." },
+    { n: 3, t: "Spend OUT", d: "Pick a coupon: 100, 250 or 500 OUT. Phantom sends that OUT back to the Outbound treasury." },
+    { n: 4, t: "Get a coupon", d: "We verify that transfer on Solana and give you a coupon code and QR (samples for the demo)." },
+  ];
+  return (
+    <ol className="mb-6 grid grid-cols-1 gap-3 min-[560px]:grid-cols-2 desk:grid-cols-4">
+      {steps.map((s) => (
+        <li key={s.n} className="flex gap-3 rounded-2xl border border-border bg-surface p-4">
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-maroon font-bold text-white">{s.n}</span>
+          <span className="min-w-0">
+            <span className="block text-[16px] font-semibold text-ink">{s.t}</span>
+            <span className="block text-[14px] text-muted-foreground">{s.d}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+interface RewardsStatus {
+  dataSource: "supabase" | "mock";
+  supabase: boolean;
+  mint: boolean;
+  mintKey: string | null;
+  signer: boolean;
+  signerKey: string | null;
+  rewardsSecret: boolean;
+  devnet: boolean;
+  signerSol: number | null;
+}
+
+/** Shown when the app runs on sample data: what's set up on this server, and what to add. */
+function SetupCheck() {
+  const [st, setSt] = useState<RewardsStatus | null | "error">(null);
+  useEffect(() => {
+    fetch("/api/rewards/status")
+      .then((r) => r.json())
+      .then(setSt)
+      .catch(() => setSt("error"));
+  }, []);
+  const rows: [string, boolean | null, string][] =
+    st && st !== "error"
+      ? [
+          ["App uses the real database", false, "Add NEXT_PUBLIC_DATA_SOURCE=supabase to .env.local, then restart npm run dev."],
+          ["Supabase URL and key", st.supabase, "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local."],
+          ["OUT token (mint address)", st.mint, "NEXT_PUBLIC_OUT_MINT from scripts/solana-setup.mjs."],
+          ["Server wallet that mints OUT", st.signer, "SOLANA_SECRET_KEY (server only) from scripts/solana-setup.mjs."],
+          ["Rewards secret", st.rewardsSecret, "REWARDS_SECRET (server only), the same value as in Supabase."],
+          ["Solana devnet reachable", st.devnet, "Check your internet connection."],
+        ]
+      : [];
+  return (
+    <div className="flex flex-col gap-3">
+      <Notice>
+        Rewards are off because the app is running on <b>sample data</b> (your XP here is the sample player&apos;s). OUT
+        needs real accounts, so it only runs on the real database.
+      </Notice>
+      {st === null && <p className="text-sm text-muted-foreground">Checking this server&apos;s setup…</p>}
+      {st === "error" && <p className="text-sm text-muted-foreground">Couldn&apos;t check the setup. Is npm run dev running?</p>}
+      {rows.length > 0 && (
+        <ul className="flex flex-col divide-y divide-border rounded-2xl border border-border bg-surface">
+          {rows.map(([label, ok, fix]) => (
+            <li key={label} className="flex items-start gap-3 px-4 py-3">
+              <span
+                className={cn(
+                  "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-sm font-bold text-white",
+                  ok ? "bg-emerald-600" : "bg-amber-500",
+                )}
+                aria-label={ok ? "Ready" : "Missing"}
+              >
+                {ok ? "✓" : "!"}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[15px] font-semibold text-ink">{label}</span>
+                {!ok && <span className="block text-[13.5px] text-muted-foreground">{fix}</span>}
+                {ok && label.startsWith("Server wallet") && st && st !== "error" && st.signerSol !== null && (
+                  <span className="block text-[13.5px] text-muted-foreground">{st.signerSol.toFixed(2)} devnet SOL for fees</span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
