@@ -368,3 +368,18 @@
 .ob-quest { cursor: pointer; display: flex; align-items: center; gap: 3px; padding: 3px 7px 3px 4px; border-radius: 999px; background: #fffbeb; border: 2px solid #f59e0b; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.25); }
 .ob-quest-icon { display: grid; place-items: center; line-height: 0; color: #b45309; }
 .ob-quest-pts { font: 700 10px/1 var(--font-dm-sans, system-ui), system-ui, sans-serif; color: #b45309; }
+
+/* A soft fade from the page color to transparent, eased so it has no visible edge (the
+   shell's scroll fade and the station panel's header). Stops follow an ease-out curve instead of a straight line. */
+@utility ob-fade-down {
+  background-color: var(--background);
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    rgb(0 0 0 / 0.85) 20%,
+    rgb(0 0 0 / 0.62) 40%,
+    rgb(0 0 0 / 0.36) 60%,
+    rgb(0 0 0 / 0.14) 80%,
+    transparent 100%
+  );
+}
