@@ -1,20 +1,29 @@
-import Link from "next/link";
+// Full-page quest detail: the page a share-card QR code opens. Owner: Angie.
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getPublicQuest } from "@/lib/public-quest";
+import { QuestPage } from "@/features/hub/quest-page";
+import { data } from "@/lib/data";
 
-export default async function QuestSharePage({ params }: { params: Promise<{ questId: string }> }) {
-  const { questId } = await params;
-  const quest = await getPublicQuest(questId);
-  if (!quest) notFound();
+type Props = { params: Promise<{ questId: string }> };
 
-  return (
-    <main className="mx-auto max-w-xl space-y-4 p-8">
-      <p>Outbound · Boston Passport</p>
-      <h1 className="text-2xl font-bold">{quest.title}</h1>
-      {quest.station && <p>{quest.station.name} · {quest.station.neighborhood}</p>}
-      {quest.description && <p>{quest.description}</p>}
-      <p>{quest.xp} base XP</p>
-      <Link href="/" className="underline">Explore the quest map</Link>
-    </main>
-  );
+async function load(questId: string) {
+  const quest = await data.getQuest(questId);
+  if (!quest) return null;
+  const station = await data.getStation(quest.station_id);
+  return station ? { quest, station } : null;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const found = await load((await params).questId);
+  if (!found) return { title: "Quest not found" };
+  return {
+    title: found.quest.title,
+    description: found.quest.description ?? `A quest near ${found.station.name} station`,
+  };
+}
+
+export default async function QuestSharePage({ params }: Props) {
+  const found = await load((await params).questId);
+  if (!found) notFound();
+  return <QuestPage quest={found.quest} station={found.station} />;
 }

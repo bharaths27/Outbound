@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Outbound · Passport (desktop)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#6B1F33}a:hover{color:#4A1424}
+</style>
+</helmet>
+<div style="min-height: 100vh; font-family: 'DM Sans', system-ui, sans-serif; color: #2B1A1F; background-color: #FFF8EF">
+
+  <header style="background: #6B1F33; color: #FFFFFF">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 12px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px">
+      <a href="explore-default.html" style="display: flex; align-items: center; padding: 8px 0; text-decoration: none"><img src="../../assets/outbound-wordmark.svg" alt="Outbound home" style="height: 28px; width: auto; display: block"></a>
+      <nav aria-label="Primary" style="flex: 1; display: flex; flex-wrap: wrap; gap: 4px">
+        <a href="explore-stop-selected-leaderboard-open.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Explore</a>
+        <a href="quests.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Quests</a>
+        <a href="passport.html" aria-current="page" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; background: #FBF6EC; color: #6B1F33; font-size: 15px; font-weight: 700; text-decoration: none">Passport</a>
+        <a href="leaderboard-schools.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Leaderboard</a>
+        <a href="#" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Events</a>
+      </nav>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; background: #F2C14E; color: #4A1424; font-size: 14px; font-weight: 700"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z"></path></svg>3,420 XP</span>
+        <button aria-label="Notifications" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: rgba(255, 255, 255, 0.12); color: #FFFFFF; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"></path></svg></button>
+        <span aria-hidden="true" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #F2C14E; color: #4A1424; border: 2px solid #FBF6EC; box-sizing: border-box; font-family: 'Fraunces', Georgia, serif; font-size: 18px; font-weight: 700">V</span>
+      </div>
+    </div>
+  </header>
+
+  <div style="max-width: 1360px; margin: 0 auto; padding: 28px 32px 40px; display: flex; flex-wrap: wrap; gap: 24px; box-sizing: border-box; align-items: flex-start">
+
+    <aside style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+      <section aria-label="Profile" style="padding: 24px; border-radius: 24px; background: #6B1F33; color: #FFFFFF; text-align: center">
+        <div aria-hidden="true" style="width: 96px; height: 96px; margin: 0 auto; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #F2C14E; color: #4A1424; border: 4px solid #FBF6EC; font-family: 'Fraunces', Georgia, serif; font-size: 40px; font-weight: 700">V</div>
+        <h1 style="margin: 12px 0 0; font-family: 'Fraunces', Georgia, serif; font-size: 28px; font-weight: 600">Verna</h1>
+        <div style="font-size: 14px; color: #F1DCE1">BU ’27</div>
+        <div style="margin-top: 16px; padding: 14px; border-radius: 16px; background: #FBF6EC; color: #2B1A1F; text-align: left">
+          <div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-family: 'Fraunces', Georgia, serif; font-size: 18px; font-weight: 600; color: #6B1F33">Lv. 12 Explorer</span><span style="font-size: 13px; color: #6E5A5E">Lv. 13 next</span></div>
+          <div role="progressbar" aria-label="Progress to level 13" aria-valuemin="0" aria-valuemax="4000" aria-valuenow="3420" style="height: 10px; margin-top: 10px; border-radius: 999px; background: #F1E6D3; overflow: hidden"><div style="width: 85.5%; height: 100%; border-radius: 999px; background: #E5A92F"></div></div>
+          <div style="margin-top: 6px; font-size: 13px; color: #6E5A5E">3,420 / 4,000 XP</div>
+        </div>
+        <dl style="margin: 16px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+          <div><dt style="font-size: 12px; color: #F1DCE1">Stamps</dt><dd style="margin: 2px 0 0; font-family: 'Fraunces', Georgia, serif; font-size: 24px; font-weight: 700">10</dd></div>
+          <div><dt style="font-size: 12px; color: #F1DCE1">Gold</dt><dd style="margin: 2px 0 0; font-family: 'Fraunces', Georgia, serif; font-size: 24px; font-weight: 700">1</dd></div>
+          <div><dt style="font-size: 12px; color: #F1DCE1">Cross-school</dt><dd style="margin: 2px 0 0; font-family: 'Fraunces', Georgia, serif; font-size: 24px; font-weight: 700">1</dd></div>
+        </dl>
+      </section>
+
+      <section aria-label="Next stamp" style="padding: 20px; border-radius: 24px; background: #FFFFFF; border: 1px solid #EADDC8">
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #8A2A44">Next stamp</div>
+        <div style="display: flex; gap: 12px; align-items: center; margin-top: 10px">
+          <svg width="56" height="56" viewBox="0 0 100 100" aria-hidden="true" style="flex: none"><circle cx="50" cy="50" r="46" fill="#F3EDE3" stroke="#B7ABA4" stroke-width="3.5" stroke-dasharray="2.5 3"></circle><path d="M30 44h40v18H30zM34 48h8v6h-8zM46 48h8v6h-8zM58 48h8v6h-8zM36 62v4M64 62v4M50 44v-6" fill="none" stroke="#8C7F79" stroke-width="3" stroke-linejoin="round"></path></svg>
+          <div>
+            <div style="font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600">Jamaica Plain</div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 13px; color: #6E5A5E"><span style="width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #C46A00; color: #FFFFFF; font-size: 10px; font-weight: 700">O</span>Green St · Orange Line</div>
+          </div>
+        </div>
+        <p style="margin: 12px 0 14px; font-size: 14px; line-height: 1.5; color: #5A4549">Finish one quest in Jamaica Plain to earn its bronze stamp.</p>
+        <a href="quests.html" style="display: flex; align-items: center; justify-content: center; height: 46px; border-radius: 14px; background: #6B1F33; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none">See JP quests</a>
+      </section>
+    </aside>
+
+    <main style="flex: 999 1 760px; min-width: 0; padding: 16px; border-radius: 30px; background: #6B1F33; box-shadow: 0 14px 36px rgba(74, 20, 36, 0.22); height: 609px">
+      <div style="display: flex; flex-wrap: wrap; gap: 6px; border-radius: 20px; overflow: hidden; height: 605px">
+        <section aria-label="Passport cover" style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px 24px; background: #7D2A40; color: #FFFFFF; text-align: center; border-radius: 20px 6px 6px 20px">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#F2C14E" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"></path></svg>
+          <h2 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-style: italic; font-size: 40px; font-weight: 600; line-height: 1.05">Boston<br>Passport</h2>
+          <svg width="200" height="160" viewBox="0 0 200 160" role="img" aria-label="Stamp illustration of the Zakim Bridge and the Boston skyline">
+            <rect x="4" y="4" width="192" height="152" rx="6" fill="#FBF6EC" stroke="#FBF6EC" stroke-width="8" stroke-dasharray="4 4"></rect>
+            <rect x="14" y="14" width="172" height="132" rx="3" fill="#F1D7B6"></rect>
+            <g fill="#7F95B8"><rect x="104" y="44" width="16" height="70"></rect><rect x="124" y="30" width="18" height="84"></rect><rect x="146" y="56" width="14" height="58"></rect><rect x="88" y="64" width="14" height="50"></rect><rect x="162" y="70" width="14" height="44"></rect></g>
+            <rect x="14" y="112" width="172" height="34" fill="#9FC4D8"></rect>
+            <g stroke="#2B1A1F" stroke-width="2.5" fill="none" stroke-linecap="round"><path d="M42 112L52 44L62 112M48 70h8M138 112L148 52L158 112"></path><path d="M14 104H186"></path></g>
+            <g stroke="#2B1A1F" stroke-width="1" fill="none"><path d="M52 50L20 104M52 50L32 104M52 50L44 104M52 50L64 104M52 50L80 104M52 50L96 104M148 56L116 104M148 56L130 104M148 56L170 104M148 56L182 104"></path></g>
+            <rect x="72" y="94" width="40" height="10" rx="3" fill="#F2C14E" stroke="#2B1A1F" stroke-width="1.5"></rect>
+          </svg>
+          <span style="padding: 8px 18px; border-radius: 999px; background: #F2C14E; color: #4A1424; font-size: 14px; font-weight: 700">Lv. 12 Explorer</span>
+          <div style="font-size: 12px; letter-spacing: 0.18em; color: #F1DCE1">EXPLORE · EAT · MEET · EARN</div>
+        </section>
+
+        <section aria-label="Stamps" style="flex: 999 1 480px; min-width: 0; padding: 22px 24px 20px; background: #FBF6EC; border-radius: 6px 20px 20px 6px; display: flex; flex-direction: column; gap: 18px">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+            <h2 style="flex: 1; margin: 0; font-family: 'Fraunces', Georgia, serif; font-style: italic; font-size: 28px; font-weight: 600; color: #6B1F33">My Passport</h2>
+            <div role="tablist" aria-label="Stamp collections" style="display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: #F1E6D3">
+              <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+                <sc-if value="{{t.on}}" hint-placeholder-val="{{false}}">
+                  <button role="tab" aria-selected="true" onClick="{{t.pick}}" style="height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: #6B1F33; color: #FFFFFF; font: 600 14px 'DM Sans', sans-serif; cursor: pointer">{{t.label}}</button>
+                </sc-if>
+                <sc-if value="{{t.off}}" hint-placeholder-val="{{true}}">
+                  <button role="tab" aria-selected="false" onClick="{{t.pick}}" style="height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: #5A4549; font: 600 14px 'DM Sans', sans-serif; cursor: pointer">{{t.label}}</button>
+                </sc-if>
+              </sc-for>
+            </div>
+          </div>
+
+          <sc-if value="{{showGrid}}" hint-placeholder-val="{{true}}">
+            <ul style="margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 16px 12px">
+              <sc-for list="{{stamps}}" as="s" hint-placeholder-count="8">
+                <li style="list-style: none; display: flex; flex-direction: column; align-items: center; gap: 6px">
+                  <svg width="124" height="124" viewBox="0 0 100 100" role="img" aria-label="{{s.aria}}">
+                    <circle cx="50" cy="50" r="46" fill="{{s.bg}}" stroke="{{s.ring}}" stroke-width="3.5" stroke-dasharray="2.5 3"></circle>
+                    <circle cx="50" cy="50" r="39" fill="none" stroke="{{s.ink}}" stroke-width="1.4"></circle>
+                    <path id="darc-{{s.key}}" d="M17 54 A33 33 0 0 1 83 54" fill="none"></path>
+                    <text font-family="DM Sans, sans-serif" font-size="9" font-weight="700" letter-spacing="0.8" fill="{{s.ink}}"><textPath href="#darc-{{s.key}}" startOffset="50%" text-anchor="middle">{{s.upper}}</textPath></text>
+                    <path d="{{s.glyph}}" transform="translate(50 62) scale(0.72) translate(-50 -52)" fill="none" stroke="{{s.ink}}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                  <div aria-hidden="true" style="display: flex; gap: 5px">
+                    <sc-for list="{{s.dots}}" as="d" hint-placeholder-count="3">
+                      <sc-if value="{{d.on}}" hint-placeholder-val="{{true}}"><span style="width: 9px; height: 9px; border-radius: 50%; background: #C7901A"></span></sc-if>
+                      <sc-if value="{{d.off}}" hint-placeholder-val="{{false}}"><span style="width: 9px; height: 9px; border-radius: 50%; background: #DCCFBD"></span></sc-if>
+                    </sc-for>
+                  </div>
+                </li>
+              </sc-for>
+            </ul>
+          </sc-if>
+          <sc-if value="{{showLocked}}" hint-placeholder-val="{{false}}">
+            <div style="min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; border: 2px dashed #DCCFBD; border-radius: 18px; color: #6E5A5E">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6B1F33" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+              <div style="font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; color: #2B1A1F">Special stamps are locked</div>
+              <div style="font-size: 15px; line-height: 1.5">Seasonal and event-only stamps unlock at [LEVEL]. Keep riding to reveal them.</div>
+            </div>
+          </sc-if>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 10px 24px; padding-top: 14px; border-top: 1px solid #E6D8C2; font-size: 13px; color: #5A4549">
+            <div style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 50%; border: 3px solid #A8643A; box-sizing: border-box"></span><b style="color: #2B1A1F">Bronze</b> 1 quest</div>
+            <div style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 50%; background: #9AA3B2"></span><b style="color: #2B1A1F">Silver</b> 2 categories</div>
+            <div style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 50%; background: #E5A92F"></span><b style="color: #2B1A1F">Gold</b> 3 quests</div>
+            <div style="display: flex; align-items: center; gap: 8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="#E5A92F" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z"></path></svg><b style="color: #2B1A1F">Cross-school</b> with another school</div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 'core' }; }
+  renderVals() {
+    const G = {
+      stadium: 'M26 66h48M30 66V54h40v12M34 54l4-8h24l4 8M42 46v-6h16v6',
+      common: 'M38 66V52M30 52a8 8 0 1 1 16 0zM56 66V56h12v10M54 56l8-7 8 7M26 66h48',
+      gate: 'M28 44h44M32 50h36M36 44v22M64 44v22M44 50v16M56 50v16M30 44l-4-4h48l-4 4',
+      church: 'M50 32v10M46 36h8M44 66V50l6-8 6 8v16M32 66V56h12M56 56h12v10M28 66h44',
+      brownstone: 'M28 66V48h14v18M42 66V44h16v22M58 66V48h14v18M32 54h6M46 52h8M62 54h6',
+      wheel: 'M36 52a14 14 0 1 0 28 0a14 14 0 1 0 -28 0M50 38v28M36 52h28M42 68l8-16 8 16',
+      houses: 'M28 66V52l8-6 8 6v14M44 66V48h14v18M58 66V52l7-5 7 5v14',
+      trolley: 'M30 44h40v18H30zM34 48h8v6h-8zM46 48h8v6h-8zM58 48h8v6h-8zM36 62v4M64 62v4M50 44v-6',
+      dome: 'M34 66V54h32v12M38 54a12 12 0 0 1 24 0M50 42v-6M28 66h44',
+      lighthouse: 'M46 66l2-24h4l2 24M44 42h12M50 42v-6M40 66h20'
+    };
+    const C = { m: ['#8A2A44', '#FBEFF1', '#8A2A44'], b: ['#1F4A7A', '#EEF3FA', '#1F4A7A'], g: ['#2F6B4F', '#EEF5EF', '#2F6B4F'], gold: ['#1F4A7A', '#FFF4D6', '#D9A21B'], lock: ['#8C7F79', '#F3EDE3', '#B7ABA4'] };
+    const core = [
+      ['Fenway', 'stadium', 'm', 1], ['Boston Common', 'common', 'g', 2], ['Chinatown', 'gate', 'm', 1], ['North End', 'church', 'm', 1],
+      ['Back Bay', 'brownstone', 'gold', 3], ['Seaport', 'wheel', 'm', 1], ['Allston', 'houses', 'b', 2], ['Jamaica Plain', 'trolley', 'lock', 0]
+    ];
+    const nearby = [
+      ['Cambridge', 'dome', 'b', 2], ['Somerville', 'houses', 'g', 1], ['Brookline', 'trolley', 'm', 1],
+      ['Salem', 'lighthouse', 'lock', 0], ['Quincy', 'church', 'lock', 0], ['Medford', 'common', 'lock', 0]
+    ];
+    const tier = ['Not yet stamped', 'Bronze', 'Silver', 'Gold'];
+    const list = this.state.tab === 'nearby' ? nearby : core;
+    const stamps = list.map(([name, g, c, n], i) => {
+      const [ink, bg, ring] = C[c];
+      return { key: this.state.tab + i, upper: name.toUpperCase(), glyph: G[g], ink, bg, ring,
+        aria: name + ' stamp, ' + tier[n], dots: [0, 1, 2].map((k) => ({ on: k < n, off: k >= n })) };
+    });
+    const tabs = [['core', 'Boston Core (8)'], ['nearby', 'Nearby Cities (6)'], ['special', 'Special']].map(([id, label]) => ({
+      label, on: this.state.tab === id, off: this.state.tab !== id, pick: () => this.setState({ tab: id }) }));
+    return { stamps, tabs, showGrid: this.state.tab !== 'special', showLocked: this.state.tab === 'special' };
+  }
+}
+</script>
+</body>
+</html>

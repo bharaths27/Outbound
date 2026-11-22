@@ -100,15 +100,15 @@ export default function GrokGuide() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
+    <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 desk:bottom-6 desk:right-6 z-50 flex flex-col items-end gap-2">
       {open && (
-        <div className="flex h-[480px] max-h-[75vh] w-[340px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white text-neutral-900 shadow-2xl dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100">
-          <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
+        <div className="flex h-[480px] max-h-[75vh] w-[340px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-white text-ink shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div>
               <p className="text-sm font-semibold">Outbound Guide</p>
-              <p className="text-xs text-neutral-500">Powered by Grok</p>
+              <p className="text-xs text-muted-foreground">Powered by Grok</p>
             </div>
-            <button onClick={() => setOpen(false)} aria-label="Close guide" className="rounded-full px-2 text-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-900">
+            <button onClick={() => setOpen(false)} aria-label="Close guide" className="rounded-full px-2 text-lg text-muted-foreground hover:bg-sand">
               ×
             </button>
           </div>
@@ -121,16 +121,16 @@ export default function GrokGuide() {
                   <img src={m.image} alt="Your photo" className="mb-1 ml-auto max-h-40 rounded-2xl" />
                 )}
                 {m.content && (
-                  <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 ${m.role === "user" ? "bg-emerald-600 text-white" : "bg-neutral-100 dark:bg-neutral-900"}`}>
+                  <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 ${m.role === "user" ? "bg-maroon text-white" : "bg-sand"}`}>
                     {m.content}
                   </div>
                 )}
                 {m.quests && m.quests.length > 0 && (
                   <div className="mt-2 space-y-1.5">
                     {m.quests.map((q) => (
-                      <Link key={q.id} href={`/q/${q.id}`} className="block rounded-xl border border-neutral-200 px-3 py-2 hover:border-emerald-500 dark:border-neutral-800">
+                      <Link key={q.id} href={`/q/${q.id}`} className="block rounded-xl border border-border px-3 py-2 hover:border-maroon">
                         <p className="font-medium">{q.title}</p>
-                        <p className="text-xs text-neutral-500">
+                        <p className="text-xs text-muted-foreground">
                           {q.station_name ?? q.station_id} · {PRICE[q.price_tier] ?? ""} · +{q.xp} XP
                         </p>
                       </Link>
@@ -139,11 +139,11 @@ export default function GrokGuide() {
                 )}
               </div>
             ))}
-            {busy && <p className="text-xs text-neutral-500">{photo === null && msgs.at(-1)?.image ? "Looking at your photo…" : "Guide is thinking…"}</p>}
+            {busy && <p className="text-xs text-muted-foreground">{photo === null && msgs.at(-1)?.image ? "Looking at your photo…" : "Guide is thinking…"}</p>}
             {msgs.length === 1 && (
               <div className="flex flex-wrap gap-1.5">
                 {STARTERS.map((s) => (
-                  <button key={s} onClick={() => send(s)} className="rounded-full border border-neutral-300 px-3 py-1 text-xs hover:border-emerald-500 dark:border-neutral-700">
+                  <button key={s} onClick={() => send(s)} className="rounded-full border border-border px-3 py-1 text-xs hover:border-maroon">
                     {s}
                   </button>
                 ))}
@@ -153,7 +153,7 @@ export default function GrokGuide() {
           </div>
 
           {photo && (
-            <div className="flex items-center gap-2 border-t border-neutral-200 px-3 pt-2 text-xs text-neutral-500 dark:border-neutral-800">
+            <div className="flex items-center gap-2 border-t border-border px-3 pt-2 text-xs text-muted-foreground">
               {/* eslint-disable-next-line @next/next/no-img-element -- local data URL preview */}
               <img src={photo} alt="Photo to send" className="h-10 w-10 rounded-lg object-cover" />
               Photo ready. Add a note or just tap Ask.
@@ -167,7 +167,7 @@ export default function GrokGuide() {
               e.preventDefault();
               send(input);
             }}
-            className="flex gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800"
+            className="flex gap-2 border-t border-border p-3"
           >
             <input
               ref={fileRef}
@@ -182,7 +182,7 @@ export default function GrokGuide() {
               disabled={busy}
               aria-label="Snap or upload a photo"
               title="Snap or upload a photo"
-              className="rounded-full border border-neutral-300 px-3 text-base disabled:opacity-40 dark:border-neutral-700"
+              className="rounded-full border border-border px-3 text-base disabled:opacity-40"
             >
               📷
             </button>
@@ -191,9 +191,9 @@ export default function GrokGuide() {
               onChange={(e) => setInput(e.target.value)}
               maxLength={500}
               placeholder={photo ? "What do you want to know?" : "Cheap dumplings, 1 hour…"}
-              className="min-w-0 flex-1 rounded-full border border-neutral-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-neutral-700"
+              className="min-w-0 flex-1 rounded-full border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-maroon"
             />
-            <button type="submit" disabled={busy || (!input.trim() && !photo)} className="rounded-full bg-emerald-600 px-4 text-sm font-medium text-white disabled:opacity-40">
+            <button type="submit" disabled={busy || (!input.trim() && !photo)} className="rounded-full bg-maroon px-4 text-sm font-medium text-white disabled:opacity-40">
               Ask
             </button>
           </form>
@@ -201,7 +201,7 @@ export default function GrokGuide() {
       )}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-emerald-700"
+        className="rounded-full bg-maroon px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-maroon-600"
       >
         {open ? "Close" : "✦ Ask Guide"}
       </button>
