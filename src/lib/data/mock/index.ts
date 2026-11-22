@@ -168,6 +168,26 @@ function questOfTheWeek(now = new Date()): QuestOfTheWeek | null {
   return pick ? { quest_id: pick.id, week_start: weekKey, base_xp_multiplier: 2 } : null;
 }
 
+/**
+ * has_squad_goals() (migration 005): one of my squad check-ins counts when, at the same
+ * station, 3+ squad-mates (me included) checked in within 60 minutes of a squad visit that
+ * started at most 60 minutes before mine.
+ */
+function hasSquadGoals(mine: Visit[]): boolean {
+  const HOUR = 60 * 60_000;
+  const t = (v: Visit) => Date.parse(v.checked_in_at);
+  const stationIdOf = (v: Visit) => questById(v.quest_id)!.station_id;
+  return mine.some((m) => {
+    if (!m.squad_id) return false;
+    const squad = state.visits.filter((v) => v.squad_id === m.squad_id && stationIdOf(v) === stationIdOf(m));
+    return squad.some((start) => {
+      if (t(start) < t(m) - HOUR || t(start) > t(m)) return false;
+      const users = new Set(squad.filter((v) => t(v) >= t(start) && t(v) <= t(start) + HOUR).map((v) => v.user_id));
+      return users.size >= 3;
+    });
+  });
+}
+
 /** my_game_progress(): badges and streaks from the player's visits, in Boston days. */
 function gameProgress(user: Profile, now = new Date()): GameProgress {
   const visits = state.visits.filter((v) => v.user_id === user.id);
@@ -196,7 +216,7 @@ function gameProgress(user: Profile, now = new Date()): GameProgress {
   const badges: BadgeId[] = [];
   if (["Red", "Orange", "Green"].every((c) => colors.has(c))) badges.push("line_collector");
   if (visits.some((v) => hour(v) >= 22)) badges.push("night_owl");
-  if (visits.some((v) => v.squad_id)) badges.push("squad_goals"); // mock: any squad check-in
+  if (hasSquadGoals(visits)) badges.push("squad_goals");
   if ([...weekHoods.values()].some((h) => h.size >= 4)) badges.push("cross_town");
   return {
     badges,
@@ -452,29 +472,33 @@ export const mockService: DataService = {
   async getPlayerLeaderboard() {
     await wait();
     const weekKey = seed.nyDate(nyWeekStart(new Date()));
+    // Like leaderboard_players_weekly: public players with a school (the view inner-joins
+    // schools), this week's visible check-ins; the live query takes the top 50.
     const rows = state.profiles
-      .filter((p) => p.privacy === "public")
+      .filter((p) => p.privacy === "public" && seed.schools.some((s) => s.id === p.school_id))
       .map((p) => {
         const week = state.visits.filter((v) => v.user_id === p.id && !v.hidden && v.visit_date >= weekKey);
         return {
           user_id: p.id,
           display_name: p.display_name || "Outbound player",
           avatar_url: p.avatar_url,
-          school_name: seed.schools.find((s) => s.id === p.school_id)?.name ?? "",
+          school_name: seed.schools.find((s) => s.id === p.school_id)!.name,
           weekly_xp: week.reduce((sum, v) => sum + v.xp_awarded, 0),
           checkIns: week.length,
         };
       })
       .filter((r) => r.checkIns > 0)
       .sort((a, b) => b.weekly_xp - a.weekly_xp);
-    return rows.map(({ user_id, display_name, avatar_url, school_name, weekly_xp }): PlayerLeaderboardRow => ({
-      user_id,
-      display_name,
-      avatar_url,
-      school_name,
-      weekly_xp,
-      rank: 1 + rows.filter((o) => o.weekly_xp > weekly_xp).length,
-    }));
+    return rows
+      .map(({ user_id, display_name, avatar_url, school_name, weekly_xp }): PlayerLeaderboardRow => ({
+        user_id,
+        display_name,
+        avatar_url,
+        school_name,
+        weekly_xp,
+        rank: 1 + rows.filter((o) => o.weekly_xp > weekly_xp).length,
+      }))
+      .slice(0, 50);
   },
 
   async getQuestOfTheWeek() {

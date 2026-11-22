@@ -79,7 +79,7 @@ export function PlayersTab({ myId, active }: { myId: string | null; active: bool
       <p className="type-small text-center text-muted-foreground">
         {mine
           ? `You’re #${mine.rank} this week.`
-          : "Only players with a public profile are listed."}{" "}
+          : "This list shows the top 50 players with a public profile."}{" "}
         Resets Monday at 12:00 AM.{" "}
         {!mine && myId && (
           <Link href="/settings/privacy" className="font-semibold text-maroon underline underline-offset-4">
