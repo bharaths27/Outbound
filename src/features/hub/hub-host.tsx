@@ -1,7 +1,7 @@
 "use client";
 
 // Renders the station hub over any page when the URL has ?station=<id>. Phones get a
-// non-modal bottom drawer with three snap points (peek, half, full); from 768 px it is a
+// non-modal bottom drawer with three snap points (peek, half, full); from 1024 px it is a
 // 420 px non-modal sheet on the right. Non-modal keeps the map usable behind it, so
 // tapping another station swaps the hub instead of closing it. Mounted once in layout.tsx.
 
