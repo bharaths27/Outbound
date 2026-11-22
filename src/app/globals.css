@@ -366,6 +366,8 @@
 
 /* passport quest pins */
 .ob-quest { cursor: pointer; display: flex; align-items: center; gap: 3px; padding: 3px 7px 3px 4px; border-radius: 999px; background: #fffbeb; border: 2px solid #f59e0b; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.25); }
+/* The train list (top-right) runs down to the Quest of the Week card; the zoom buttons step aside while it is open. */
+.ob-svc-open .maplibregl-ctrl-bottom-right { display: none; }
 .ob-quest-icon { display: grid; place-items: center; line-height: 0; color: #b45309; }
 .ob-quest-pts { font: 700 10px/1 var(--font-dm-sans, system-ui), system-ui, sans-serif; color: #b45309; }
 /* game layer: pins grow with distance (--s), show ride time in the line color (--lc), Expedition pins glow gold */

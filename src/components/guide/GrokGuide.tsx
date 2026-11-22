@@ -464,10 +464,9 @@ export default function GrokGuide({
           }}
           onDrop={onDrop}
           className={`relative flex h-[640px] max-h-[calc(100dvh-8.5rem)] w-[420px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-border bg-white text-ink shadow-2xl ${
-            // On the map, open beside the left column (live trains, search results) and below the
-            // Explore card (with its "Where to?" search) instead of over them.
+            // On the map, stay below the Explore card (with its "Where to?" search) instead of over it.
             onMap && !openFromHeader
-              ? "min-[820px]:max-h-[max(320px,calc(100dvh-28rem))] min-[820px]:translate-x-[356px] desk:max-h-[max(320px,calc(100dvh-26.5rem))]"
+              ? "min-[820px]:max-h-[max(320px,calc(100dvh-28rem))] desk:max-h-[max(320px,calc(100dvh-26.5rem))]"
               : "desk:max-h-[calc(100dvh-6.5rem)]"
           }`}
         >

@@ -1001,38 +1001,12 @@ export default function TransitMap() {
         : `Sample trains · MBTA feed unreachable`;
 
   return (
-    <div className="ob-map absolute inset-0 overflow-hidden bg-[#dfe9f3]">
+    <div className={`ob-map absolute inset-0 overflow-hidden bg-[#dfe9f3] ${showService ? "ob-svc-open" : ""}`}>
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
       <WeatherFx weather={weather} active={loaded && is3D} />
-      {/* top-left: feed status, Tiger Data badges (the app shell shows the logo). The page can
-          push the overlays down with --ob-map-top (Explore's filter card sits above them). */}
+      {/* top-left: search results and place cards (the search box itself sits in Explore's card).
+          The page pushes the overlays down with --ob-map-top (Explore's filter card sits above them). */}
       <div className="absolute left-3 top-[calc(var(--ob-map-top,0px)+12px)] flex max-w-[calc(100%-84px)] flex-col gap-2 sm:left-4 sm:top-[calc(var(--ob-map-top,0px)+16px)] desk:max-w-[calc(100%-224px)]">
-        <div className="ob-panel flex items-center gap-3 px-3 py-2">
-          <button
-            type="button"
-            onClick={() => setShowService((v) => !v)}
-            aria-expanded={showService}
-            title="Every train running now, by line, and tonight's last trains"
-            className="flex items-center gap-1.5 text-left text-xs text-[var(--ob-ink-2)]"
-          >
-            <span
-              className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white ${feedMode === "live" && lastUpdate ? "bg-emerald-600" : feedMode === "replay" ? "bg-sky-600" : "bg-amber-500"}`}
-              title={feedMode === "live" ? "Real MBTA positions" : "Not real-time: MBTA feed unreachable"}
-            >
-              {feedMode === "live" && lastUpdate ? "LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
-            </span>
-            {statusText}
-            <span className="ob-link ml-0.5 font-semibold text-[var(--ob-maroon)] underline-offset-2 hover:underline">{showService ? "Hide" : "Trains"}</span>
-          </button>
-          {weather && <WeatherChip w={weather} night={isNight} />}
-        </div>
-        {showService && (
-          <ServicePanel
-            trains={trainList}
-            stationName={stationName}
-            onTrain={(t) => mapRef.current?.flyTo({ center: [t.lon, t.lat], zoom: Math.max(mapRef.current.getZoom(), 15), duration: 1500 })}
-          />
-        )}
         {(() => {
           const search = (
             <SearchBox
@@ -1060,7 +1034,8 @@ export default function TransitMap() {
         )}
       </div>
 
-      {/* top-right: controls. Phones get round Layers and Locate buttons; Layers opens the panel. */}
+      {/* top-right: controls, then the live status and train list. Phones get round Layers and Locate
+          buttons; Layers opens the panel. */}
       <div className="absolute right-3 top-[calc(var(--ob-map-top,0px)+12px)] flex flex-col items-end gap-2 sm:right-4 sm:top-[calc(var(--ob-map-top,0px)+16px)]">
         <div className="flex flex-col gap-2 desk:hidden">
           <button
@@ -1084,25 +1059,55 @@ export default function TransitMap() {
             <LocateFixed size={20} strokeWidth={2} aria-hidden />
           </button>
         </div>
-        <div className={`ob-panel w-[176px] flex-col gap-2 p-2.5 text-xs desk:flex ${controlsOpen ? "flex" : "hidden"}`}>
-          <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
-          {is3D && <Seg options={[["Move", false], ["Rotate", true]]} value={orbit} onChange={setOrbit} />}
-          {is3D && <p className="-mt-1 text-[10px] leading-tight text-[var(--ob-muted)]">{orbit ? "Drag to turn and tilt" : "Right-drag or Rotate to turn"}</p>}
-          {(GOOGLE_KEY || !offlineBasemap) && <Seg options={[["Illustrated", false], ["Realistic", true]]} value={realistic} onChange={setRealistic} />}
-          <div className="mt-1 flex flex-col gap-1">
+        {/* Desktop: two columns (view on the left, layers on the right), as wide as the train list below. */}
+        <div className={`ob-panel w-[176px] flex-col gap-2 p-2.5 text-xs desk:flex desk:w-[340px] desk:flex-row desk:gap-3 ${controlsOpen ? "flex" : "hidden"}`}>
+          <div className="flex flex-col gap-2 desk:flex-1">
+            <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
+            {is3D && <Seg options={[["Move", false], ["Rotate", true]]} value={orbit} onChange={setOrbit} />}
+            {(GOOGLE_KEY || !offlineBasemap) && <Seg options={[["Illustrated", false], ["Realistic", true]]} value={realistic} onChange={setRealistic} />}
+            {is3D && <p className="-mt-1 text-[10px] leading-tight text-[var(--ob-muted)]">{orbit ? "Drag to turn and tilt" : "Right-drag or Rotate to turn"}</p>}
+          </div>
+          <div className="flex flex-col gap-1 desk:flex-1">
             <Toggle label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
             <Toggle label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />
             <Toggle label="Friends" on={show.friends} set={(v) => setShow({ ...show, friends: v })} />
             <Toggle label="Delays" on={show.delays} set={(v) => setShow({ ...show, delays: v })} />
             {show.delays && <Toggle label="Color lines by delay" on={delayColors} set={setDelayColors} small />}
+            <button
+              className="mt-1 rounded-lg bg-[var(--ob-maroon)] px-2 py-1.5 font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
+              onClick={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
+            >
+              {feedMode === "live" ? "Replay saved trains" : "Back to live"}
+            </button>
           </div>
-          <button
-            className="mt-1 rounded-lg bg-[var(--ob-maroon)] px-2 py-1.5 font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
-            onClick={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
-          >
-            {feedMode === "live" ? "Replay saved trains" : "Back to live"}
-          </button>
         </div>
+        {/* Live status and the per-line train list, under the 3D/2D panel. */}
+        <div className="ob-panel flex w-[min(340px,calc(100vw-24px))] items-center justify-between gap-3 px-3 py-2">
+          <button
+            type="button"
+            onClick={() => setShowService((v) => !v)}
+            aria-expanded={showService}
+            title="Every train running now, by line, and tonight's last trains"
+            className="flex items-center gap-1.5 text-left text-xs text-[var(--ob-ink-2)]"
+          >
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white ${feedMode === "live" && lastUpdate ? "bg-emerald-600" : feedMode === "replay" ? "bg-sky-600" : "bg-amber-500"}`}
+              title={feedMode === "live" ? "Real MBTA positions" : "Not real-time: MBTA feed unreachable"}
+            >
+              {feedMode === "live" && lastUpdate ? "LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
+            </span>
+            {statusText}
+            <span className="ob-link ml-0.5 font-semibold text-[var(--ob-maroon)] underline-offset-2 hover:underline">{showService ? "Hide" : "Trains"}</span>
+          </button>
+          {weather && <WeatherChip w={weather} night={isNight} />}
+        </div>
+        {showService && (
+          <ServicePanel
+            trains={trainList}
+            stationName={stationName}
+            onTrain={(t) => mapRef.current?.flyTo({ center: [t.lon, t.lat], zoom: Math.max(mapRef.current.getZoom(), 15), duration: 1500 })}
+          />
+        )}
       </div>
 
       {/* replay bar */}
@@ -1297,7 +1302,7 @@ export default function TransitMap() {
         const stops = exploredStops(stationsRef.current, game.home, visitedSpots.map((q) => ({ lat: q.lat, lon: q.lng })));
         const expDone = [...game.expeditions].filter((id) => progress.visits[id]?.some((t) => Date.now() - t < 7 * 86400000)).length;
         return (
-          <div className="ob-panel ob-hud absolute bottom-3 left-3 w-[min(300px,calc(100vw-196px))] sm:w-[300px] px-3 py-2 text-xs sm:bottom-4 sm:left-4 desk:bottom-6 desk:left-[196px]" style={{ display: quest || friend || train || crStation ? "none" : undefined }}>
+          <div className="ob-panel ob-hud absolute bottom-3 left-3 hidden w-[min(300px,calc(100vw-196px))] px-3 py-2 text-xs sm:bottom-4 sm:left-4 sm:w-[300px] desk:bottom-6 desk:left-[196px] desk:block" style={{ display: quest || friend || train || crStation ? "none" : undefined }}>
             <div className="flex items-center gap-2">
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--ob-maroon)] text-[12px] font-bold text-white">{lv.level}</span>
               <div className="min-w-0 flex-1">
