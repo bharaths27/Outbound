@@ -3,7 +3,8 @@
 // Pieces of the shell shared by the mobile header, desktop top bar, and page headers:
 // nav items, the XP pill, the Ask Guide button, the notifications bell, and the player avatar (DESIGN.md §4–5).
 
-import { Bell, Sparkles } from "lucide-react";
+import { Bell, Moon, Sparkles, Sun } from "lucide-react";
+import { setTheme, useTheme } from "@/features/theme/theme";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -106,6 +107,26 @@ export function AskGuideButton({ compact = false }: { compact?: boolean }) {
     <button type="button" onClick={() => openGuide()} className={cn(base, "h-9 gap-1.5 px-3.5 text-sm font-bold")}>
       <Sparkles className="size-4 text-gold" aria-hidden />
       Ask Guide
+    </button>
+  );
+}
+
+/** Light / dark mode switch for the whole app and the map. */
+export function ThemeToggle({ tint = false }: { tint?: boolean }) {
+  const theme = useTheme();
+  const dark = theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(dark ? "light" : "dark")}
+      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      title={dark ? "Light mode" : "Dark mode"}
+      className={cn(
+        "flex size-11 shrink-0 items-center justify-center rounded-md text-on-maroon outline-none focus-visible:ring-2 focus-visible:ring-gold",
+        tint ? "bg-white/12" : "bg-transparent",
+      )}
+    >
+      {dark ? <Sun className="size-[22px]" aria-hidden /> : <Moon className="size-[22px]" aria-hidden />}
     </button>
   );
 }

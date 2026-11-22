@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { guideFloatsOn } from "@/features/guide/placement";
 import { cn } from "@/lib/utils";
-import { AskGuideButton, NAV, NavIcon, PHONE_NAV, NotificationsBell, ProfileLink, XpPill, isActive } from "./shell-parts";
+import { AskGuideButton, NAV, NavIcon, PHONE_NAV, NotificationsBell, ProfileLink, ThemeToggle, XpPill, isActive } from "./shell-parts";
 import { useShellPlayer } from "./use-shell-player";
 
 /** Routes that render without the shell (full-screen flows and dev pages). */
@@ -56,6 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3">
             {!guideFloats && <AskGuideButton />}
             <XpPill player={player} />
+            <ThemeToggle tint />
             <NotificationsBell tint />
             <ProfileLink player={player} />
           </div>
@@ -70,6 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <img src="/outbound-wordmark.svg" alt="Outbound" className="block h-[22px] w-auto" />
           </div>
           <XpPill player={player} size="sm" />
+          <ThemeToggle />
           <NotificationsBell />
           <ProfileLink player={player} size={34} />
         </header>

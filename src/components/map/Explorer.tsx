@@ -86,6 +86,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
   const [route, setRoute] = useState<Route | null>(null);
   const [routing, setRouting] = useState(false);
   const [fromLabel, setFromLabel] = useState("from the map center");
+  const [routeFrom, setRouteFrom] = useState<[number, number] | null>(null);
   const pins = useRef<maplibregl.Marker[]>([]);
 
   const filtered = useMemo(() => {
@@ -184,6 +185,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
     if (!map) return;
     const from = start ?? userLoc ?? [map.getCenter().lng, map.getCenter().lat];
     setFromLabel(label ?? (userLoc ? "from you" : "from the map center"));
+    setRouteFrom(from as [number, number]);
     setRouting(true);
     setError(null);
     try {
@@ -285,10 +287,27 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
           {place.openNow != null && <div className={`text-xs ${place.openNow ? "text-emerald-700" : "text-rose-700"}`}>{place.openNow ? "Open now" : "Closed now"}</div>}
           <div className="mt-1 text-xs text-[var(--ob-muted)]">{place.address}</div>
           <div className="mt-2.5 flex gap-2">
-            <button className="flex-1 rounded-lg bg-[var(--ob-maroon)] px-3 py-1.5 font-medium text-white disabled:opacity-60" disabled={routing} onClick={() => directions(place)}>
-              {routing ? "Finding route…" : "Directions"}
-            </button>
-            {place.url && (
+            {route && routeFrom ? (
+              // The route is already on the map: the next step is turn-by-turn, in Google Maps (no key needed).
+              <>
+                <a
+                  className="flex-1 rounded-lg bg-[var(--ob-maroon)] px-3 py-1.5 text-center font-medium text-white"
+                  href={`https://www.google.com/maps/dir/?api=1&origin=${routeFrom[1]},${routeFrom[0]}&destination=${place.lat},${place.lng}&travelmode=transit`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Step-by-step in Google Maps
+                </a>
+                <button className="rounded-lg bg-[var(--ob-sand)] px-3 py-1.5 text-[var(--ob-ink-2)]" onClick={() => setRoute(null)}>
+                  Clear route
+                </button>
+              </>
+            ) : (
+              <button className="flex-1 rounded-lg bg-[var(--ob-maroon)] px-3 py-1.5 font-medium text-white disabled:opacity-60" disabled={routing} onClick={() => directions(place)}>
+                {routing ? "Finding route…" : "Directions"}
+              </button>
+            )}
+            {!route && place.url && (
               <a className="rounded-lg bg-[var(--ob-sand)] px-3 py-1.5 text-[var(--ob-ink-2)]" href={place.url} target="_blank" rel="noreferrer">
                 Google Maps
               </a>

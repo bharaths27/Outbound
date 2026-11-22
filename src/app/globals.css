@@ -368,3 +368,76 @@
 .ob-quest { cursor: pointer; display: flex; align-items: center; gap: 3px; padding: 3px 7px 3px 4px; border-radius: 999px; background: #fffbeb; border: 2px solid #f59e0b; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.25); }
 .ob-quest-icon { display: grid; place-items: center; line-height: 0; color: #b45309; }
 .ob-quest-pts { font: 700 10px/1 var(--font-dm-sans, system-ui), system-ui, sans-serif; color: #b45309; }
+
+/* ---------- dark mode ---------- */
+/* The header toggle sets <html data-theme="dark"> (src/features/theme). Same maroon and gold brand,
+   dark surfaces and light text; the map gets a night look below. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #17110f;
+  --surface: #221a19;
+  --paper: #1d1615;
+  --sand: #2e2422;
+  --cream: #2a201e;
+  --border-strong: #46383a;
+  --divider: #3a2e2f;
+  --border: #3d3133;
+
+  --ink: #f5ece4;
+  --ink-2: #e6d9d0;
+  --muted-2: #c9b8b2;
+  --muted-foreground: #b8a5a2;
+  --pill: #3a2228;
+  --sample: #2e2422;
+  --sample-foreground: #d8c8c2;
+  --secondary-foreground: #f2c1cc;
+  --accent: #f2a7b8; /* links on dark */
+
+  --cat-food-bg: #4a2430;
+  --cat-food-ink: #f6c3cf;
+  --cat-event-bg: #322b4d;
+  --cat-event-ink: #d4c9f5;
+  --cat-scenery-bg: #1f3247;
+  --cat-scenery-ink: #c4daf2;
+  --xp-chip-bg: #4a3a12;
+  --xp-chip-ink: #fce9b8;
+  --success: #6fcf97;
+  --closed: #f08aa0;
+  --danger: #ff7b85;
+  --delay-severe-bg: #4a1f1f;
+  --delay-severe-ink: #ffb4b4;
+  --delay-minor-bg: #4a3613;
+  --delay-minor-ink: #ffd88a;
+  --badge-earned-bg: #3d3215;
+  --badge-locked-ink: #7d706b;
+  --stamp-dot-off: #4a3e3a;
+  --overlay: rgb(0 0 0 / 0.6);
+
+  --ob-muted: #b8a5a2;
+}
+/* Hard-coded light utilities in older components follow the theme too. */
+:root[data-theme="dark"] .bg-white { background-color: var(--surface); }
+:root[data-theme="dark"] .text-slate-900,
+:root[data-theme="dark"] .text-slate-800,
+:root[data-theme="dark"] .text-slate-700 { color: var(--ink-2); }
+:root[data-theme="dark"] .text-slate-600,
+:root[data-theme="dark"] .text-slate-500 { color: var(--muted-foreground); }
+:root[data-theme="dark"] .bg-slate-100 { background-color: var(--sand); }
+:root[data-theme="dark"] .text-amber-800 { color: #ffd88a; }
+
+/* Night map: invert the basemap and rotate hues back, so water stays blue, parks green and the T lines
+   keep their colors. Markers, pins and panels are HTML on top, so they aren't filtered. */
+:root[data-theme="dark"] .ob-map .maplibregl-canvas {
+  filter: invert(0.92) hue-rotate(180deg) brightness(0.95) contrast(0.92);
+}
+:root[data-theme="dark"] .ob-map { background-color: #1b2026 !important; }
+:root[data-theme="dark"] .ob-place-pin { background: var(--surface); }
+:root[data-theme="dark"] .ob-quest { background: #3d3215; }
+:root[data-theme="dark"] .maplibregl-ctrl-group { background: var(--surface); }
+:root[data-theme="dark"] .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); }
+:root[data-theme="dark"] .maplibregl-ctrl-attrib { background: rgb(34 26 25 / 0.8); color: var(--muted-foreground); }
+:root[data-theme="dark"] .maplibregl-ctrl-attrib a { color: var(--ink-2); }
+/* Maroon text is too dark on dark surfaces; maroon backgrounds (buttons, header) stay as they are. */
+:root[data-theme="dark"] .text-maroon,
+:root[data-theme="dark"] .text-primary,
+:root[data-theme="dark"] .text-maroon-600 { color: #f4b4c3; }

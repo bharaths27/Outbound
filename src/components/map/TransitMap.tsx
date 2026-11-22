@@ -649,8 +649,9 @@ export default function TransitMap() {
     const qs = new URLSearchParams(window.location.search);
     const at = qs.get("go")?.split(",").map(Number);
     if (at?.length === 2) {
+      const name = qs.get("name") || "Your destination";
       // wait a frame so the Explorer has the map
-      requestAnimationFrame(() => go({ name: qs.get("name") || "Your destination", lat: at[0], lng: at[1] }));
+      requestAnimationFrame(() => go({ name, lat: at[0], lng: at[1] }));
       qs.delete("go");
       qs.delete("name");
       window.history.replaceState(null, "", `${window.location.pathname}${qs.size ? `?${qs}` : ""}`);
