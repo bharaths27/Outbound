@@ -103,6 +103,7 @@ export function QuestCard({ quest, neighborhood, now, tier, visit, onOpen }: Que
             questId={quest.id}
             title={quest.title}
             neighborhood={neighborhood}
+            stationId={quest.station_id}
             tier={tier ?? "bronze"}
             crossSchool={visit.cross_school}
             size={48}

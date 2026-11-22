@@ -9,6 +9,7 @@
 import { useId } from "react";
 import type { QuestType, Tier } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
+import { SCALLOP, STATION_ART, type StationArt } from "./station-art";
 
 /** Landmark glyphs from the reference designs (drawn in a 100 × 100 box). */
 const GLYPHS = {
@@ -77,6 +78,8 @@ export interface StampProps {
   /** Used in the accessible name of locked stamps ("Frog Pond, not collected yet"). */
   title: string;
   neighborhood: string;
+  /** The quest's station. Stations with illustrated art (station-art.ts) get their own stamp. */
+  stationId?: string;
   /** Kept for callers; the glyph comes from the neighborhood. */
   type?: QuestType;
   tier: Tier;
@@ -94,6 +97,7 @@ export function Stamp({
   questId,
   title,
   neighborhood,
+  stationId,
   tier,
   crossSchool = false,
   locked = false,
@@ -110,6 +114,28 @@ export function Stamp({
     (locked ? `${title}, not collected yet` : `${neighborhood} stamp, ${TIER_NAME[tier]}${crossSchool ? ", cross-school" : ""}`);
   const tilt = locked ? 0 : (rotate ?? stampRotation(questId));
   const upper = neighborhood.toUpperCase();
+  const art = stationId ? STATION_ART[stationId] : undefined;
+
+  if (art) {
+    const stationName =
+      label ??
+      (locked
+        ? `${title}, not collected yet`
+        : `${titleCase(art.ribbon)} stamp, ${TIER_NAME[tier]}${crossSchool ? ", cross-school" : ""}`);
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="-4 -4 108 108"
+        role="img"
+        aria-label={stationName}
+        className={cn("shrink-0", className)}
+        style={{ transform: tilt ? `rotate(${tilt}deg)` : undefined }}
+      >
+        <StationArtwork art={art} ink={ink} bg={bg} ring={ring} locked={locked} crossSchool={crossSchool} crossRing={crossRing} uid={arcId} />
+      </svg>
+    );
+  }
 
   return (
     <svg
@@ -154,6 +180,100 @@ export function Stamp({
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+/** MBTA line colors for the badges (orange darkened for white text, DESIGN.md §3). */
+const LINE_BADGE: Record<string, string> = { R: "#DA291C", O: "#C46A00", G: "#00843D", B: "#003DA5" };
+
+const titleCase = (s: string) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/^Bu\b/, "BU");
+
+/**
+ * Illustrated station stamp (design/stamps): scalloped edge, double ring, the area on the
+ * top arc, a two-tone landmark scene, and the station on an outlined ribbon with line badges.
+ */
+function StationArtwork({
+  art,
+  ink,
+  bg,
+  ring,
+  locked,
+  crossSchool,
+  crossRing,
+  uid,
+}: {
+  art: StationArt;
+  ink: string;
+  bg: string;
+  ring: string;
+  locked: boolean;
+  crossSchool: boolean;
+  crossRing: string;
+  uid: string;
+}) {
+  const accent = locked ? ink : ring;
+  const dash = locked ? "3 3" : undefined;
+  const topSize = art.top.length <= 10 ? 6.6 : art.top.length <= 14 ? 6 : 5.3;
+  const ribbonSize = art.ribbon.length <= 10 ? 5.6 : 5.1;
+  const ribbon = "M19 64.5h62l-2.8 5.5 2.8 5.5H19l2.8-5.5z";
+  const font = "var(--font-dm-sans), DM Sans, sans-serif";
+  return (
+    <>
+      {crossSchool && !locked && <circle cx="50" cy="50" r="51.5" fill="none" stroke={crossRing} strokeWidth="1.6" />}
+      <path d={SCALLOP} fill={bg} stroke={ring} strokeWidth="1.4" />
+      <circle cx="50" cy="50" r="41.5" fill="none" stroke={ink} strokeWidth="1.5" strokeDasharray={dash} />
+      <circle cx="50" cy="50" r="39" fill="none" stroke={ink} strokeWidth="0.6" strokeDasharray={dash} />
+      <defs>
+        <clipPath id={`${uid}-clip`}>
+          <circle cx="50" cy="50" r="29.5" />
+        </clipPath>
+        <path id={`${uid}-top`} d="M19 50A31 31 0 0 1 81 50" fill="none" />
+      </defs>
+      <g clipPath={`url(#${uid}-clip)`} opacity={locked ? 0.55 : undefined}>
+        <g transform="translate(50 66) scale(0.8) translate(-50 -66)">
+          {art.scene.map(([role, d], i) =>
+            role === "line" || role === "bgline" ? (
+              <path
+                key={i}
+                d={d}
+                fill="none"
+                stroke={role === "line" ? ink : bg}
+                strokeWidth={role === "line" ? 1.6 : 1.1}
+                strokeLinecap="round"
+              />
+            ) : (
+              <path
+                key={i}
+                d={d}
+                fill={role === "bg" ? bg : role === "accent" ? accent : ink}
+                fillOpacity={role === "tint" ? 0.3 : undefined}
+              />
+            ),
+          )}
+        </g>
+      </g>
+      <text fontFamily={font} fontSize={topSize} fontWeight="700" letterSpacing="1" fill={ink}>
+        <textPath href={`#${uid}-top`} startOffset="50%" textAnchor="middle">
+          {art.top}
+        </textPath>
+      </text>
+      <path d={ribbon} fill={accent} stroke={accent} strokeWidth="3.6" strokeLinejoin="round" />
+      <path d={ribbon} fill={ink} stroke={bg} strokeWidth="1.5" strokeLinejoin="round" />
+      <text x="50" y="71.9" fontFamily={font} fontSize={ribbonSize} fontWeight="700" letterSpacing="0.6" textAnchor="middle" fill={bg}>
+        {art.ribbon}
+      </text>
+      {art.lines.map((line, i) => {
+        const cx = 50 + (i - (art.lines.length - 1) / 2) * 7;
+        return (
+          <g key={line}>
+            <circle cx={cx} cy="82.6" r="3" fill={locked ? ink : LINE_BADGE[line]} />
+            <text x={cx} y="84.4" fontFamily={font} fontSize="4.6" fontWeight="700" textAnchor="middle" fill="#fff">
+              {line}
+            </text>
+          </g>
+        );
+      })}
+    </>
   );
 }
 
