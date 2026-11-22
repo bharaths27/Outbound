@@ -1297,7 +1297,7 @@ export default function TransitMap() {
         const stops = exploredStops(stationsRef.current, game.home, visitedSpots.map((q) => ({ lat: q.lat, lon: q.lng })));
         const expDone = [...game.expeditions].filter((id) => progress.visits[id]?.some((t) => Date.now() - t < 7 * 86400000)).length;
         return (
-          <div className="ob-panel ob-hud absolute bottom-3 left-3 w-[min(300px,calc(100vw-196px))] sm:w-[300px] px-3 py-2 text-xs sm:bottom-4 sm:left-4" style={{ display: quest || friend || train || crStation ? "none" : undefined }}>
+          <div className="ob-panel ob-hud absolute bottom-3 left-3 w-[min(300px,calc(100vw-196px))] sm:w-[300px] px-3 py-2 text-xs sm:bottom-4 sm:left-4 desk:bottom-6 desk:left-[196px]" style={{ display: quest || friend || train || crStation ? "none" : undefined }}>
             <div className="flex items-center gap-2">
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--ob-maroon)] text-[12px] font-bold text-white">{lv.level}</span>
               <div className="min-w-0 flex-1">

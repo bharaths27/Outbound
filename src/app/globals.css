@@ -452,6 +452,7 @@
 }
 :root[data-theme="dark"] .ob-map { background-color: #1b2026 !important; }
 :root[data-theme="dark"] .ob-place-pin { background: var(--surface); }
+:root[data-theme="dark"] .ob-campus { background: rgb(34 26 25 / 0.92); }
 :root[data-theme="dark"] .ob-quest:not(.ob-quest-exp):not(.ob-quest-done) { background: #3d3215; }
 :root[data-theme="dark"] .maplibregl-ctrl-group { background: var(--surface); }
 :root[data-theme="dark"] .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); }
