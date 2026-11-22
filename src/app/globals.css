@@ -104,6 +104,8 @@ body {
 .ob-quest-exp .ob-quest-icon, .ob-quest-exp .ob-quest-pts { color: #6b2e00; }
 .ob-quest-exp .ob-quest-ride { color: #6b2e00; border-left-color: #fcd34d; }
 .ob-quest-tag { position: absolute; left: 50%; bottom: calc(100% + 3px); translate: -50% 0; white-space: nowrap; padding: 2px 6px; border-radius: 999px; background: #6b1f33; color: #fff; font: 700 8.5px/1.2 system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.ob-quest:focus-visible { outline: 3px solid #6b1f33; outline-offset: 2px; }
+.ob-quest-more { position: absolute; right: -8px; top: -9px; min-width: 18px; padding: 2px 4px; border-radius: 999px; background: #6b1f33; color: #fff; font: 700 9px/1.2 system-ui, sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
 .ob-quest-done { background: #f0fdf4; border-color: #86efac; opacity: .85; }
 .ob-quest-done .ob-quest-icon, .ob-quest-done .ob-quest-pts { color: #15803d; }
 @keyframes ob-exp-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, .55), 0 3px 10px rgba(15, 23, 42, .25); } 50% { box-shadow: 0 0 0 9px rgba(245, 158, 11, 0), 0 3px 10px rgba(15, 23, 42, .25); } }

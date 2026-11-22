@@ -162,3 +162,11 @@ export function saveProgress(p: Progress) {
 }
 export const checkedInToday = (p: Progress, id: string) =>
   (p.visits[id] ?? []).some((t) => new Date(t).toDateString() === new Date().toDateString());
+
+/** T stops inside the area you've uncovered (home plus every place you've checked in). */
+export function exploredStops(stations: GameStation[], home: GameStation, visited: { lat: number; lon: number }[]) {
+  const n = stations.filter(
+    (s) => haversineM(s.lat, s.lon, home.lat, home.lon) < EXPLORED_HOME_M || visited.some((v) => haversineM(s.lat, s.lon, v.lat, v.lon) < EXPLORED_VISIT_M),
+  ).length;
+  return { n, total: stations.length };
+}

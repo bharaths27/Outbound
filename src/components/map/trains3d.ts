@@ -35,7 +35,7 @@ export interface TrainNow {
 }
 
 /** Half the distance between the two tracks (meters, before the zoom scale): wider than half a car, so cars never touch. */
-const TRACK_HALF_GAP = 1.9;
+export const TRACK_HALF_GAP = 1.9;
 
 const ease = (t: number) => t * t * (3 - 2 * t);
 
@@ -129,17 +129,24 @@ export class TrainAnimator {
   }
 
   /** Lead-car positions right now (for 2D dots, hit testing and popups). */
-  snapshot(now = performance.now()): TrainNow[] {
+  snapshot(now = performance.now(), side = 0): TrainNow[] {
     const out: TrainNow[] = [];
     for (const a of this.anims.values()) {
       const c = this.current(a, now);
       let heading = 0;
       if (c.pos) heading = this.net.pointAt(c.pos.poly, c.pos.along).heading + (c.dir < 0 ? Math.PI : 0);
       else if (a.info.bearing != null) heading = Math.PI / 2 - (a.info.bearing * Math.PI) / 180;
-      const [lng, lat] = toLngLat(c.x, c.y);
+      // `side`: the same offset the 3D cars use, so the click target sits on the model
+      const [lng, lat] = toLngLat(c.x + Math.sin(heading) * side, c.y - Math.cos(heading) * side);
       out.push({ id: a.id, line: a.line, info: a.info, lng, lat, heading });
     }
     return out;
+  }
+
+  /** Point on the track `behind` meters behind `pos` (against travel direction `dir`); negative = ahead. */
+  private trackPoint(pos: TrackPos, dir: 1 | -1, behind: number) {
+    const w = behind >= 0 ? this.net.walk(pos.poly, pos.along, behind, (-dir) as 1 | -1) : this.net.walk(pos.poly, pos.along, -behind, dir);
+    return this.net.pointAt(w.poly, w.along);
   }
 
   /** Every car of every train: center lng/lat + heading. `scale` stretches spacing when models are enlarged. */
@@ -154,14 +161,16 @@ export class TrainAnimator {
       const side = TRACK_HALF_GAP * scale; // meters right of the line's center
       for (let k = 0; k < spec.cars; k++) {
         if (c.pos) {
-          // walk backwards from the lead car, against the direction of travel
-          const back = (-c.dir) as 1 | -1;
-          const w = k === 0 ? { ...c.pos, dir: back } : this.net.walk(c.pos.poly, c.pos.along, k * step, back);
-          const p = this.net.pointAt(w.poly, w.along);
-          const travelDir = -w.dir;
-          const h = p.heading + (travelDir < 0 ? Math.PI : 0);
+          // A car is rigid and rides on two wheel sets near its ends. Put both on the track and draw the car
+          // along the chord between them, so through curves it stays on the line instead of sticking out.
+          const center = k * step; // meters behind the lead car's center
+          const bogie = spec.length * scale * 0.36;
+          const f = this.trackPoint(c.pos, c.dir, center - bogie);
+          const r = this.trackPoint(c.pos, c.dir, center + bogie);
+          const h = Math.atan2(f.y - r.y, f.x - r.x);
+          const mx = (f.x + r.x) / 2, my = (f.y + r.y) / 2;
           // each direction runs on its own track, to the right of the line, so passing trains go side by side
-          const [lng, lat] = toLngLat(p.x + Math.sin(h) * side, p.y - Math.cos(h) * side);
+          const [lng, lat] = toLngLat(mx + Math.sin(h) * side, my - Math.cos(h) * side);
           out.push({ line: a.line, lng, lat, heading: h });
         } else {
           const h = a.info.bearing != null ? Math.PI / 2 - (a.info.bearing * Math.PI) / 180 : 0;
