@@ -87,7 +87,7 @@ The map itself is owned by Verna. Restyle only the chrome around it; the illustr
 - **School colors** appear on avatar rings and dots: BU `#B3121F`, Northeastern `#26262B`, MIT `#8A1538`, Harvard `#A51C30`. Others come from the backend.
 
 ### Type
-- **Fonts:** Fraunces (display, 500 / 600 / 700) and DM Sans (UI, 400 / 500 / 600 / 700), from Google Fonts.
+- **Fonts:** Fraunces (display, 500 / 600 / 700) and DM Sans (UI, 400 / 500 / 600 / 700). They are bundled with the app in `src/app/fonts/` (variable weight, latin), not loaded from Google Fonts.
 - **Display headings** use upright Fraunces: page titles are 26–28 mobile / 40 desktop; hero titles are 30–32 mobile / 44 desktop. Italic is reserved for the "Explore Boston" and "My Passport" titles.
 - **Station names** are set like a station sign: DM Sans 700, 26 px, white on `#2B1A1F`, radius 8. Step long names down a size.
 - **Body text** is 14–17; labels 13–15 at weight 600–700; eyebrows 12 px, 700, uppercase, +0.08–0.12em tracking.
