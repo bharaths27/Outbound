@@ -118,6 +118,17 @@ await check("Grok guide", async () => {
   return `source=grok, picks: ${picks || "none"}`;
 });
 
+await check("Mastra trip planner (/api/agent)", async () => {
+  const res = await fetch(BASE + "/api/agent?q=" + encodeURIComponent("cheap food near Kenmore, I have an hour"), {
+    signal: AbortSignal.timeout(60000),
+  });
+  if (res.status === 404) return { warn: "not on this branch yet" };
+  const j = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${j?.error ?? ""}`);
+  assert(j.reply, "no reply");
+  return `tools used: ${(j.tools ?? []).join(", ") || "none"}; picks: ${(j.quests ?? []).map((q) => q.title).join(", ") || "none"}`;
+});
+
 // ---------- Share card + public quest page ----------
 console.log("\nShare card and QR page");
 await check("share card PNG", async () => {
