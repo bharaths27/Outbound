@@ -1,6 +1,7 @@
 "use client";
 // Floating "Ask Outbound Guide" chat, powered by Grok via /api/guide. Type, or snap a photo of food or a place.
 // Self-contained: drop <GrokGuide /> anywhere (it's in the root layout so it shows on every page).
+import { Camera, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -40,7 +41,7 @@ async function toJpeg(file: File): Promise<string> {
 const PRICE = ["Free", "$", "$$", "$$$"];
 const STARTERS = ["Cheap eats open now", "Photo spot on the Green Line", "Date night, about 2 hours"];
 const WELCOME =
-  "Hey! Tell me your craving, budget, or how much time you have, or tap 📷 to snap a photo of food or a place. I'll find you a quest on the T.";
+  "Hey! Tell me your craving, budget, or how much time you have, or tap the camera to snap a photo of food or a place. I'll find you a quest on the T.";
 
 export default function GrokGuide() {
   const [open, setOpen] = useState(false);
@@ -182,9 +183,9 @@ export default function GrokGuide() {
               disabled={busy}
               aria-label="Snap or upload a photo"
               title="Snap or upload a photo"
-              className="rounded-full border border-border px-3 text-base disabled:opacity-40"
+              className="flex items-center rounded-full border border-border px-3 disabled:opacity-40"
             >
-              📷
+              <Camera className="size-4" aria-hidden />
             </button>
             <input
               value={input}
@@ -201,9 +202,16 @@ export default function GrokGuide() {
       )}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="rounded-full bg-maroon px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-maroon-600"
+        className="flex items-center gap-1.5 rounded-full bg-maroon px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-maroon-600"
       >
-        {open ? "Close" : "✦ Ask Guide"}
+        {open ? (
+          "Close"
+        ) : (
+          <>
+            <Sparkles className="size-4" aria-hidden />
+            Ask Guide
+          </>
+        )}
       </button>
     </div>
   );

@@ -141,7 +141,7 @@ export function OnboardingPage() {
                   leaderboard resets every Monday.
                 </p>
                 <p className="mt-2.5 text-[15px] leading-normal text-ink-2">
-                  Squads can mix schools. Check in with a friend from another school for double XP.
+                  Squads can mix schools. Check in together for +20% XP, or double XP if a squad-mate from another school checks in at the same quest within an hour.
                 </p>
               </div>
             </section>

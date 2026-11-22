@@ -8,7 +8,7 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { data } from "@/lib/data";
+import { XP_PER_LEVEL, data, levelProgress } from "@/lib/data";
 import type { Quest, QuestType, Station } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { CATEGORY, QuestThumb } from "@/features/hub/category";
@@ -16,7 +16,7 @@ import { LineLetter, groupLines } from "@/features/hub/line-badge";
 import { XpChip } from "@/features/hub/quest-card";
 import { usePlayer } from "@/features/hub/use-player";
 import { PageHeader } from "@/features/shell/page-header";
-import { DAILY_COUNT, bostonDateKey, doneToday, pickDailyQuests } from "./daily";
+import { DAILY_COUNT, bostonDateKey, dailyEligible, doneToday, pickDailyQuests, xpToday } from "./daily";
 
 type Filter = "all" | QuestType;
 const FILTERS: { id: Filter; label: string }[] = [
@@ -52,12 +52,13 @@ export function QuestsPage() {
   }, []);
 
   const daily = useMemo(
-    () => (loaded && loaded !== "error" ? pickDailyQuests(loaded.quests, dateKey) : []),
+    () => (loaded && loaded !== "error" ? pickDailyQuests(dailyEligible(loaded.quests, new Date()), dateKey) : []),
     [loaded, dateKey],
   );
   const done = useMemo(() => doneToday(player.visits, dateKey), [player.visits, dateKey]);
   const doneQuests = daily.filter((q) => done.has(q.id));
-  const doneXp = doneQuests.reduce((s, q) => s + q.xp, 0);
+  // Everything earned today, from check_in's xp_awarded (bonuses included), not base quest XP.
+  const doneXp = useMemo(() => xpToday(player.visits, dateKey), [player.visits, dateKey]);
   const total = daily.length || DAILY_COUNT;
   const shown = filter === "all" ? daily : daily.filter((q) => q.type === filter);
   const progressLabel = `${doneQuests.length} of ${total} done · +${doneXp} XP`;
@@ -155,8 +156,8 @@ export function QuestsPage() {
                   <span className="text-[13px] text-muted-foreground">Lv. {profile.level + 1} next</span>
                 </div>
                 <Progress
-                  value={250 - profile.xp_to_next_level}
-                  max={250}
+                  value={levelProgress(profile).into}
+                  max={XP_PER_LEVEL}
                   label={`Progress to level ${profile.level + 1}`}
                   className="mt-3 h-2.5 bg-sand"
                   fill="bg-gold-500"
@@ -222,10 +223,10 @@ function BonusBanner({ large = false }: { large?: boolean }) {
       <section className="rounded-xl bg-maroon p-5 text-white">
         {icon}
         <p className="mt-3.5 type-eyebrow text-gold">Cross-school bonus</p>
-        <h2 className="mt-1 font-display text-2xl leading-tight font-semibold">Quest with another school for 2× XP</h2>
+        <h2 className="mt-1 font-display text-2xl leading-tight font-semibold">Squad up across schools for 2× XP</h2>
         <p className="mt-2 text-sm leading-relaxed text-on-maroon-muted">
-          Team up with a student from another school on any quest. You both earn double XP and a cross-school ring on the
-          stamp.
+          Check in with your squad for +20% XP, or double XP if a squad-mate from another school checks in at the same
+          quest within an hour. Cross-school stamps get a gold ring.
         </p>
         <Link
           href="/leaderboard?tab=squads"
@@ -245,7 +246,7 @@ function BonusBanner({ large = false }: { large?: boolean }) {
       <div className="min-w-0 flex-1">
         <p className="type-eyebrow text-gold">Cross-school bonus</p>
         <p className="mt-0.5 text-[15px] leading-snug font-semibold">
-          Complete any quest with a student from another school for 2× XP
+          +20% XP with your squad, or double if a squad-mate from another school checks in within an hour
         </p>
       </div>
     </Link>

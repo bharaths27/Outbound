@@ -149,7 +149,7 @@ export function SchoolsTab({
             <ul className="mt-3 flex flex-col gap-2.5 text-sm leading-normal text-ink-2">
               {[
                 ["XP", "Each quest you finish adds its XP to your school."],
-                ["2×", "Cross-school check-ins count double for both schools."],
+                ["2×", "In a squad: +20% XP, or double if a squad-mate from another school checks in at the same quest within an hour."],
                 ["Wk", "Totals reset every Monday. Schools need 5 active players to rank."],
               ].map(([chip, text]) => (
                 <li key={chip} className="flex gap-2.5">
@@ -249,7 +249,8 @@ function Contribution({
     );
   }
   const xp = weeklyXp(player.visits, bostonDateKey(new Date()));
-  const school = mine?.name ?? "school";
+  // "Your BU contribution"; without a ranked school row, plain "Your school contribution".
+  const schoolLabel = mine ? schoolAbbr(mine.name) : "school";
   const shell = {
     profile,
     school: mine ? { id: mine.school_id, name: mine.name, email_domain: "", color: mine.color } : null,
@@ -259,7 +260,7 @@ function Contribution({
       <section className="flex items-center gap-3 rounded-[18px] border border-border bg-surface px-3.5 py-3">
         <PlayerAvatar player={shell} size={44} />
         <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-bold">Your {schoolAbbr(school)} contribution</p>
+          <p className="text-[15px] font-bold">Your {schoolLabel} contribution</p>
           <p className="text-[13px] text-muted-foreground tabular-nums">{xp.toLocaleString("en-US")} XP this week</p>
         </div>
         <Link
@@ -276,9 +277,10 @@ function Contribution({
       <div className="flex items-center gap-3">
         <PlayerAvatar player={shell} size={52} />
         <div className="min-w-0">
-          <p className="text-[17px] font-bold">Your {schoolAbbr(school)} contribution</p>
+          <p className="text-[17px] font-bold">Your {schoolLabel} contribution</p>
           <p className="truncate text-sm text-muted-foreground">
-            {profile.display_name ?? "You"} · {school}
+            {profile.display_name ?? "You"}
+            {mine && ` · ${mine.name}`}
           </p>
         </div>
       </div>

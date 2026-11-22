@@ -38,7 +38,7 @@ export function LoginPage() {
         {/* eslint-disable-next-line @next/next/no-img-element -- static SVG wordmark */}
         <img src="/outbound-wordmark.svg" alt="Outbound" className="block h-[26px] w-auto self-start desk:h-8" />
         <div aria-hidden className="pointer-events-none absolute top-[150px] right-[120px] hidden rotate-[-8deg] rounded-full bg-page shadow-[0_12px_30px_rgb(0_0_0/0.25)] desk:block">
-          <Stamp questId="login-hero" title="Back Bay" neighborhood="Fenway" stationId="place-kencl" type="scenic" tier="gold" size={150} />
+          <Stamp questId="login-hero" title="Kenmore" neighborhood="Fenway-Kenmore" stationId="place-kencl" type="scenic" tier="gold" size={150} />
         </div>
         <div className="relative desk:mt-auto">
           <h1 className="mt-[22px] font-display text-[30px] leading-[1.1] font-semibold text-gold desk:mt-0 desk:text-[56px] desk:leading-[1.05]">

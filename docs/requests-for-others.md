@@ -60,8 +60,14 @@ frontend-derived shapes.
   codes? The frontend can take a typed code without adding a scanner library.
 - [ ] **Vercel env var.** Set `NEXT_PUBLIC_DATA_SOURCE=supabase` in the Vercel project. The
   Supabase data service is done; `mock` stays the local default.
+- [ ] **Level size.** The level bars (Quests, Passport, Profile) need the XP a level spans
+  to draw progress, and `profiles` only has `xp_to_next_level`. The app uses one constant,
+  `XP_PER_LEVEL = 250` in `src/lib/data/levels.ts`, to match `check_in()`. If levels will
+  ever grow, please add `xp_for_level` (or `level_start_xp`) to `profiles` and the
+  `check_in` result, and the app will read it there instead.
 - [ ] **Today's Quests list** (low priority). The new Quests tab (`/quests`) picks 5 quests
-  per Boston date on the client (`src/features/quests/daily.ts`), the same for everyone. If
+  per Boston date on the client (`src/features/quests/daily.ts`), the same for everyone,
+  skipping `requires_qr` quests and places with no hours that day. If
   you want a curated or personalized daily list, a `daily_quests` view or RPC would replace
   it; the page only needs quest ids.
 - [ ] **One craving per search** (low priority). `Filters.craving` holds one value, so

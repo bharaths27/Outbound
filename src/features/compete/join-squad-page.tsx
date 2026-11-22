@@ -99,8 +99,8 @@ export function JoinSquadPage({ code }: { code: string }) {
                 )}
               </SquadCard>
               <p className="text-sm text-on-maroon-muted">
-                Squads can mix schools. Check in at a quest together for bonus XP, or double XP with a squad-mate from
-                another school.
+                Squads can mix schools. Check in together for +20% XP, or double XP if a squad-mate from another
+                school checks in at the same quest within an hour.
               </p>
             </>
           );

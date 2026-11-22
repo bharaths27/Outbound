@@ -13,7 +13,7 @@ import { initials, squadName } from "@/features/compete/compete";
 import { buildPassport, type EarnedStamp } from "@/features/passport/build-passport";
 import { Stamp } from "@/features/passport/stamp";
 import { privacyLabel } from "@/features/settings/privacy-choice";
-import { data } from "@/lib/data";
+import { XP_PER_LEVEL, data, levelProgress } from "@/lib/data";
 import type { Profile, School, SquadWithMembers, Tier } from "@/lib/data/types";
 import { PlayerAvatar } from "@/features/shell/shell-parts";
 import { PageHeader } from "@/features/shell/page-header";
@@ -139,13 +139,13 @@ function ProfileView({ load, onSignOut }: { load: Ready; onSignOut: () => void }
           role="progressbar"
           aria-label={`Progress to level ${profile.level + 1}`}
           aria-valuemin={0}
-          aria-valuemax={250}
-          aria-valuenow={250 - profile.xp_to_next_level}
+          aria-valuemax={XP_PER_LEVEL}
+          aria-valuenow={levelProgress(profile).into}
           className="mt-3 h-2.5 overflow-hidden rounded-full bg-sand"
         >
           <div
             className="h-full rounded-full bg-gold-500"
-            style={{ width: `${Math.max(0, Math.min(100, ((250 - profile.xp_to_next_level) / 250) * 100))}%` }}
+            style={{ width: `${levelProgress(profile).pct * 100}%` }}
           />
         </div>
         <p className="mt-1.5 text-[13px] text-muted-foreground tabular-nums">

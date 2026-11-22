@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { data } from "@/lib/data";
+import { data, levelProgress as sharedLevelProgress } from "@/lib/data";
 import type { Profile, School, Tier } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { TIER_LABEL, buildPassport, progressLine, type NeighborhoodView, type PassportView } from "./build-passport";
@@ -120,9 +120,8 @@ export function PassportPage() {
 const STAR = "M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z";
 
 function levelProgress(profile: Profile) {
-  // 250 XP per level (profiles.level is generated from xp).
-  const into = 250 - profile.xp_to_next_level;
-  return { pct: Math.max(0, Math.min(100, (into / 250) * 100)), into };
+  const { into, pct } = sharedLevelProgress(profile);
+  return { pct: pct * 100, into };
 }
 
 /** Phones: avatar, name, school, level pill, and XP to the next level, in the title band. */

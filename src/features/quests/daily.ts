@@ -1,9 +1,12 @@
 // Today's quests (DESIGN.md §2.3): a daily pick of quests across stations, the same for
 // everyone on a given Boston date. The backend has no daily list yet, so the pick is a
 // stable hash of the date and quest id. It takes one quest per category first, then fills
-// the rest from stations not used yet, so the list spreads across the T.
+// the rest from stations not used yet, so the list spreads across the T. It skips quests
+// that need a code (requires_qr: you can't do them without being at the event) and places
+// with no hours on that day.
 
 import type { Quest, QuestType, Visit } from "@/lib/data/types";
+import { opensOnDay } from "@/features/hub/hours";
 
 export const DAILY_COUNT = 5;
 
@@ -28,6 +31,12 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
+/** Quests a player can do on the day of `now`: no code needed, and open at some point that day. */
+export function dailyEligible(quests: Quest[], now: Date): Quest[] {
+  return quests.filter((q) => !q.requires_qr && opensOnDay(q.hours, now));
+}
+
+/** Pass quests through dailyEligible first. */
 export function pickDailyQuests(quests: Quest[], dateKey: string, count = DAILY_COUNT): Quest[] {
   const shuffled = [...quests].sort((a, b) => hash(`${dateKey}:${a.id}`) - hash(`${dateKey}:${b.id}`) || a.id.localeCompare(b.id));
   const picked: Quest[] = [];
@@ -54,6 +63,11 @@ export function pickDailyQuests(quests: Quest[], dateKey: string, count = DAILY_
     if (!picked.includes(q)) take(q);
   }
   return picked;
+}
+
+/** XP the player earned on this Boston date (what check_in awarded, bonuses included). */
+export function xpToday(visits: Visit[], dateKey: string): number {
+  return visits.filter((v) => v.visit_date === dateKey).reduce((sum, v) => sum + (v.xp_awarded ?? 0), 0);
 }
 
 /** Quest ids the player checked in to on this Boston date. */

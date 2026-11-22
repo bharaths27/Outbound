@@ -123,6 +123,17 @@ export function isOpenAt(hours: string | null, now: Date): boolean | null {
   return currentPeriod(s, day, minutes) !== null;
 }
 
+/**
+ * False only when the hours are known and have no opening on this Boston weekday. Unknown
+ * hours count as open. Day-level, so a daily list built from it doesn't change by the hour.
+ */
+export function opensOnDay(hours: string | null, now: Date): boolean {
+  const s = parseSchedule(hours);
+  if (s === null || s === "always") return true;
+  const { day } = bostonTime(now);
+  return s.some((p) => p.day === day);
+}
+
 /** "9 AM", "11:30 PM", "midnight", "noon". */
 export function formatClock(minutes: number): string {
   if (minutes === 0) return "midnight";
