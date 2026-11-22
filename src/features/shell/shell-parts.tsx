@@ -36,9 +36,11 @@ export const NAV = [
     d: "M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 7h18v4H3zM12 7v14M12 7c-1.4-2.8-5-3.2-5-1.2C7 7 9.5 7 12 7zm0 0c1.4-2.8 5-3.2 5-1.2C17 7 14.5 7 12 7z",
   },
   { href: "/events", label: "Events", d: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4", desktopOnly: true },
+  // Host (BU Spark! track): publish an event that shows on the map. Phones reach it from the map.
+  { href: "/host", label: "Host", d: "M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8zM5 21h14", desktopOnly: true },
 ] as const satisfies readonly { href: string; label: string; d: string; desktopOnly?: boolean }[];
 
-/** The phone tab bar keeps 5 items (DESIGN.md §4); Events (not designed yet) is desktop only. */
+/** The phone tab bar keeps 5 items (DESIGN.md §4); Events and Host are desktop only (phones reach Host from the map). */
 export const PHONE_NAV = NAV.filter((item) => !("desktopOnly" in item && item.desktopOnly));
 
 export const isActive = (pathname: string, href: string) =>

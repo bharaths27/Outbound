@@ -6,6 +6,8 @@
 import type {
   AuthResult,
   CheckInOutcome,
+  HostedEvent,
+  NewHostedEvent,
   PlaceCheckInOutcome,
   Deal,
   Filters,
@@ -58,6 +60,11 @@ export interface DataService {
     place: { key: string; name: string; category: string; lat: number; lon: number; minutes: number },
     location: { lat: number; lon: number } | null,
   ): Promise<PlaceCheckInOutcome>;
+
+  // Host (010_hosted_events.sql): events students publish; everyone sees them on the map.
+  getHostedEvents(): Promise<HostedEvent[]>;
+  createHostedEvent(e: NewHostedEvent): Promise<HostedEvent>; // signed in only
+  deleteHostedEvent(id: string): Promise<void>; // your own only
 
   // passport and visits
   getPassport(userId: string): Promise<PassportNeighborhood[]>;

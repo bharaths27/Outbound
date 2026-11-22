@@ -485,3 +485,18 @@
     transparent 100%
   );
 }
+
+/* Student-hosted events on the map (Host page). */
+.ob-hosted { cursor: pointer; position: relative; display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 4px 10px 4px 5px; border-radius: 14px; background: #fff; border: 2px solid #7c3aed; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3); text-align: left; transform-origin: bottom center; transition: scale .15s; }
+.ob-hosted:hover { scale: 1.06; }
+.ob-hosted::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 10px; height: 10px; background: #fff; border-right: 2px solid #7c3aed; border-bottom: 2px solid #7c3aed; transform: translateX(-50%) rotate(45deg); }
+.ob-hosted-emoji { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 9px; background: #ede9fe; font-size: 16px; line-height: 1; }
+.ob-hosted-text { display: flex; min-width: 0; flex-direction: column; }
+.ob-hosted-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12.5px/1.2 system-ui, sans-serif; color: #1f1235; }
+.ob-hosted-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 10.5px/1.2 system-ui, sans-serif; color: #6b7280; }
+.ob-hosted-tag { position: absolute; top: -9px; right: -6px; padding: 1px 6px; border-radius: 999px; background: #16a34a; color: #fff; font: 700 9.5px/1.5 system-ui, sans-serif; white-space: nowrap; }
+.ob-hosted-live { border-color: #db2777; }
+.ob-hosted-live::after { border-color: #db2777; }
+.ob-hosted-live .ob-hosted-text small { color: #db2777; font-weight: 700; }
+.ob-hosted-live::before { content: ""; position: absolute; inset: -6px; border-radius: 18px; border: 2px solid #db2777; opacity: 0; animation: ob-hosted-ping 1.8s ease-out infinite; pointer-events: none; }
+@keyframes ob-hosted-ping { 0% { opacity: .7; scale: .95; } 100% { opacity: 0; scale: 1.15; } }

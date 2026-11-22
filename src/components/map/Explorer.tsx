@@ -5,8 +5,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import { ArrowLeft, Clock, Coffee, FerrisWheel, Footprints, IceCreamCone, MapPin, Star, Utensils, Wine, X } from "lucide-react";
+import { Fragment } from "react";
 import { createElement, type IconNode, Coffee as CoffeeNode, FerrisWheel as FerrisNode, IceCreamCone as IceCreamNode, MapPin as MapPinNode, Utensils as UtensilsNode, Wine as WineNode } from "lucide";
 import type { Map as MlMap, GeoJSONSource } from "maplibre-gl";
+import type { SampleReview } from "@/lib/sample-places";
 
 export interface Place {
   id: string;
@@ -21,6 +23,22 @@ export interface Place {
   price: number | null;
   openNow: boolean | null;
   url: string | null;
+  /** what the place card says beyond the name: kind, description, spend, sample reviews, XP, check-in */
+  info?: PlaceInfo;
+}
+export interface PlaceInfo {
+  label: string; // "Restaurant", "Quest · Food", "University campus"
+  food?: boolean;
+  tag?: string; // replaces the "Food spot" / "Place" prefix, e.g. "Student event"
+  facts?: [string, string][]; // extra rows: When, Hosted by, Prizes...
+  description?: string;
+  spend?: string;
+  rating?: number;
+  ratingCount?: number;
+  reviews?: SampleReview[];
+  xp?: { total: number; rows: [string, string][] };
+  checkIn?: () => Promise<{ ok: boolean; text: string }>;
+  link?: { href: string; text: string };
 }
 interface Step {
   mode: "walk" | "transit";
@@ -93,7 +111,7 @@ export interface ExplorerHandle {
   search: (q: string) => void;
   show: (p: Place) => void;
   /** Open a place card and draw the route there (from you, or from BU Central if we don't know where you are). */
-  navigate: (t: { name: string; lat: number; lng: number; address?: string; category?: string }, from?: { lng: number; lat: number; label: string }) => void;
+  navigate: (t: { name: string; lat: number; lng: number; address?: string; category?: string; info?: PlaceInfo }, from?: { lng: number; lat: number; label: string }) => void;
 }
 const BU_CENTRAL: [number, number] = [-71.107037, 42.350049];
 
@@ -146,6 +164,13 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
     setSimPos(null);
   };
   const [routing, setRouting] = useState(false);
+  const [checkMsg, setCheckMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [allReviews, setAllReviews] = useState(false);
+  useEffect(() => {
+    setCheckMsg(null);
+    setAllReviews(false);
+  }, [place]);
   const [fromLabel, setFromLabel] = useState("from the map center");
   const [routeFrom, setRouteFrom] = useState<[number, number] | null>(null);
   const pins = useRef<maplibregl.Marker[]>([]);
@@ -160,15 +185,16 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
 
   useImperativeHandle(ref, () => ({
     search: (q: string) => void runSearch(q),
+    // a search result or a place picked elsewhere: its card, with every way there right away
     show: (p: Place) => {
       setPlace(p);
       resetRoute();
-      map?.flyTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 16.2), pitch: map.getPitch(), duration: 1800 });
+      void directions(p, userLoc ?? BU_CENTRAL, userLoc ? "from you" : "from BU Central");
     },
     navigate: (t, from) => {
       const p: Place = {
         id: `guide-${t.lat},${t.lng}`, name: t.name, address: t.address ?? "", lng: t.lng, lat: t.lat,
-        types: [], category: t.category ?? "From the Outbound Guide", rating: null, ratings: 0, price: null, openNow: null, url: null,
+        types: [], category: t.category ?? "From the Outbound Guide", rating: null, ratings: 0, price: null, openNow: null, url: null, info: t.info,
       };
       setQuery(null);
       setResults(null);
@@ -220,10 +246,11 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
       el.onclick = (e) => {
         e.stopPropagation();
         setPlace(p);
-        resetRoute();
+        void directions(p);
       };
       pins.current.push(new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([p.lng, p.lat]).addTo(map));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, filtered, place]);
 
   // route on the map: the shown option in color (T legs in line colors, dashed walking legs);
@@ -254,10 +281,23 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
     }
   }, [map, options, chosen, shownIdx]);
 
-  const fit = (paths: LL[][]) => {
+  // soft: leave the camera alone when the whole route is already on screen (beside the card), so
+  // tapping something nearby doesn't make the map jump away from what you tapped.
+  const fit = (paths: LL[][], soft = false) => {
     if (!map) return;
     const b = new maplibregl.LngLatBounds();
     paths.forEach((pp) => pp.forEach((pt) => b.extend(pt)));
+    if (soft && !b.isEmpty()) {
+      const { clientWidth: w, clientHeight: h } = map.getContainer();
+      const left = w >= 900 ? 430 : 16; // the place card covers the left side on wide screens
+      const onScreen = paths.every((pp) =>
+        pp.every((pt) => {
+          const q = map.project(pt as [number, number]);
+          return q.x >= left && q.x <= w - 40 && q.y >= 90 && q.y <= h - 60;
+        }),
+      );
+      if (onScreen) return;
+    }
     if (!b.isEmpty()) map.fitBounds(b, { padding: { top: 120, bottom: 80, left: 380, right: 380 }, pitch: map.getPitch(), duration: 1600 });
   };
 
@@ -334,7 +374,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
       const j = await r.json();
       if (!r.ok || !j.options?.length) throw new Error(j.error ?? "No route found");
       setOptions(j.options);
-      fit(j.options.map(pathOf));
+      fit(j.options.map(pathOf), true);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -402,7 +442,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                 key={p.id}
                 onClick={() => {
                   setPlace(p);
-                  map?.flyTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 16.2), pitch: map.getPitch(), duration: 1500 });
+                  void directions(p);
                 }}
                 className="flex w-full gap-2.5 border-b border-[var(--ob-line)] px-3 py-2 text-left hover:bg-[var(--ob-cream)]"
               >
@@ -425,10 +465,14 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
 
       {place && (
         <div className="overflow-auto px-3 py-2.5">
-          <div className="text-[13.5px] text-[var(--ob-ink-2)]">
-            {place.rating != null && <Star size={11} className="mr-0.5 inline -translate-y-px fill-amber-400 text-amber-400" aria-hidden />}
-                    {[stars(place.rating) + (place.ratings ? ` (${place.ratings.toLocaleString()})` : ""), dollars(place.price), place.category].filter(Boolean).join(" · ")}
-          </div>
+          {place.info ? (
+            <InfoBlock info={place.info} fastest={options?.[0] ?? null} />
+          ) : (
+            <div className="text-[13.5px] text-[var(--ob-ink-2)]">
+              {place.rating != null && <Star size={11} className="mr-0.5 inline -translate-y-px fill-amber-400 text-amber-400" aria-hidden />}
+              {[stars(place.rating) + (place.ratings ? ` (${place.ratings.toLocaleString()})` : ""), dollars(place.price), place.category].filter(Boolean).join(" · ")}
+            </div>
+          )}
           {place.openNow != null && <div className={`text-[13.5px] ${place.openNow ? "text-emerald-700" : "text-rose-700"}`}>{place.openNow ? "Open now" : "Closed now"}</div>}
           <div className="mt-1 text-[13.5px] text-[var(--ob-muted)]">{place.address}</div>
           {!options && (
@@ -588,9 +632,96 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
               )}
             </div>
           )}
+
+          {/* check in here, then what students say (sample reviews until real ones exist) */}
+          {place.info?.checkIn && (
+            <div className="mt-3">
+              <button
+                disabled={checking}
+                onClick={async () => {
+                  setChecking(true);
+                  try {
+                    setCheckMsg(await place.info!.checkIn!());
+                  } finally {
+                    setChecking(false);
+                  }
+                }}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[var(--ob-gold,#e8b84a)] px-3 py-2 font-semibold text-[#3b2600] disabled:opacity-60"
+              >
+                <MapPin size={16} aria-hidden /> {checking ? "Checking where you are…" : `Check in${place.info.xp ? ` for +${place.info.xp.total} XP` : ""}`}
+              </button>
+              <p className={`mt-1 text-center text-[12.5px] ${checkMsg ? (checkMsg.ok ? "font-semibold text-emerald-700" : "text-amber-800") : "text-[var(--ob-muted)]"}`}>
+                {checkMsg?.text ?? "You need to be within 75 m."}
+              </p>
+            </div>
+          )}
+          {place.info?.link && (
+            <a href={place.info.link.href} className="mt-2 block text-center text-[13.5px] font-semibold text-[var(--ob-maroon)] hover:underline">
+              {place.info.link.text}
+            </a>
+          )}
+          {!!place.info?.reviews?.length && (
+            <div className="mt-3 border-t border-[var(--ob-line)] pt-2.5">
+              <div className="flex items-baseline justify-between">
+                <span className="font-semibold text-[var(--ob-ink)]">What students say</span>
+                <span className="rounded bg-[var(--ob-sand)] px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--ob-muted)]">Sample reviews</span>
+              </div>
+              <ul className="mt-1.5 flex flex-col gap-2">
+                {(allReviews ? place.info.reviews : place.info.reviews.slice(0, 2)).map((r, i) => (
+                  <li key={i} className="rounded-lg bg-[var(--ob-cream)] px-2.5 py-2 text-[13.5px]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-[var(--ob-ink)]">{r.author} · {r.school}</span>
+                      <span className="text-[12px] text-amber-600" aria-label={`${r.stars} out of 5`}>{"★".repeat(r.stars)}<span className="text-[var(--ob-line)]">{"★".repeat(5 - r.stars)}</span></span>
+                    </div>
+                    <p className="mt-0.5 text-[var(--ob-ink-2)]">{r.text}</p>
+                    <p className="text-[11.5px] text-[var(--ob-muted)]">{r.when}</p>
+                  </li>
+                ))}
+              </ul>
+              {place.info.reviews.length > 2 && !allReviews && (
+                <button className="mt-1 text-[13px] text-[var(--ob-maroon)] hover:underline" onClick={() => setAllReviews(true)}>
+                  More reviews
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 });
+
+/** The top of a place card: kind, how to get there, spend, rating, XP, and what it is. */
+function InfoBlock({ info, fastest }: { info: PlaceInfo; fastest: Route | null }) {
+  const rides = fastest?.steps.filter((x) => x.mode === "transit") ?? [];
+  const how = fastest ? (rides.length ? `${fastest.minutes} min by T (${[...new Set(rides.map((x) => x.line))].join(" → ")} Line)` : `${fastest.minutes} min walk`) : null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${info.food ? "bg-amber-100 text-amber-800" : "bg-[var(--ob-sand)] text-[var(--ob-ink-2)]"}`}>
+          {info.tag ?? (info.food ? "Food spot" : "Place")} · {info.label}
+        </span>
+        {info.xp && <span className="rounded-full bg-amber-400/90 px-2 py-0.5 text-[12px] font-bold text-[#3b2600]">+{info.xp.total} XP</span>}
+        {info.rating != null && (
+          <span className="flex items-center gap-0.5 text-[13px] text-[var(--ob-ink-2)]">
+            <Star size={13} className="fill-amber-400 text-amber-400" aria-hidden /> {info.rating.toFixed(1)}
+            {info.ratingCount ? <span className="text-[var(--ob-muted)]"> ({info.ratingCount}, sample)</span> : null}
+          </span>
+        )}
+      </div>
+      {info.description && <p className="text-[14px] leading-snug text-[var(--ob-ink-2)]">{info.description}</p>}
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[13.5px]">
+        {info.facts?.map(([k, v]) => (
+          <Fragment key={k}><dt className="text-[var(--ob-muted)]">{k}</dt><dd className="text-[var(--ob-ink)]">{v}</dd></Fragment>
+        ))}
+        {info.spend && (<><dt className="text-[var(--ob-muted)]">Average spend</dt><dd className="text-[var(--ob-ink)]">{info.spend}</dd></>)}
+        <dt className="text-[var(--ob-muted)]">Getting there</dt>
+        <dd className="text-[var(--ob-ink)]">{how ? `${how}${fastest?.fare ? `, ${"$"}${fastest.fare.toFixed(2)}` : ", free"}` : "Finding routes…"}</dd>
+        {info.xp?.rows.map(([k, v]) => (
+          <Fragment key={k}><dt className="text-[var(--ob-muted)]">{k}</dt><dd className="text-[var(--ob-ink)]">{v}</dd></Fragment>
+        ))}
+      </dl>
+    </div>
+  );
+}
 export default Explorer;

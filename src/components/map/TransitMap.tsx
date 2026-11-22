@@ -11,7 +11,10 @@ import { errorCopy } from "@/features/checkin/errors";
 import { locate } from "@/features/checkin/use-check-in";
 import { notifyPlayerChanged } from "@/features/shell/use-shell-player";
 import { data } from "@/lib/data";
-import type { Quest as DbQuest, Station as DbStation } from "@/lib/data/types";
+import { KIND_LABEL, SPEND, describeSpot, isFood, sampleReviews, spotKind, type SpotKind } from "@/lib/sample-places";
+import type { PlaceInfo } from "./Explorer";
+import type { HostedEvent, Quest as DbQuest, Station as DbStation } from "@/lib/data/types";
+import { EVENTS_CHANGED, eventStatus, foodInfo, kindInfo, whenText } from "@/features/host/hosted";
 import type { LineLateness, Station, Train } from "@/lib/types";
 import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
@@ -25,10 +28,9 @@ import ServicePanel from "./ServicePanel";
 import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
-import { BookOpen, Check, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Coffee, Landmark, Layers, LocateFixed, MapPin, Moon, Pizza, Soup, Star, Sun, Sunset, TrainFront, Trees, Trophy, Waves } from "lucide-react";
+import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Layers, LocateFixed, Moon, Star, Sun } from "lucide-react";
 import { createElement, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN, Trees as TreesN, Pizza as PizzaN, Coffee as CoffeeN, Check as CheckN } from "lucide";
 
-const QUEST_ICONS = { Landmark, Waves, Soup, BookOpen, Sunset, Trophy, Trees, Pizza, Coffee };
 const QUEST_NODES = { Landmark: LandmarkN, Waves: WavesN, Soup: SoupN, BookOpen: BookOpenN, Sunset: SunsetN, Trophy: TrophyN, Trees: TreesN, Pizza: PizzaN, Coffee: CoffeeN };
 const svgOf = (node: (typeof QUEST_NODES)[keyof typeof QUEST_NODES] | typeof CheckN, size: number) => {
   const el = createElement(node);
@@ -94,14 +96,13 @@ export default function TransitMap() {
   const layerRef = useRef<Trains3DLayer | null>(null);
   const cityRef = useRef<CityBuildingsLayer | null>(null);
   const [friend, setFriend] = useState<FriendVisit | null>(null);
-  const [quest, setQuest] = useState<Quest | null>(null);
   const [crStation, setCrStation] = useState<CrStation | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [isNight, setIsNight] = useState(false);
   const googleRef = useRef<GoogleTilesLayer | null>(null);
   const setRealisticRef = useRef<(on: boolean) => void>(() => {});
   const stationsRef = useRef<StationData[]>([]);
-  const markersRef = useRef<{ campus: maplibregl.Marker[]; friends: maplibregl.Marker[]; quests: maplibregl.Marker[] }>({ campus: [], friends: [], quests: [] });
+  const markersRef = useRef<{ campus: maplibregl.Marker[]; friends: maplibregl.Marker[]; quests: maplibregl.Marker[]; hosted: maplibregl.Marker[] }>({ campus: [], friends: [], quests: [], hosted: [] });
   const groundRef = useRef<string[]>([]);
 
   const [ready, setReady] = useState(false);
@@ -164,9 +165,6 @@ export default function TransitMap() {
     };
   }, [gameVersion]);
   // a restaurant or place from the basemap: points by kind, distance and cost (placePoints)
-  const [spot, setSpot] = useState<{ key: string; name: string; cls: string; lng: number; lat: number; minutes: number } | null>(null);
-  const [cardMsg, setCardMsg] = useState<{ text: string; ok?: boolean } | null>(null);
-  const [checking, setChecking] = useState(false);
   const rideMinRef = useRef<{ from: string; min: Record<string, number> } | null>(null);
 
   // ---------- map setup ----------
@@ -519,6 +517,10 @@ export default function TransitMap() {
           if (s) {
             setTrain(null);
             openStationHub(s.id); // the hub (src/features/hub) shows the station, arrivals and quests
+            explorer.current?.navigate({
+              name: `${s.name} station`, lat: s.lat, lng: s.lon, category: "T station",
+              info: { label: "T station", description: "Quests, next trains and tonight's last trains are in the station panel." },
+            });
           }
         });
         m.on("click", "trains-2d", (e) => {
@@ -567,7 +569,11 @@ export default function TransitMap() {
       el.title = c.name;
       el.onclick = (ev) => {
         ev.stopPropagation();
-        map.flyTo({ center: [c.lng, c.lat], zoom: 15.6, pitch: 60, duration: 2200 });
+        const rv = sampleReviews(c.name, "campus");
+        explorer.current?.navigate({
+          name: c.name, lat: c.lat, lng: c.lng, category: "University campus",
+          info: { label: "University campus", description: describeSpot("campus", nearStationName(c.lat, c.lng)), spend: SPEND.campus, rating: rv.rating, ratingCount: rv.count, reviews: rv.reviews },
+        });
       };
       return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([c.lng, c.lat]).addTo(map);
     });
@@ -578,7 +584,6 @@ export default function TransitMap() {
       el.innerHTML = `<span class="ob-friend-avatar">${initials(f.name)}</span>`;
       el.onclick = (ev) => {
         ev.stopPropagation();
-        setQuest(null);
         setFriend(f);
         map.easeTo({ center: [f.lng, f.lat], zoom: Math.max(map.getZoom(), 15.4), duration: 1400 });
       };
@@ -639,17 +644,106 @@ export default function TransitMap() {
         (ride.minutes ? `<span class="ob-quest-ride"><i></i>${ride.minutes}m</span>` : "");
       el.onclick = (ev) => {
         ev.stopPropagation();
-        setFriend(null);
-        setSpot(null);
-        setCardMsg(null);
-        setQuest(q);
-        map.easeTo({ center: [q.lng, q.lat], zoom: Math.max(map.getZoom(), 15.6), duration: 1400 });
+        openQuestRef.current(q);
       };
       return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([q.lng, q.lat]).addTo(map);
     });
     const markers = markersRef.current;
     return () => markers.quests.forEach((m) => m.remove());
   }, [ready, game, progress, mapQuests]);
+
+  // ---------- events students host (Host page, 010_hosted_events.sql) ----------
+  // Loaded once the map is ready and again whenever someone publishes or deletes one here.
+  const [hosted, setHosted] = useState<HostedEvent[]>([]);
+  const pendingEventRef = useRef<{ id: string; name: string; lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    const load = () =>
+      data
+        .getHostedEvents()
+        .catch(() => [] as HostedEvent[]) // events are extra; the map works without them
+        .then((list) => {
+          if (cancelled) return;
+          const current = list.filter((e) => eventStatus(e) !== "ended");
+          setHosted(current);
+          // a link to an event that has ended or didn't load: still show the route there
+          const want = pendingEventRef.current;
+          if (want && !current.some((e) => e.id === want.id)) {
+            pendingEventRef.current = null;
+            explorer.current?.navigate({ name: want.name, lat: want.lat, lng: want.lng });
+          }
+        });
+    load();
+    window.addEventListener(EVENTS_CHANGED, load);
+    const t = setInterval(load, 120_000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(EVENTS_CHANGED, load);
+      clearInterval(t);
+    };
+  }, [ready]);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    markersRef.current.hosted = hosted.map((e) => {
+      const k = kindInfo(e.kind);
+      const live = eventStatus(e) === "now";
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = `ob-hosted${live ? " ob-hosted-live" : ""}`;
+      el.dataset.eid = e.id;
+      el.title = `${e.title} (${k.label})`;
+      el.setAttribute("aria-label", `Student event: ${e.title}, ${k.label}, ${whenText(e)}${e.food === "free" ? ", free food" : ""}`);
+      el.innerHTML =
+        `<span class="ob-hosted-emoji">${k.emoji}</span><span class="ob-hosted-text"><b></b><small></small></span>` +
+        (e.food === "free" ? `<span class="ob-hosted-tag">Free food</span>` : e.food === "cheap" ? `<span class="ob-hosted-tag">Cheap eats</span>` : "");
+      el.querySelector("b")!.textContent = e.title; // user text: never innerHTML
+      el.querySelector("small")!.textContent = live ? "Happening now" : whenText(e);
+      el.onclick = (ev) => {
+        ev.stopPropagation();
+        openEventRef.current(e);
+      };
+      return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([e.lon, e.lat]).addTo(map);
+    });
+    // a link from the Host page (/?go=...&event=id) opens that event's card
+    const want = pendingEventRef.current;
+    if (want && hosted.length) {
+      const e = hosted.find((x) => x.id === want.id);
+      pendingEventRef.current = null;
+      if (e) openEventRef.current(e);
+      else explorer.current?.navigate({ name: want.name, lat: want.lat, lng: want.lng });
+    }
+    const markers = markersRef.current;
+    return () => markers.hosted.forEach((m) => m.remove());
+  }, [ready, hosted]);
+
+  // Anything else you click (a named place, a building, any spot): its card and directions.
+  // Its own effect so it works on every basemap, including the offline one with no POIs.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const onMapClick = (e: maplibregl.MapMouseEvent) => {
+      const hits = map.queryRenderedFeatures(e.point);
+      if (hits.some((f) => ["poi-xp", "stations", "cr-stations", "trains-2d"].includes(f.layer.id))) return; // they have their own
+      const poi = hits.find((f) => f.sourceLayer === "poi" && (f.properties?.name || f.properties?.["name:latin"]));
+      const { lng, lat } = e.lngLat;
+      if (poi && poi.geometry.type === "Point") {
+        const [plng, plat] = (poi.geometry as GeoJSON.Point).coordinates;
+        const name = String(poi.properties.name ?? poi.properties["name:latin"]);
+        const cls = String(poi.properties.class ?? "place");
+        openSpotRef.current({ key: `${name}@${plng.toFixed(4)},${plat.toFixed(4)}`, name, cls, lng: plng, lat: plat, minutes: minutesToRef.current(plng, plat) });
+        return;
+      }
+      const bld = hits.find((f) => f.sourceLayer === "building" || /building/.test(f.layer.id));
+      const label = bld ? "Building" : "Spot on the map";
+      explorer.current?.navigate({ name: bld?.properties?.name ? String(bld.properties.name) : bld ? "This building" : "This spot", lat, lng, category: label, info: { label, description: describeSpot("place", nearStationName(lat, lng)) } });
+    };
+    map.on("click", onMapClick);
+    return () => {
+      map.off("click", onMapClick);
+    };
+  }, [ready]);
 
   // ---------- points on every restaurant and place on the basemap ----------
   // XP labels over the map's own POIs (restaurants, cafes, parks, museums...): placePoints() from the
@@ -693,7 +787,7 @@ export default function TransitMap() {
       } catch {}
       return rideMinRef.current?.min ?? {};
     };
-    const minutesTo = (lng: number, lat: number, ride: Record<string, number>) => {
+    const minutesTo = (lng: number, lat: number, ride: Record<string, number> = rideMinRef.current?.min ?? {}) => {
       const walkMin = (m: number) => (m * 1.3) / 80; // 80 m a minute, streets aren't straight
       let best = walkMin(haversineM(origin[1], origin[0], lat, lng));
       for (const st of stationsRef.current) {
@@ -702,6 +796,8 @@ export default function TransitMap() {
       }
       return Math.round(best);
     };
+    minutesToRef.current = (lng, lat) => minutesTo(lng, lat);
+    let sig = "";
     const update = async () => {
       if (map.getZoom() < 14.5) return;
       const ride = await rideMin();
@@ -726,80 +822,156 @@ export default function TransitMap() {
           return { type: "Feature", properties: { ...p, minutes, tier: placeTier(p.cls), xp: placePoints(p.cls, minutes).total }, geometry: { type: "Point", coordinates: [p.lng, p.lat] } };
         }),
       };
+      // only when the set of places changed, so labels don't jump around while you look at them
+      const next = fc.features.map((f) => `${f.properties?.key}:${f.properties?.xp}`).sort().join("|");
+      if (next === sig) return;
+      sig = next;
       (map.getSource("poi-xp") as GeoJSONSource | undefined)?.setData(fc);
     };
     const onClick = (e: maplibregl.MapLayerMouseEvent) => {
       const f = e.features?.[0];
       if (!f) return;
       const p = f.properties as { key: string; name: string; cls: string; lng: number; lat: number; minutes: number };
-      setQuest(null);
-      setFriend(null);
-      setCardMsg(null);
-      setSpot({ key: p.key, name: p.name, cls: p.cls, lng: Number(p.lng), lat: Number(p.lat), minutes: Number(p.minutes) });
+      openSpotRef.current({ key: p.key, name: p.name, cls: p.cls, lng: Number(p.lng), lat: Number(p.lat), minutes: Number(p.minutes) });
     };
     void update();
-    map.on("idle", update);
+    map.once("idle", update);
+    map.on("moveend", update);
+    let lastTiles = 0;
+    const onTiles = (ev: maplibregl.MapSourceDataEvent) => {
+      if (ev.sourceId !== poiLayer.source || !ev.isSourceLoaded || Date.now() - lastTiles < 800) return;
+      lastTiles = Date.now();
+      void update();
+    };
+    map.on("sourcedata", onTiles);
     map.on("click", "poi-xp", onClick);
     return () => {
       alive = false;
-      map.off("idle", update);
+      map.off("moveend", update);
+      map.off("sourcedata", onTiles);
       map.off("click", "poi-xp", onClick);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, originKey]);
 
   /** Real check-in: your location goes to the database, which says yes only within 75 m. */
-  async function checkInHere(send: (loc: { lat: number; lon: number }) => Promise<{ ok: true; xp: number; sub?: string } | { ok: false; error: Parameters<typeof errorCopy>[0] }>) {
-    setChecking(true);
-    setCardMsg(null);
+  async function checkInHere(send: (loc: { lat: number; lon: number }) => Promise<{ ok: true; xp: number; sub?: string } | { ok: false; error: Parameters<typeof errorCopy>[0] }>): Promise<{ ok: boolean; text: string }> {
     try {
       const loc = await locate();
-      if ("code" in loc) return setCardMsg({ text: errorCopy(loc).body });
+      if ("code" in loc) return { ok: false, text: errorCopy(loc).body };
       const out = await send(loc);
-      if (!out.ok) return setCardMsg({ text: errorCopy(out.error).body });
+      if (!out.ok) return { ok: false, text: errorCopy(out.error).body };
       setPops((p) => [...p, { id: Date.now(), text: `+${out.xp} XP`, sub: out.sub }]);
-      setCardMsg({ text: `Checked in. +${out.xp} XP`, ok: true });
       notifyPlayerChanged();
       setGameVersion((v) => v + 1);
+      return { ok: true, text: `Checked in. +${out.xp} XP` };
     } catch {
-      setCardMsg({ text: errorCopy({ code: "NETWORK" }).body });
-    } finally {
-      setChecking(false);
+      return { ok: false, text: errorCopy({ code: "NETWORK" }).body };
     }
   }
 
-  const checkIn = (q: Quest) => {
+  const checkIn = async (q: Quest): Promise<{ ok: boolean; text: string }> => {
     if (q.real) {
-      void checkInHere(async (loc) => {
+      return checkInHere(async (loc) => {
         const out = await data.checkIn(q.id, loc);
         return out.ok ? { ok: true, xp: out.result.xp_awarded, sub: q.title } : { ok: false, error: out.error };
       });
-      return;
     }
-    if (!game || checkedInToday(progress, q.id)) return;
+    if (!game) return { ok: false, text: "The map is still loading." };
+    if (checkedInToday(progress, q.id)) return { ok: false, text: "Already checked in here today." };
     // sample spots (no quests feed): still only when you're there
-    if (!userLoc || haversineM(userLoc[1], userLoc[0], q.lat, q.lng) > CHECKIN_RADIUS_M) {
-      setCardMsg({ text: `Get within ${CHECKIN_RADIUS_M} m of ${q.place} to check in.` });
-      return;
-    }
+    if (!userLoc || haversineM(userLoc[1], userLoc[0], q.lat, q.lng) > CHECKIN_RADIUS_M) return { ok: false, text: `Get within ${CHECKIN_RADIUS_M} m of ${q.place} to check in.` };
     const ride = game.rides.get(q.id)!;
     const visited = !!progress.visits[q.id]?.length;
     const xp = spotXp(q, ride, visited, game.expeditions.has(q.id));
-    // first time in a part of the map you hadn't uncovered yet: small bonus
     const newArea = !visited && haversineM(q.lat, q.lng, game.home.lat, game.home.lon) > 1400 && !visitedSpots.some((v) => haversineM(q.lat, q.lng, v.lat, v.lng) < 800);
     const gained = xp.total + (newArea ? NEW_AREA_BONUS : 0);
     const before = levelOf(progress.xp).level;
     const next: Progress = { xp: progress.xp + gained, visits: { ...progress.visits, [q.id]: [...(progress.visits[q.id] ?? []), Date.now()] } };
     setProgress(next);
     saveProgress(next);
-    const id = Date.now();
-    const parts = [xp.mult > 1 && !visited ? `${xp.mult}x distance` : visited ? "repeat visit" : "", xp.expeditionBonus ? "Expedition" : "", newArea ? "new area" : ""].filter(Boolean);
-    setPops((p) => [...p, { id, text: `+${gained} XP`, sub: parts.join(" · ") }]);
-    const after = levelOf(next.xp).level;
-    if (after > before) {
-      setLevelUp(after);
-    }
+    setPops((p) => [...p, { id: Date.now(), text: `+${gained} XP`, sub: q.title }]);
+    if (levelOf(next.xp).level > before) setLevelUp(levelOf(next.xp).level);
+    return { ok: true, text: `Checked in. +${gained} XP` };
   };
+
+  // ---------- one place card for everything on the map ----------
+  // Tap a quest, a place, a campus, a station or any building: the card (Explorer) shows what it is,
+  // the typical spend, sample reviews, XP and check-in, and every way to get there from you right away.
+  const nearStationName = (lat: number, lng: number) => {
+    const st = nearestStation(stationsRef.current, lat, lng);
+    return st && haversineM(lat, lng, st.lat, st.lon) < 1200 ? `${st.name} station` : null;
+  };
+  const openQuest = (q: Quest) => {
+    const ride = game?.rides.get(q.id);
+    const visited = !!progress.visits[q.id]?.length;
+    const xp = ride ? questXp(q, ride, visited, !!game?.expeditions.has(q.id)) : null;
+    const kind: SpotKind = q.kind === "food" ? (q.icon === "Coffee" ? "cafe" : q.icon === "Pizza" ? "fast_food" : "restaurant") : q.kind === "event" ? "event" : "attraction";
+    const rv = sampleReviews(q.title, kind);
+    const info: PlaceInfo = {
+      label: `Quest · ${q.kind === "food" ? "Food" : q.kind === "event" ? "Event" : "Scenery"}`,
+      food: q.kind === "food",
+      description: q.real ? `${q.hint}. Near ${q.place}.` : `Go to ${q.place}. ${q.hint}.`,
+      spend: q.price != null ? ["Free", "Under $10", "$10–20 a person", "$20+ a person"][q.price] : SPEND[kind],
+      rating: kind === "event" ? undefined : rv.rating,
+      ratingCount: kind === "event" ? undefined : rv.count,
+      reviews: kind === "event" ? undefined : rv.reviews,
+      xp: xp ? { total: xp.total, rows: q.real ? [["Quest XP", `+${xp.base}`], ...(visited ? [] : [["First visit", "+25"] as [string, string]])] : [["Base", `+${xp.base}`], ["Distance", `${xp.mult}x`]] } : undefined,
+      checkIn: checkedInToday(progress, q.id) ? undefined : () => checkIn(q),
+      link: q.real ? { href: `/q/${q.id}`, text: "Open the quest page" } : undefined,
+    };
+    setFriend(null);
+    explorer.current?.navigate({ name: q.title, lat: q.lat, lng: q.lng, category: info.label, info });
+  };
+  const openSpot = (p: { key: string; name: string; cls: string; lng: number; lat: number; minutes: number }) => {
+    const kind = spotKind(p.cls);
+    const pts = placePoints(p.cls, p.minutes);
+    const rv = sampleReviews(p.name, kind);
+    const info: PlaceInfo = {
+      label: KIND_LABEL[kind],
+      food: isFood(kind),
+      description: describeSpot(kind, nearStationName(p.lat, p.lng)),
+      spend: SPEND[kind],
+      rating: rv.rating,
+      ratingCount: rv.count,
+      reviews: rv.reviews,
+      xp: { total: pts.total, rows: [["Kind of place", `+${pts.base}`], [`Distance (${p.minutes} min)`, `+${pts.distanceXp}`], ["Budget bonus", `+${pts.budgetXp}`]] },
+      checkIn: () =>
+        checkInHere(async (loc) => {
+          const out = await data.checkInPlace({ key: p.key, name: p.name, category: p.cls, lat: p.lat, lon: p.lng, minutes: p.minutes }, loc);
+          return out.ok ? { ok: true, xp: out.result.xp_awarded, sub: p.name } : { ok: false, error: out.error };
+        }),
+    };
+    setFriend(null);
+    explorer.current?.navigate({ name: p.name, lat: p.lat, lng: p.lng, category: info.label, info });
+  };
+  const openEvent = (e: HostedEvent) => {
+    const k = kindInfo(e.kind);
+    const f = foodInfo(e.food);
+    const info: PlaceInfo = {
+      tag: "Student event",
+      label: k.label,
+      food: e.food !== "none",
+      description: `${e.description || "Hosted by students."} At ${e.place_name}.`,
+      spend: f.spend, // "Free food", "Under $10 for food"...
+      facts: [
+        ["When", whenText(e)],
+        ["Hosted by", e.host_name],
+        ...(e.prizes ? [["Prizes", e.prizes] as [string, string]] : []),
+      ],
+      link: { href: "/host", text: "See all student events" },
+    };
+    setFriend(null);
+    explorer.current?.navigate({ name: e.title, lat: e.lat, lng: e.lon, category: info.label, info });
+  };
+  const openEventRef = useRef(openEvent);
+  openEventRef.current = openEvent;
+  const openSpotRef = useRef(openSpot);
+  openSpotRef.current = openSpot;
+  const openQuestRef = useRef(openQuest);
+  openQuestRef.current = openQuest;
+  // minutes from you to a point (set by the places effect, which has the ride times)
+  const minutesToRef = useRef<(lng: number, lat: number) => number>((lng, lat) => Math.round((haversineM(42.350049, -71.107037, lat, lng) * 1.3) / 80));
 
   // show/hide markers by zoom + toggles
   useEffect(() => {
@@ -1036,10 +1208,14 @@ export default function TransitMap() {
     if (st && at?.length !== 2) mapRef.current?.flyTo({ center: [st.lon, st.lat], zoom: 15.4, duration: 1600 });
     if (at?.length === 2) {
       const name = qs.get("name") || "Your destination";
+      const eventId = qs.get("event");
+      // a student event: wait for the events to load so the card shows its details
+      if (eventId) pendingEventRef.current = { id: eventId, name, lat: at[0], lng: at[1] };
       // wait a frame so the Explorer has the map
-      requestAnimationFrame(() => go({ name, lat: at[0], lng: at[1] }));
+      else requestAnimationFrame(() => go({ name, lat: at[0], lng: at[1] }));
       qs.delete("go");
       qs.delete("name");
+      qs.delete("event");
       window.history.replaceState(null, "", `${window.location.pathname}${qs.size ? `?${qs}` : ""}`);
     }
     const onGo = (e: Event) => go((e as CustomEvent<{ name: string; lat: number; lng: number }>).detail);
@@ -1486,131 +1662,6 @@ export default function TransitMap() {
         </Card>
       )}
 
-      {/* any restaurant or place: what it's worth (kind + distance + budget), directions, check in */}
-      {spot && (() => {
-        const pts = placePoints(spot.cls, spot.minutes);
-        return (
-          <Card onClose={() => setSpot(null)}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">{PLACE_LABEL[spot.cls] ?? "Place"} · +{pts.total} XP</p>
-            <h2 className="text-lg font-semibold text-[var(--ob-ink)]">{spot.name}</h2>
-            <div className="mt-2.5 rounded-xl bg-[var(--ob-cream)] p-3 text-[13px] text-[var(--ob-ink-2)]">
-              <dl className="space-y-1 tabular-nums">
-                <Row k={`Kind of place (${(PLACE_LABEL[spot.cls] ?? "place").toLowerCase()})`} v={`+${pts.base}`} />
-                <Row k={`Distance (${spot.minutes} min ${userLoc ? "from you" : "from BU Central"})`} v={`+${pts.distanceXp}`} />
-                <Row k={`Budget (${pts.spend.toLowerCase()})`} v={`+${pts.budgetXp}`} />
-                <div className="mt-1 flex justify-between border-t border-[var(--ob-line)] pt-1 font-semibold text-[var(--ob-ink)]">
-                  <dt>You earn</dt>
-                  <dd>+{pts.total} XP</dd>
-                </div>
-              </dl>
-              <p className="mt-1.5 text-[11px] text-[var(--ob-muted)]">Farther and cheaper pays more. Up to 8 places a day.</p>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <button
-                disabled={checking}
-                onClick={() =>
-                  void checkInHere(async (loc) => {
-                    const out = await data.checkInPlace({ key: spot.key, name: spot.name, category: spot.cls, lat: spot.lat, lon: spot.lng, minutes: spot.minutes }, loc);
-                    return out.ok ? { ok: true, xp: out.result.xp_awarded, sub: spot.name } : { ok: false, error: out.error };
-                  })
-                }
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--ob-maroon)] px-3 py-2.5 text-[15px] font-medium text-white hover:bg-[var(--ob-maroon-dark)] disabled:opacity-50"
-              >
-                <MapPin size={16} aria-hidden /> {checking ? "Checking where you are…" : "Check in"}
-              </button>
-              <button
-                onClick={() => {
-                  explorer.current?.navigate({ name: spot.name, category: `${PLACE_LABEL[spot.cls] ?? "Place"} · +${pts.total} XP`, lat: spot.lat, lng: spot.lng });
-                  setSpot(null);
-                }}
-                className="rounded-lg bg-[var(--ob-sand)] px-3 py-2.5 text-[15px] font-medium text-[var(--ob-ink-2)] hover:bg-[var(--ob-line)]"
-              >
-                Directions
-              </button>
-            </div>
-            {cardMsg && <p className={`mt-2 text-[13px] ${cardMsg.ok ? "font-semibold text-emerald-700" : "text-amber-800"}`}>{cardMsg.text}</p>}
-          </Card>
-        );
-      })()}
-
-      {/* quest card: what it's worth from your home station, and check in */}
-      {quest && game && (() => {
-        const ride = game.rides.get(quest.id)!;
-        const visited = !!progress.visits[quest.id]?.length;
-        const exp = game.expeditions.has(quest.id);
-        const xp = questXp(quest, ride, visited, exp);
-        const doneToday = checkedInToday(progress, quest.id);
-        const near = userLoc ? haversineM(userLoc[1], userLoc[0], quest.lat, quest.lng) <= CHECKIN_RADIUS_M : false;
-        const I = QUEST_ICONS[quest.icon];
-        return (
-          <Card onClose={() => setQuest(null)}>
-            <div className="flex items-center gap-3">
-              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${exp && !visited ? "bg-gradient-to-br from-amber-200 to-amber-400 text-amber-900" : "bg-amber-100 text-amber-700"}`}>
-                <I size={22} strokeWidth={2} aria-hidden />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600">
-                  {exp && !visited ? "This week's Expedition" : visited ? "Visited" : quest.kind === "food" ? "Food spot" : "Passport quest"} · +{xp.total} XP
-                </p>
-                <h2 className="truncate text-base font-semibold text-[var(--ob-ink)]">{quest.title}</h2>
-              </div>
-            </div>
-            <p className="mt-2 text-[14px] text-[var(--ob-ink-2)]">
-              {quest.real ? <>{quest.hint}. <span className="text-[var(--ob-muted)]">Near {quest.place}.</span></> : <>Go to <b>{quest.place}</b>. {quest.hint}.</>}
-            </p>
-            <div className="mt-2.5 rounded-xl bg-[var(--ob-cream)] p-2.5 text-[12px] text-[var(--ob-ink-2)]">
-              <div className="flex items-center gap-1.5">
-                <TrainFront size={13} aria-hidden />
-                <span>
-                  {ride.minutes ? <>About <b>{ride.minutes} min</b> from {ride.from.name}</> : <>At your home stop</>}
-                  {ride.minutes ? <> to {ride.to.name}{ride.transfer ? ", 1 transfer" : ""}</> : null}
-                </span>
-                <span className="ml-auto h-2 w-2 shrink-0 rounded-full" style={{ background: (LINE_COLORS as Record<string, string>)[ride.line] }} />
-              </div>
-              <dl className="mt-2 space-y-0.5 tabular-nums">
-                <Row k="Base" v={`${xp.base}`} />
-                {quest.real ? (
-                  !visited && <Row k="First visit" v="+25" />
-                ) : (
-                  <Row k={`Distance (${ride.minutes >= 30 ? "30+ min" : ride.minutes >= 15 ? "15 to 30 min" : "under 15 min"})`} v={`${xp.mult}x`} />
-                )}
-                {xp.expeditionBonus > 0 && <Row k="Expedition bonus" v={`+${xp.expeditionBonus}`} />}
-                {visited && <Row k="Repeat visit" v="a quarter" />}
-                <div className="mt-1 flex justify-between border-t border-[var(--ob-line)] pt-1 font-semibold text-[var(--ob-ink)]">
-                  <dt>You earn</dt>
-                  <dd>+{xp.total} XP</dd>
-                </div>
-              </dl>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <button
-                disabled={doneToday || checking}
-                onClick={() => checkIn(quest)}
-                title={near ? "You're here" : `Check-in needs you within ${CHECKIN_RADIUS_M} m`}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--ob-maroon)] px-3 py-2.5 text-[15px] font-medium text-white hover:bg-[var(--ob-maroon-dark)] disabled:opacity-50"
-              >
-                {doneToday ? <><Check size={16} aria-hidden /> Checked in today</> : <><MapPin size={16} aria-hidden /> {checking ? "Checking where you are…" : "Check in"}</>}
-              </button>
-              <button
-                onClick={() => {
-                  explorer.current?.navigate({ name: quest.title, category: `Quest · +${xp.total} XP`, lat: quest.lat, lng: quest.lng });
-                  setQuest(null);
-                }}
-                className="rounded-lg bg-[var(--ob-sand)] px-3 py-2.5 text-[15px] font-medium text-[var(--ob-ink-2)] hover:bg-[var(--ob-line)]"
-              >
-                Directions
-              </button>
-            </div>
-            {cardMsg && <p className={`mt-2 text-[13px] ${cardMsg.ok ? "font-semibold text-emerald-700" : "text-amber-800"}`}>{cardMsg.text}</p>}
-            {quest.real ? (
-              <a href={`/q/${quest.id}`} className="mt-1.5 block text-[13px] font-semibold text-[var(--ob-maroon)] hover:underline">Open the quest page</a>
-            ) : (
-              <p className="mt-1.5 text-[10px] uppercase tracking-wide text-[var(--ob-muted)]">sample places and XP until the quests feed is live</p>
-            )}
-          </Card>
-        );
-      })()}
-
       {/* train card */}
       {train && (
         <Card onClose={() => setTrain(null)}>
@@ -1698,14 +1749,6 @@ function Stars({ value, small }: { value: number; small?: boolean }) {
   );
 }
 
-function Row({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="flex justify-between">
-      <dt>{k}</dt>
-      <dd>{v}</dd>
-    </div>
-  );
-}
 
 
 function Card({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
@@ -1775,9 +1818,3 @@ function questXp(q: Quest, ride: Ride, visited: boolean, exp: boolean) {
   return { base: q.points, mult: 1, distanceXp: q.points, expeditionBonus: 0, firstVisit: !visited, total: q.points + (visited ? 0 : 25) };
 }
 
-const PLACE_LABEL: Record<string, string> = {
-  restaurant: "Restaurant", fast_food: "Quick bite", cafe: "Cafe", bakery: "Bakery", ice_cream: "Ice cream", bar: "Bar", beer: "Bar", pub: "Pub",
-  museum: "Museum", attraction: "Attraction", art_gallery: "Gallery", theatre: "Theater", cinema: "Cinema", zoo: "Zoo", aquarium: "Aquarium",
-  castle: "Landmark", monument: "Monument", park: "Park", garden: "Garden", viewpoint: "Viewpoint", library: "Library", place_of_worship: "Landmark",
-  music: "Music venue", stadium: "Stadium",
-};

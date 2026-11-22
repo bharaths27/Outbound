@@ -5,7 +5,10 @@
 // into every station hub opened afterwards (explore-filters.ts), where the full filters live.
 
 import { ChevronDown, Clock, CircleDollarSign, Utensils } from "lucide-react";
-import { useSyncExternalStore, type ReactNode } from "react";
+import Link from "next/link";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { data } from "@/lib/data";
+import { EVENTS_CHANGED, eventStatus } from "@/features/host/hosted";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,6 +140,50 @@ export function ExploreCard({ className }: { className?: string }) {
       {/* The map's "Where to?" search (TransitMap portals it here), so the left side of the map
           stays free for the live train list and the Guide can't cover it. Empty until the map loads. */}
       <div id={MAP_SEARCH_SLOT} className="mt-3 empty:hidden desk:mt-4" />
+      <HostedEventsLink />
     </section>
+  );
+}
+
+/** "3 student events on the map · Host one": the way to the Host page (phones have no Host tab). */
+function HostedEventsLink() {
+  const [counts, setCounts] = useState<{ all: number; now: number } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      data
+        .getHostedEvents()
+        .then((list) => {
+          const current = list.filter((e) => eventStatus(e) !== "ended");
+          if (!cancelled) setCounts({ all: current.length, now: current.filter((e) => eventStatus(e) === "now").length });
+        })
+        .catch(() => !cancelled && setCounts({ all: 0, now: 0 }));
+    load();
+    window.addEventListener(EVENTS_CHANGED, load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(EVENTS_CHANGED, load);
+    };
+  }, []);
+  return (
+    <Link
+      href="/host"
+      className="mt-3 flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-3 py-2 text-[15px] text-violet-900 hover:bg-violet-100 desk:mt-4 dark:bg-violet-950/50 dark:text-violet-100"
+    >
+      <span aria-hidden>🎉</span>
+      <span className="min-w-0 flex-1">
+        {counts && counts.all > 0 ? (
+          <>
+            <b>
+              {counts.all} student event{counts.all > 1 ? "s" : ""}
+            </b>{" "}
+            on the map{counts.now ? `, ${counts.now} happening now` : ""}
+          </>
+        ) : (
+          "Hosting something? Put it on the map"
+        )}
+      </span>
+      <span className="font-semibold text-maroon dark:text-violet-200">Host</span>
+    </Link>
   );
 }

@@ -213,7 +213,7 @@ function LoginForms() {
           <h2 id="demo-heading" className="text-[15px] font-bold">
             Try a demo account
           </h2>
-          <p className="type-small text-muted-foreground">No password needed. Demo players can check in from anywhere.</p>
+          <p className="type-small text-muted-foreground">No password needed. Check-ins still need you at the spot.</p>
         </div>
         <ul className="grid grid-cols-2 gap-2">
           {DEMO_ACCOUNTS.map((a) => (
