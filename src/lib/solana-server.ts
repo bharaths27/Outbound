@@ -62,6 +62,15 @@ export async function mintOut(wallet: PublicKey, amount: number): Promise<string
   return sendAndConfirmTransaction(conn, tx, [payer], { commitment: "confirmed" });
 }
 
+// Give a wallet a little devnet SOL for fees if it's nearly empty. Returns the signature, or null if not needed.
+export async function topUpSol(wallet: PublicKey): Promise<string | null> {
+  const conn = connection();
+  if ((await conn.getBalance(wallet)) >= 0.005 * LAMPORTS_PER_SOL) return null;
+  const payer = serverKeypair();
+  const tx = new Transaction().add(SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: wallet, lamports: 0.02 * LAMPORTS_PER_SOL }));
+  return sendAndConfirmTransaction(conn, tx, [payer], { commitment: "confirmed" });
+}
+
 // Check that `sig` is a confirmed transaction in which `wallet` sent exactly `amount` OUT to our
 // treasury with the memo we expect. Retries briefly because a just-sent transaction may lag.
 export async function verifyRedeem(sig: string, wallet: PublicKey, amount: number, memo: string): Promise<string | null> {

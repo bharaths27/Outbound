@@ -78,7 +78,17 @@ export interface Quest {
   points: number;
   hint: string;
   /** lucide icon name */
-  icon: "Landmark" | "Waves" | "Soup" | "BookOpen" | "Sunset" | "Trophy";
+  icon: "Landmark" | "Waves" | "Soup" | "BookOpen" | "Sunset" | "Trophy" | "Trees" | "Pizza" | "Coffee";
+  /** food, scenery or event: food and events need a check-in, scenery also takes a photo */
+  kind?: "food" | "scenery" | "event";
+  /** a real quest from the database (check-in goes through check_in(), XP from the quest) */
+  real?: boolean;
+  /** for Explore's filters: food / event / scenic, price tier 0-3, minutes spent there */
+  qtype?: string;
+  price?: number;
+  duration?: number;
+  /** opening hours from the quest content ("Mon-Fri 08:00-18:00"), for "Open now" */
+  hours?: string | null;
 }
 export const SAMPLE_QUESTS: Quest[] = [
   { id: "q1", title: "Freedom Trail starter", place: "Massachusetts State House", lng: -71.0637, lat: 42.3581, points: 50, hint: "Find the gold dome, then walk the red-brick line", icon: "Landmark" },
@@ -87,4 +97,14 @@ export const SAMPLE_QUESTS: Quest[] = [
   { id: "q4", title: "Square hopper", place: "Harvard Square", lng: -71.1189, lat: 42.3733, points: 30, hint: "Red Line to Harvard, grab a book and a coffee", icon: "BookOpen" },
   { id: "q5", title: "Esplanade sunset", place: "Hatch Shell", lng: -71.0743, lat: 42.3576, points: 25, hint: "Golden hour on the Charles", icon: "Sunset" },
   { id: "q6", title: "Fenway faithful", place: "Fenway Park", lng: -71.0972, lat: 42.3467, points: 40, hint: "Kenmore on the Green Line, then follow the crowd", icon: "Trophy" },
+  // farther out: worth more from most campuses, and where the weekly Expedition picks from
+  { id: "q7", title: "Beach day on the Blue Line", place: "Revere Beach", lng: -70.9925, lat: 42.4078, points: 30, hint: "America's first public beach, steps from Revere Beach station", icon: "Waves", kind: "scenery" },
+  { id: "q8", title: "Arboretum wander", place: "Arnold Arboretum", lng: -71.1225, lat: 42.3005, points: 30, hint: "Orange Line to Forest Hills, then up Peters Hill for the skyline", icon: "Trees", kind: "scenery" },
+  { id: "q9", title: "Quincy shore walk", place: "Wollaston Beach", lng: -71.0225, lat: 42.2745, points: 30, hint: "Red Line to Wollaston, ten minutes to the water", icon: "Sunset", kind: "scenery" },
+  { id: "q10", title: "Old-school slice", place: "Santarpio's Pizza", lng: -71.0336, lat: 42.3735, points: 25, hint: "Blue Line to Airport, cash-only East Boston classic", icon: "Pizza", kind: "food" },
+  { id: "q11", title: "Davis coffee run", place: "Diesel Cafe", lng: -71.1224, lat: 42.3966, points: 20, hint: "Red Line to Davis, then thrift the square", icon: "Coffee", kind: "food" },
+  { id: "q12", title: "Echo Bridge", place: "Hemlock Gorge", lng: -71.2296, lat: 42.3127, points: 30, hint: "Green D to Newton Highlands, shout under the arch", icon: "Trees", kind: "scenery" },
+  { id: "q13", title: "Pond loop", place: "Jamaica Pond", lng: -71.1205, lat: 42.3165, points: 25, hint: "Green E to Heath Street, 1.5 miles around", icon: "Waves", kind: "scenery" },
+  { id: "q14", title: "Reservoir run", place: "Chestnut Hill Reservoir", lng: -71.1565, lat: 42.3365, points: 20, hint: "Green B or C to Cleveland Circle", icon: "Trees", kind: "scenery" },
+  { id: "q15", title: "Harbor views", place: "Piers Park", lng: -71.0335, lat: 42.3645, points: 25, hint: "Blue Line to Maverick, the best skyline photo in town", icon: "Landmark", kind: "scenery" },
 ];

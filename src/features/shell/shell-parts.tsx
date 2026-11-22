@@ -3,7 +3,8 @@
 // Pieces of the shell shared by the mobile header, desktop top bar, and page headers:
 // nav items, the XP pill, the Ask Guide button, the notifications bell, and the player avatar (DESIGN.md §4–5).
 
-import { Bell, Sparkles } from "lucide-react";
+import { Bell, Moon, Sparkles, Sun } from "lucide-react";
+import { setTheme, useTheme } from "@/features/theme/theme";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -35,9 +36,13 @@ export const NAV = [
     d: "M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 7h18v4H3zM12 7v14M12 7c-1.4-2.8-5-3.2-5-1.2C7 7 9.5 7 12 7zm0 0c1.4-2.8 5-3.2 5-1.2C17 7 14.5 7 12 7z",
   },
   { href: "/events", label: "Events", d: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4", desktopOnly: true },
+  // Host (BU Spark! track): publish an event that shows on the map. Phones reach it from the map.
+  { href: "/host", label: "Host", d: "M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8zM5 21h14", desktopOnly: true },
+  // Pipeline: how the app works (tracks, agents, tools), for the demo.
+  { href: "/pipeline", label: "Pipeline", d: "M4 6h5v4H4zM15 14h5v4h-5zM9 8h3a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2M4 18h5M6.5 10v8", desktopOnly: true },
 ] as const satisfies readonly { href: string; label: string; d: string; desktopOnly?: boolean }[];
 
-/** The phone tab bar keeps 5 items (DESIGN.md §4); Events (not designed yet) is desktop only. */
+/** The phone tab bar keeps 5 items (DESIGN.md §4); Events and Host are desktop only (phones reach Host from the map). */
 export const PHONE_NAV = NAV.filter((item) => !("desktopOnly" in item && item.desktopOnly));
 
 export const isActive = (pathname: string, href: string) =>
@@ -77,12 +82,28 @@ export function XpPill({ player, size = "md" }: { player: ShellPlayer | null | u
       </Link>
     );
   }
+  // Level and progress to the next one, next to the XP (250 XP a level, profiles.level).
+  const { level, xp, xp_to_next_level: toNext } = player.profile;
+  const into = Math.max(0, Math.min(250, 250 - (toNext ?? 250)));
   return (
-    <Link href="/leaderboard" className={base} aria-label={`${player.profile.xp.toLocaleString("en-US")} XP, see the leaderboard`}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-        <path d={STAR} />
-      </svg>
-      {player.profile.xp.toLocaleString("en-US")} XP
+    <Link
+      href="/leaderboard"
+      className={cn(base, "gap-2 pl-1.5")}
+      aria-label={`Level ${level}, ${xp.toLocaleString("en-US")} XP, ${toNext} XP to level ${level + 1}. See the leaderboard`}
+      title={`Level ${level} · ${toNext} XP to level ${level + 1}`}
+    >
+      <span className="grid size-[26px] shrink-0 place-items-center rounded-full bg-maroon text-[12px] font-extrabold text-white">{level}</span>
+      <span className="flex flex-col items-start leading-none">
+        <span className="flex items-center gap-1">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d={STAR} />
+          </svg>
+          {xp.toLocaleString("en-US")} XP
+        </span>
+        <span className="mt-1 h-[3px] w-full min-w-14 overflow-hidden rounded-full bg-gold-foreground/20" aria-hidden>
+          <span className="block h-full rounded-full bg-maroon" style={{ width: `${(100 * into) / 250}%` }} />
+        </span>
+      </span>
     </Link>
   );
 }
@@ -106,6 +127,26 @@ export function AskGuideButton({ compact = false }: { compact?: boolean }) {
     <button type="button" onClick={() => openGuide()} className={cn(base, "h-9 gap-1.5 px-3.5 text-sm font-bold")}>
       <Sparkles className="size-4 text-gold" aria-hidden />
       Ask Guide
+    </button>
+  );
+}
+
+/** Light / dark mode switch for the whole app and the map. */
+export function ThemeToggle({ tint = false }: { tint?: boolean }) {
+  const theme = useTheme();
+  const dark = theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(dark ? "light" : "dark")}
+      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      title={dark ? "Light mode" : "Dark mode"}
+      className={cn(
+        "flex size-11 shrink-0 items-center justify-center rounded-md text-on-maroon outline-none focus-visible:ring-2 focus-visible:ring-gold",
+        tint ? "bg-white/12" : "bg-transparent",
+      )}
+    >
+      {dark ? <Sun className="size-[22px]" aria-hidden /> : <Moon className="size-[22px]" aria-hidden />}
     </button>
   );
 }

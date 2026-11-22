@@ -1,6 +1,8 @@
 "use client";
 
-// Explore's frame around Verna's map (DESIGN.md §6): the "Explore Boston" card over the map,
+// Explore's frame around Verna's map (DESIGN.md §6): the "Explore Boston" card over the map
+// (top right on desktop: search and filters, with the place card under it; the map's own panel
+// with 3D/2D, layers and the live lines sits top left),
 // and on desktop room for the station hub. The map's own overlays start below the card: the
 // card's height goes into --ob-map-top, which TransitMap reads.
 
@@ -41,7 +43,7 @@ function Frame({ hubOpen, children }: { hubOpen: boolean; children: ReactNode })
     <div className="absolute inset-0 flex">
       <div ref={mapRef} className="relative min-w-0 flex-1">
         {children}
-        <div ref={cardRef} className="absolute top-3 right-3 left-3 z-10 desk:top-4 desk:right-auto desk:left-4 desk:w-[min(560px,calc(100%-32px))]">
+        <div ref={cardRef} className="absolute top-3 right-3 left-3 z-10 desk:top-4 desk:right-4 desk:left-auto desk:w-[clamp(380px,29vw,440px)]">
           <ExploreCard />
         </div>
       </div>

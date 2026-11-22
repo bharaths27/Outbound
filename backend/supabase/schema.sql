@@ -39,7 +39,7 @@ create table public.quests (
   lon              double precision not null,
   price_tier       int not null default 0 check (price_tier between 0 and 3), -- 0 free .. 3 splurge
   vibe_tags        text[] default '{}',
-  hours            text,                  -- human text, e.g. "11:00-23:00" or "always"
+  hours            text,                  -- "always", "HH:MM-HH:MM", or per day "Mon-Thu 09:00-20:00; Sat,Sun 10:00-14:00" (Boston time)
   photo_url        text,
   xp               int not null default 50,
   checkin_radius_m int not null default 75,

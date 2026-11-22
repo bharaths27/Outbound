@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Backend smoke test: checks every backend piece the app uses, without changing any data.
+// End-to-end smoke test: checks every page and backend piece the app uses, without changing any data.
 //
 //   1. Start the app in another terminal:   npm run dev
 //   2. Run:                                  node scripts/smoke-test.mjs
@@ -110,12 +110,57 @@ await check("Gemini search", async () => {
   if (j.source !== "gemini") return { warn: `used the keyword fallback, not Gemini (check GEMINI_API_KEY). ${summary}` };
   return `source=gemini ${summary}`;
 });
-await check("Grok guide", async () => {
+await check("Guide: Grok + Report tool (text)", async () => {
   const j = await json("/api/guide?q=" + encodeURIComponent("cheap food near Kenmore, about an hour"));
+  const r = j.report;
+  assert(r?.title, "no structured report");
+  const grok = (j.stages ?? []).find((s) => s.stage === "grok");
+  const picks = (r.picks ?? []).map((q) => q.title).join(", ") || "none";
+  if (j.source !== "pipeline" || grok?.status !== "done") return { warn: `used the fallback, not Grok (check XAI_API_KEY). picks: ${picks}` };
+  const rep = (j.stages ?? []).find((s) => s.stage === "report");
+  return `"${r.title}", picks: ${picks}, report tool: ${rep?.status ?? "?"}`;
+});
+
+await check("Guide: photo pipeline (Grok vision -> Decider -> locate -> Trip Planner -> report)", async () => {
+  // A public photo of the Citgo sign at Kenmore (Wikimedia Commons): should be read as a place,
+  // located in Boston, and given a T route.
+  const img = await fetch("https://commons.wikimedia.org/wiki/Special:FilePath/2017_Citgo_sign_Kenmore_Square_Boston.jpg?width=640", {
+    headers: { "user-agent": "outbound-smoke-test" },
+    signal: AbortSignal.timeout(30000),
+  }).catch((e) => ({ ok: false, status: e.message }));
+  if (!img.ok) return { warn: `couldn't download the test photo (${img.status}); try node scripts/test-guide.mjs your-photo.jpg` };
+  const image = `data:image/jpeg;base64,${Buffer.from(await img.arrayBuffer()).toString("base64")}`;
+  const res = await fetch(BASE + "/api/guide", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ image, message: "" }),
+    signal: AbortSignal.timeout(150000),
+  });
+  const j = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${j?.error ?? ""}`);
+  const st = Object.fromEntries((j.stages ?? []).map((x) => [x.stage, x.status]));
+  const flow = ["vision", "decide", "where", "food", "trip", "report"].map((k) => `${k}:${st[k] ?? "-"}`).join(" ");
+  const d = j.report?.destination;
+  if (j.source !== "pipeline") return { warn: `fell back (${j.report?.debug ?? "no reason"}). ${flow}` };
+  assert(d?.name, `no destination on the map. ${flow}`);
+  return `"${d.name}", closest T ${d.station?.name ?? "?"}, ${d.ride?.minutes ?? "?"} min from BU. ${flow}`;
+});
+await check("Mastra trip planner (/api/agent)", async () => {
+  const res = await fetch(BASE + "/api/agent?q=" + encodeURIComponent("cheap food near Kenmore, I have an hour"), {
+    signal: AbortSignal.timeout(60000),
+  });
+  if (res.status === 404) return { warn: "not on this branch yet" };
+  const j = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${j?.error ?? ""}`);
   assert(j.reply, "no reply");
-  const picks = (j.quests ?? []).map((q) => q.title).join(", ");
-  if (j.source !== "grok") return { warn: `used the fallback, not Grok (check XAI_API_KEY). picks: ${picks}` };
-  return `source=grok, picks: ${picks || "none"}`;
+  return `tools used: ${(j.tools ?? []).join(", ") || "none"}; picks: ${(j.quests ?? []).map((q) => q.title).join(", ") || "none"}`;
+});
+
+await check("Google Places (Food Researcher finds real restaurants)", async () => {
+  const j = await json("/api/places?text=" + encodeURIComponent("bubble tea near Boston"));
+  if (j.disabled) return { warn: "no GOOGLE_MAPS_KEY: the Food Researcher can only use our food quests" };
+  assert(j.places?.length, "no places returned");
+  return `${j.places.length} places, e.g. ${j.places[0].name}`;
 });
 
 // ---------- Share card + public quest page ----------
@@ -135,6 +180,54 @@ await check("public quest page /q/<id>", async () => {
   return "shows Kenmore Sign Hunt";
 });
 
+// ---------- App pages and setup ----------
+console.log("\nApp pages and setup");
+await check("data source is the live backend", async () => {
+  const src = get("NEXT_PUBLIC_DATA_SOURCE");
+  if (src !== "supabase")
+    return { warn: `NEXT_PUBLIC_DATA_SOURCE=${src || "(not set)"}: the app runs on sample data (Maya sign-in, Rewards note). Set it to supabase here AND in Vercel` };
+  return "supabase";
+});
+for (const [path, expect] of [
+  ["/", "Explore Boston"],
+  ["/quests", "Quests"],
+  ["/passport", "Passport"],
+  ["/leaderboard", "Leaderboard"],
+  ["/rewards", "Rewards"],
+  ["/events", "Events"],
+  ["/login", "demo"],
+]) {
+  await check(`page ${path}`, async () => {
+    const res = await fetch(BASE + path, { signal: AbortSignal.timeout(60000) });
+    assert(res.ok, `HTTP ${res.status}`);
+    const html = await res.text();
+    assert(html.toLowerCase().includes(expect.toLowerCase()), `doesn't mention "${expect}"`);
+    return "200";
+  });
+}
+
+// ---------- Routes and trains (our own T graph, MBTA schedules) ----------
+console.log("\nRoutes, ride times and last trains");
+await check("T route BU -> Chinatown (no Google key needed)", async () => {
+  const j = await json("/api/route?engine=outbound&from=42.350049,-71.107037&to=42.35123,-71.05975&name=Chinatown%20Gate");
+  assert(j.minutes > 0 && j.steps?.length, "no route");
+  const rides = j.steps.filter((x) => x.mode === "transit").map((x) => `${x.line} ${x.from} -> ${x.to}`).join(", then ");
+  return `${j.minutes} min, fare ${j.fare ?? "?"} USD, ${j.steps.length} steps${rides ? `, rides ${rides}` : ""}`;
+});
+await check("ride times from BU to every station", async () => {
+  const j = await json("/api/ride-times?from=42.350049,-71.107037");
+  const n = Object.keys(j.minutes ?? {}).length;
+  assert(n > 50, `only ${n} stations`);
+  return `${n} stations`;
+});
+await check("tonight's last trains (/api/service)", async () => {
+  const res = await fetch(BASE + "/api/service", { signal: AbortSignal.timeout(30000) });
+  const j = await res.json().catch(() => null);
+  if (!res.ok || !j?.last?.length) return { warn: `MBTA schedules unreachable (${res.status}); the train list still works, without last trains` };
+  const red = j.last.filter((l) => l.route === "Red").map((l) => `${l.headsign} ${new Date(l.departs).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })}`);
+  return `${j.last.length} last trips, e.g. Red: ${red.join(", ") || "n/a"}`;
+});
+
 // ---------- Supabase ----------
 console.log("\nSupabase (database, sign-in, game logic, security)");
 const sbUrl = get("NEXT_PUBLIC_SUPABASE_URL");
@@ -148,7 +241,7 @@ else {
   db = createClient(sbUrl, sbKey, { auth: { persistSession: false, autoRefreshToken: false } });
   await check("content loaded", async () => {
     const [{ count: quests, error: e1 }, { count: stations, error: e2 }] = await Promise.all([
-      db.from("quests").select("*", { count: "exact", head: true }),
+      db.from("quests").select("id", { count: "exact", head: true }),
       db.from("stations").select("*", { count: "exact", head: true }),
     ]);
     if (e1 || e2) throw new Error((e1 ?? e2).message);
@@ -236,6 +329,26 @@ if (mint)
     if (j.error) throw new Error(j.error.message);
     return `${j.result.value.uiAmountString} OUT in circulation`;
   });
+
+// ---------- One-tap demo sign-in through the app ----------
+console.log("\nApp sign-in and rewards endpoints");
+await check("one-tap demo login (/api/demo-login)", async () => {
+  const res = await fetch(BASE + "/api/demo-login", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: BASE },
+    body: JSON.stringify({ email: "outbound-demo1@bu.edu" }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const j = await res.json().catch(() => null);
+  if (res.status === 503) return { warn: "DEMO_PASSWORD isn't set on this server, so the demo buttons won't sign in" };
+  assert(res.ok, `HTTP ${res.status} ${j?.error ?? ""}`);
+  return "signed in (session cookie set)";
+});
+await check("SECURITY: devnet SOL top-up needs sign-in", async () => {
+  const res = await fetch(BASE + "/api/rewards/gas", { method: "POST", signal: AbortSignal.timeout(20000) });
+  assert(res.status === 401, `HTTP ${res.status}, expected 401`);
+  return "refused without sign-in";
+});
 
 if (db && userId) await db.auth.signOut().catch(() => {});
 

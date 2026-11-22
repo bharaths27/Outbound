@@ -1,29 +1,40 @@
 "use client";
 // Live 3D map of the T. Owner: Person 1 (map frontend).
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import * as maplibregl from "maplibre-gl";
 import type { Map as MlMap, GeoJSONSource, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import Link from "next/link";
+import { MAP_SEARCH_SLOT, useExploreFilters } from "@/features/explore/explore-card";
+import { servesLine } from "@/features/explore/explore-filters";
+import { openState } from "@/features/hub/hours";
 import { openStationHub } from "@/features/hub/open-hub";
+import { errorCopy } from "@/features/checkin/errors";
+import { locate } from "@/features/checkin/use-check-in";
+import { notifyPlayerChanged } from "@/features/shell/use-shell-player";
+import { data } from "@/lib/data";
+import { KIND_LABEL, SPEND, describeSpot, isFood, sampleReviews, spotKind, type SpotKind } from "@/lib/sample-places";
+import type { PlaceInfo } from "./Explorer";
+import type { HostedEvent, Quest as DbQuest, Station as DbStation } from "@/lib/data/types";
+import { EVENTS_CHANGED, eventStatus, foodInfo, kindInfo, whenText } from "@/features/host/hosted";
 import type { LineLateness, Station, Train } from "@/lib/types";
 import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
-import { TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
+import { TRACK_HALF_GAP, TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
 import { loadBaseStyle, groundLayerIds, registerFontProtocol } from "./style";
 import { CityBuildingsLayer, fetchBpdaManifest, fetchRegionManifest, inBpda, inRegion } from "./buildings3d";
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
 import SearchBox, { pointInRing } from "./SearchBox";
 import Explorer, { type ExplorerHandle } from "./Explorer";
+import MapPanel, { LinesPanel, type MapShow } from "./MapPanel";
 import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
-import { BookOpen, Cloud, Layers, LocateFixed, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Landmark, Moon, Soup, Star, Sun, Sunset, Trophy, Waves } from "lucide-react";
-import { createElement, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN } from "lucide";
+import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, LocateFixed, Moon, Star, Sun } from "lucide-react";
+import { createElement, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN, Trees as TreesN, Pizza as PizzaN, Coffee as CoffeeN, Check as CheckN } from "lucide";
 
-const QUEST_ICONS = { Landmark, Waves, Soup, BookOpen, Sunset, Trophy };
-const QUEST_NODES = { Landmark: LandmarkN, Waves: WavesN, Soup: SoupN, BookOpen: BookOpenN, Sunset: SunsetN, Trophy: TrophyN };
-const svgOf = (node: (typeof QUEST_NODES)[keyof typeof QUEST_NODES], size: number) => {
+const QUEST_NODES = { Landmark: LandmarkN, Waves: WavesN, Soup: SoupN, BookOpen: BookOpenN, Sunset: SunsetN, Trophy: TrophyN, Trees: TreesN, Pizza: PizzaN, Coffee: CoffeeN };
+const svgOf = (node: (typeof QUEST_NODES)[keyof typeof QUEST_NODES] | typeof CheckN, size: number) => {
   const el = createElement(node);
   el.setAttribute("width", String(size));
   el.setAttribute("height", String(size));
@@ -35,6 +46,10 @@ import {
   destinationOf, LATENESS_HEX,
 } from "./feed";
 import { CAMPUSES, SAMPLE_FRIEND_VISITS, SAMPLE_QUESTS, initials, type FriendVisit, type Quest } from "./places";
+import {
+  CHECKIN_RADIUS_M, DEFAULT_HOME, FOOD_CLASSES, NEW_AREA_BONUS, POINT_CLASSES, SCENIC_CLASSES, placeTier, checkedInToday, estimateRide, fogGeoJSON, haversineM, levelOf,
+  loadProgress, nearestStation, pickExpeditions, placePoints, saveProgress, spotXp, type Progress, type Ride,
+} from "./gamify";
 
 type FeedMode = "live" | "replay" | "demo";
 interface CrStation {
@@ -83,39 +98,108 @@ export default function TransitMap() {
   const layerRef = useRef<Trains3DLayer | null>(null);
   const cityRef = useRef<CityBuildingsLayer | null>(null);
   const [friend, setFriend] = useState<FriendVisit | null>(null);
-  const [quest, setQuest] = useState<Quest | null>(null);
   const [crStation, setCrStation] = useState<CrStation | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [isNight, setIsNight] = useState(false);
   const googleRef = useRef<GoogleTilesLayer | null>(null);
   const setRealisticRef = useRef<(on: boolean) => void>(() => {});
   const stationsRef = useRef<StationData[]>([]);
-  const markersRef = useRef<{ campus: maplibregl.Marker[]; friends: maplibregl.Marker[]; quests: maplibregl.Marker[] }>({ campus: [], friends: [], quests: [] });
+  const markersRef = useRef<{ campus: maplibregl.Marker[]; friends: maplibregl.Marker[]; quests: maplibregl.Marker[]; hosted: maplibregl.Marker[] }>({ campus: [], friends: [], quests: [], hosted: [] });
   const groundRef = useRef<string[]>([]);
 
   const [ready, setReady] = useState(false);
   const [offlineBasemap, setOfflineBasemap] = useState(false);
   const [is3D, setIs3D] = useState(true);
+  const orbit = false; // left-drag always moves the map; right-drag turns and tilts (MapLibre's own)
+  // right-click (without dragging): a small menu for directions to / from that point
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; lng: number; lat: number } | null>(null);
+  const [routeStart, setRouteStart] = useState<{ lng: number; lat: number } | null>(null);
   const [satellite, setSatellite] = useState(false);
   const [realistic, setRealistic] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  // Phones: the controls panel folds into a Layers button (DESIGN.md §6 Explore map controls).
-  const [controlsOpen, setControlsOpen] = useState(false);
+  // The map panel (3D/2D, layers, lines) folds to one line; phones start folded. Remembered.
+  const [panelFolded, setPanelFolded] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("outbound.mapPanel.folded");
+      setPanelFolded(saved ? saved === "1" : window.matchMedia("(max-width: 63.99rem)").matches);
+    } catch {}
+  }, []);
+  const foldPanel = (v: boolean) => {
+    setPanelFolded(v);
+    try {
+      localStorage.setItem("outbound.mapPanel.folded", v ? "1" : "0");
+    } catch {}
+  };
+  // The MBTA lines card under Explore Boston folds the same way (phones start folded).
+  const [linesFolded, setLinesFolded] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("outbound.lines.folded");
+      setLinesFolded(saved ? saved === "1" : window.matchMedia("(max-width: 63.99rem)").matches);
+    } catch {}
+  }, []);
+  const foldLines = (v: boolean) => {
+    setLinesFolded(v);
+    try {
+      localStorage.setItem("outbound.lines.folded", v ? "1" : "0");
+    } catch {}
+  };
+  // While the Ask Guide chat is open (bottom left) the map panel (top left) folds, so they never overlap.
+  const [guideOpen, setGuideOpen] = useState(false);
+  useEffect(() => {
+    const on = (e: Event) => setGuideOpen(!!(e as CustomEvent<{ open: boolean }>).detail?.open);
+    window.addEventListener("outbound:guide-state", on);
+    return () => window.removeEventListener("outbound:guide-state", on);
+  }, []);
   const [userLoc, setUserLoc] = useState<[number, number] | null>(null);
   const userLocRef = useRef<[number, number] | null>(null);
   const meMarker = useRef<maplibregl.Marker | null>(null);
   const explorer = useRef<ExplorerHandle>(null);
-  const [show, setShow] = useState({ trains: true, campuses: true, friends: true, delays: true });
+  const [show, setShow] = useState<MapShow>({ trains: true, campuses: true, friends: true, delays: true, events: true });
   const [delayColors, setDelayColors] = useState(false);
   const [feedMode, setFeedMode] = useState<FeedMode>("live");
   const [autoFallback, setAutoFallback] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
   const [trainCount, setTrainCount] = useState(0);
+  const [trainList, setTrainList] = useState<Train[]>([]);
+  // Explore's card has a slot for the search box (explore-card.tsx); other pages keep it on the map.
+  const [searchSlot, setSearchSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => setSearchSlot(document.getElementById(MAP_SEARCH_SLOT)), []);
   const [lateness, setLateness] = useState<{ lines: LineLateness[]; sample: boolean } | null>(null);
   const [train, setTrain] = useState<TrainNow | null>(null);
   const [now, setNow] = useState(Date.now());
   const [replay, setReplay] = useState<{ frames: ReplayFrame[]; source: string; i: number; playing: boolean; speed: number } | null>(null);
+  // game layer: XP, weekly Expedition, fog of war (see gamify.ts)
+  const [progress, setProgress] = useState<Progress>({ xp: 0, visits: {} });
+  const [pops, setPops] = useState<{ id: number; text: string; sub?: string }[]>([]);
+  const [levelUp, setLevelUp] = useState<number | null>(null);
+  // The quests on the map are the real ones (database), with your real visits and XP. Without a
+  // quests feed (offline artifact) Verna's sample spots show instead, saved in this browser.
+  const [mapQuests, setMapQuests] = useState<Quest[]>(SAMPLE_QUESTS);
+  const [gameVersion, setGameVersion] = useState(0);
+  // Explore Boston's Craving / Budget / Time also filter the map: quests and places that don't fit hide.
+  const filters = useExploreFilters();
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [qs, sts, me] = await Promise.all([data.getAllQuests(), data.getStations(), data.getCurrentUser()]);
+      if (!alive) return;
+      if (!qs.length) return setProgress(loadProgress());
+      const byId = new Map(sts.map((x) => [x.id, x]));
+      setMapQuests(qs.map((q) => toMapQuest(q, byId.get(q.station_id))));
+      const visits = me ? await data.getVisits(me.id) : [];
+      const v: Record<string, number[]> = {};
+      for (const x of visits) (v[x.quest_id] ??= []).push(new Date(x.checked_in_at).getTime());
+      if (alive) setProgress({ xp: me?.xp ?? 0, visits: v });
+    })().catch(() => alive && setProgress(loadProgress()));
+    return () => {
+      alive = false;
+    };
+  }, [gameVersion]);
+  // a restaurant or place from the basemap: points by kind, distance and cost (placePoints)
+  const rideMinRef = useRef<{ from: string; min: Record<string, number> } | null>(null);
 
   // ---------- map setup ----------
   useEffect(() => {
@@ -232,6 +316,14 @@ export default function TransitMap() {
           layout: { "line-cap": "round", "line-join": "round", visibility: CR_VIS },
           paint: { "line-color": "#80276C", "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 13, 1.3, 17, 2.6], "line-dasharray": [3, 1.2] },
         }, beforeLines);
+        // fog of war: the parts of the T area you haven't explored yet (cleared around home and every check-in)
+        m.addSource("fog", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        m.addLayer({
+          id: "fog",
+          type: "fill",
+          source: "fog",
+          paint: { "fill-color": "#cfd8e3", "fill-opacity": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 0.5, 17, 0.35], "fill-antialias": false },
+        }, beforeLines);
         m.addSource("mbta-lines", { type: "geojson", data: linesGeo });
         m.addLayer({
           id: "lines-delay-glow",
@@ -257,9 +349,9 @@ export default function TransitMap() {
 
         // campuses: one outline + see-through fill per school (real campus areas from OpenStreetMap via Overture Maps)
         m.addSource("campuses", { type: "geojson", data: "/data/campuses.geojson" });
-        m.addLayer({ id: "campus-fill", type: "fill", source: "campuses", paint: { "fill-color": ["get", "color"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0.22, 16, 0.14] } }, beforeLines);
+        m.addLayer({ id: "campus-fill", type: "fill", source: "campuses", paint: { "fill-color": ["get", "color"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0.42, 16, 0.3] } }, beforeLines);
         m.addLayer({ id: "campus-halo", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.5, 16, 5], "line-opacity": 0.85 } }, beforeLines);
-        m.addLayer({ id: "campus-line", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 16, 2.4], "line-dasharray": [3, 2] } }, beforeLines);
+        m.addLayer({ id: "campus-line", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2, 16, 3.6], "line-dasharray": [3, 2] } }, beforeLines);
 
         // game-style 3D city: Boston's own building models (BPDA), Cambridge footprints + heights, trees
         const city = new CityBuildingsLayer(manifest, region);
@@ -459,6 +551,10 @@ export default function TransitMap() {
           if (s) {
             setTrain(null);
             openStationHub(s.id); // the hub (src/features/hub) shows the station, arrivals and quests
+            explorer.current?.navigate({
+              name: `${s.name} station`, lat: s.lat, lng: s.lon, category: "T station",
+              info: { label: "T station", description: "Quests, next trains and tonight's last trains are in the station panel." },
+            });
           }
         });
         m.on("click", "trains-2d", (e) => {
@@ -507,7 +603,11 @@ export default function TransitMap() {
       el.title = c.name;
       el.onclick = (ev) => {
         ev.stopPropagation();
-        map.flyTo({ center: [c.lng, c.lat], zoom: 15.6, pitch: 60, duration: 2200 });
+        const rv = sampleReviews(c.name, "campus");
+        explorer.current?.navigate({
+          name: c.name, lat: c.lat, lng: c.lng, category: "University campus",
+          info: { label: "University campus", description: describeSpot("campus", nearStationName(c.lat, c.lng)), spend: SPEND.campus, rating: rv.rating, ratingCount: rv.count, reviews: rv.reviews },
+        });
       };
       return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([c.lng, c.lat]).addTo(map);
     });
@@ -518,32 +618,410 @@ export default function TransitMap() {
       el.innerHTML = `<span class="ob-friend-avatar">${initials(f.name)}</span>`;
       el.onclick = (ev) => {
         ev.stopPropagation();
-        setQuest(null);
         setFriend(f);
         map.easeTo({ center: [f.lng, f.lat], zoom: Math.max(map.getZoom(), 15.4), duration: 1400 });
       };
       return new maplibregl.Marker({ element: el }).setLngLat([f.lng, f.lat]).addTo(map);
     });
-    markersRef.current.quests = SAMPLE_QUESTS.map((q) => {
-      const el = document.createElement("div");
-      el.className = "ob-quest";
-      el.title = q.title;
-      el.innerHTML = `<span class="ob-quest-icon">${svgOf(QUEST_NODES[q.icon], 15)}</span><span class="ob-quest-pts">+${q.points}</span>`;
-      el.onclick = (ev) => {
-        ev.stopPropagation();
-        setFriend(null);
-        setQuest(q);
-        map.easeTo({ center: [q.lng, q.lat], zoom: Math.max(map.getZoom(), 15.6), duration: 1400 });
-      };
-      return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([q.lng, q.lat]).addTo(map);
-    });
     const markers = markersRef.current;
     return () => {
       markers.campus.forEach((m) => m.remove());
       markers.friends.forEach((m) => m.remove());
-      markers.quests.forEach((m) => m.remove());
     };
   }, [ready]);
+
+  // ---------- game: XP pins, weekly Expedition, fog ----------
+  const game = useMemo(() => {
+    const stations = stationsRef.current;
+    if (!ready || !stations.length) return null;
+    const home = stations.find((s) => s.id === DEFAULT_HOME) ?? stations[0];
+    const rides = new Map<string, Ride>();
+    for (const q of mapQuests) {
+      const to = nearestStation(stations, q.lat, q.lng);
+      if (to) rides.set(q.id, estimateRide(home, to));
+    }
+    const expeditions = pickExpeditions(mapQuests, rides);
+    return { home, rides, expeditions };
+  }, [ready, mapQuests]);
+
+  const visitedSpots = useMemo(() => mapQuests.filter((q) => progress.visits[q.id]?.length), [progress, mapQuests]);
+  const fog = useMemo(
+    () => (game ? fogGeoJSON(game.home, visitedSpots.map((q) => ({ lat: q.lat, lon: q.lng }))) : null),
+    [game, visitedSpots],
+  );
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && fog) (map.getSource("fog") as GeoJSONSource | undefined)?.setData(fog);
+  }, [fog]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !game) return;
+    markersRef.current.quests = mapQuests.map((q) => {
+      const ride = game.rides.get(q.id)!;
+      const visited = !!progress.visits[q.id]?.length;
+      const exp = game.expeditions.has(q.id);
+      const xp = questXp(q, ride, visited, exp);
+      const el = document.createElement("button");
+      el.type = "button";
+      el.dataset.xp = String(xp.total + (exp && !visited ? 1000 : 0)); // decluttering keeps the most valuable pin
+      el.dataset.qid = q.id;
+      el.setAttribute("aria-label", `${exp && !visited ? "Expedition: " : ""}${q.title} at ${q.place}, ${xp.total} XP, about ${ride.minutes} minutes away`);
+      el.className = `ob-pin${exp && !visited ? " ob-pin-exp" : ""}`; // MapLibre moves this one; the pill inside scales
+      el.style.setProperty("--s", String(1 + (xp.mult - 1) * 0.25));
+      el.style.setProperty("--lc", (LINE_COLORS as Record<string, string>)[ride.line] ?? "#888");
+      el.title = `${q.title}: +${xp.total} XP`;
+      el.innerHTML =
+        `<span class="ob-quest${exp && !visited ? " ob-quest-exp" : ""}${visited ? " ob-quest-done" : ""}">` +
+        (exp && !visited ? `<span class="ob-quest-tag">Expedition</span>` : "") +
+        `<span class="ob-quest-icon">${svgOf(visited ? CheckN : QUEST_NODES[q.icon], 15)}</span>` +
+        `<span class="ob-quest-pts">+${xp.total}</span>` +
+        (ride.minutes ? `<span class="ob-quest-ride"><i></i>${ride.minutes}m</span>` : "") +
+        `</span>`;
+      el.onclick = (ev) => {
+        ev.stopPropagation();
+        openQuestRef.current(q);
+      };
+      return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([q.lng, q.lat]).addTo(map);
+    });
+    const markers = markersRef.current;
+    return () => markers.quests.forEach((m) => m.remove());
+  }, [ready, game, progress, mapQuests]);
+
+  // ---------- events students host (Host page, 010_hosted_events.sql) ----------
+  // Loaded once the map is ready and again whenever someone publishes or deletes one here.
+  const [hosted, setHosted] = useState<HostedEvent[]>([]);
+  const pendingEventRef = useRef<{ id: string; name: string; lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    const load = () =>
+      data
+        .getHostedEvents()
+        .catch(() => [] as HostedEvent[]) // events are extra; the map works without them
+        .then((list) => {
+          if (cancelled) return;
+          const current = list.filter((e) => eventStatus(e) !== "ended");
+          setHosted(current);
+          // a link to an event that has ended or didn't load: still show the route there
+          const want = pendingEventRef.current;
+          if (want && !current.some((e) => e.id === want.id)) {
+            pendingEventRef.current = null;
+            explorer.current?.navigate({ name: want.name, lat: want.lat, lng: want.lng });
+          }
+        });
+    load();
+    window.addEventListener(EVENTS_CHANGED, load);
+    const t = setInterval(load, 120_000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(EVENTS_CHANGED, load);
+      clearInterval(t);
+    };
+  }, [ready]);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    // Explore's filters and the Events layer toggle apply to student events too
+    const visible = (e: HostedEvent) => {
+      if (!show.events) return false;
+      if (filters.craving === "scenic" || (filters.craving === "food" && e.food === "none")) return false;
+      if (filters.budget === 0 && e.food === "paid") return false;
+      if (filters.freeFood && e.food !== "free") return false;
+      if (filters.openNow && eventStatus(e) !== "now") return false;
+      if (filters.line !== "any" && !servesLine(nearestStation(stationsRef.current, e.lat, e.lon)?.lines, filters.line)) return false;
+      return true;
+    };
+    markersRef.current.hosted = hosted.filter(visible).map((e) => {
+      const k = kindInfo(e.kind);
+      const live = eventStatus(e) === "now";
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "ob-pin";
+      el.dataset.eid = e.id;
+      el.title = `${e.title} (${k.label})`;
+      el.setAttribute("aria-label", `Student event: ${e.title}, ${k.label}, ${whenText(e)}${e.food === "free" ? ", free food" : ""}`);
+      el.innerHTML =
+        `<span class="ob-hosted${live ? " ob-hosted-live" : ""}"><span class="ob-hosted-emoji">${k.emoji}</span><span class="ob-hosted-text"><b></b><small></small></span>` +
+        (e.food === "free" ? `<span class="ob-hosted-tag">Free food</span>` : e.food === "cheap" ? `<span class="ob-hosted-tag">Cheap eats</span>` : "") +
+        `</span>`;
+      el.querySelector("b")!.textContent = e.title; // user text: never innerHTML
+      el.querySelector("small")!.textContent = live ? "Happening now" : whenText(e);
+      el.onclick = (ev) => {
+        ev.stopPropagation();
+        openEventRef.current(e);
+      };
+      return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([e.lon, e.lat]).addTo(map);
+    });
+    // a link from the Host page (/?go=...&event=id) opens that event's card
+    const want = pendingEventRef.current;
+    if (want && hosted.length) {
+      const e = hosted.find((x) => x.id === want.id);
+      pendingEventRef.current = null;
+      if (e) openEventRef.current(e);
+      else explorer.current?.navigate({ name: want.name, lat: want.lat, lng: want.lng });
+    }
+    const markers = markersRef.current;
+    return () => markers.hosted.forEach((m) => m.remove());
+  }, [ready, hosted, show.events, filters]);
+
+  // Anything else you click (a named place, a building, any spot): its card and directions.
+  // Its own effect so it works on every basemap, including the offline one with no POIs.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const onMapClick = (e: maplibregl.MapMouseEvent) => {
+      const hits = map.queryRenderedFeatures(e.point);
+      if (hits.some((f) => ["poi-xp", "stations", "cr-stations", "trains-2d"].includes(f.layer.id))) return; // they have their own
+      const poi = hits.find((f) => f.sourceLayer === "poi" && (f.properties?.name || f.properties?.["name:latin"]));
+      const { lng, lat } = e.lngLat;
+      if (poi && poi.geometry.type === "Point") {
+        const [plng, plat] = (poi.geometry as GeoJSON.Point).coordinates;
+        const name = String(poi.properties.name ?? poi.properties["name:latin"]);
+        const cls = String(poi.properties.class ?? "place");
+        openSpotRef.current({ key: `${name}@${plng.toFixed(4)},${plat.toFixed(4)}`, name, cls, lng: plng, lat: plat, minutes: minutesToRef.current(plng, plat) });
+        return;
+      }
+      const bld = hits.find((f) => f.sourceLayer === "building" || /building/.test(f.layer.id));
+      const label = bld ? "Building" : "Spot on the map";
+      explorer.current?.navigate({ name: bld?.properties?.name ? String(bld.properties.name) : bld ? "This building" : "This spot", lat, lng, category: label, info: { label, description: describeSpot("place", nearStationName(lat, lng)) } });
+    };
+    map.on("click", onMapClick);
+    return () => {
+      map.off("click", onMapClick);
+    };
+  }, [ready]);
+
+  // ---------- points on every restaurant and place on the basemap ----------
+  // XP labels over the map's own POIs (restaurants, cafes, parks, museums...): placePoints() from the
+  // kind of place, how long it takes to get there (from you, or BU Central) and roughly what it costs.
+  const originKey = userLoc ? `${userLoc[0].toFixed(3)},${userLoc[1].toFixed(3)}` : "bu";
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const poiLayer = map.getStyle().layers.find((l) => (l as { "source-layer"?: string })["source-layer"] === "poi") as
+      | { id: string; source: string; layout?: Record<string, unknown> }
+      | undefined;
+    if (!poiLayer) return; // offline basemap: no POIs
+    if (!map.getSource("poi-xp")) {
+      map.addSource("poi-xp", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "poi-xp",
+        type: "symbol",
+        source: "poi-xp",
+        minzoom: 15,
+        layout: {
+          "text-field": ["concat", "+", ["to-string", ["get", "xp"]], " XP"],
+          "text-font": (poiLayer.layout?.["text-font"] as string[] | undefined) ?? ["Noto Sans Regular"],
+          "text-size": 13,
+          "text-offset": [0, -2.1],
+          "text-allow-overlap": false,
+          "text-padding": 4,
+          "symbol-sort-key": ["-", 100, ["get", "xp"]],
+        },
+        paint: { "text-color": "#6b2e00", "text-halo-color": "#fde68a", "text-halo-width": 3 },
+      });
+      map.on("mouseenter", "poi-xp", () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", "poi-xp", () => (map.getCanvas().style.cursor = ""));
+    }
+    const origin: [number, number] = userLoc ?? [-71.107037, 42.350049];
+    let alive = true;
+    const rideMin = async () => {
+      if (rideMinRef.current?.from === originKey) return rideMinRef.current.min;
+      try {
+        const j = await (await fetch(`/api/ride-times?from=${origin[1]},${origin[0]}`)).json();
+        if (j.minutes) rideMinRef.current = { from: originKey, min: j.minutes };
+      } catch {}
+      return rideMinRef.current?.min ?? {};
+    };
+    const minutesTo = (lng: number, lat: number, ride: Record<string, number> = rideMinRef.current?.min ?? {}) => {
+      const walkMin = (m: number) => (m * 1.3) / 80; // 80 m a minute, streets aren't straight
+      let best = walkMin(haversineM(origin[1], origin[0], lat, lng));
+      for (const st of stationsRef.current) {
+        const d = haversineM(st.lat, st.lon, lat, lng);
+        if (d < 900 && ride[st.id] != null) best = Math.min(best, ride[st.id] + walkMin(d));
+      }
+      return Math.round(best);
+    };
+    minutesToRef.current = (lng, lat) => minutesTo(lng, lat);
+    let sig = "";
+    const update = async () => {
+      if (map.getZoom() < 14.5) return;
+      const ride = await rideMin();
+      if (!alive) return;
+      const seen = new Set<string>();
+      const c = map.getCenter();
+      const feats = map
+        .querySourceFeatures(poiLayer.source, { sourceLayer: "poi" })
+        .filter((f) => POINT_CLASSES.has(String(f.properties.class)) && (f.properties.name || f.properties["name:latin"]) && f.geometry.type === "Point")
+        .map((f) => {
+          const [lng, lat] = (f.geometry as GeoJSON.Point).coordinates;
+          const name = String(f.properties.name ?? f.properties["name:latin"]);
+          return { key: `${name}@${lng.toFixed(4)},${lat.toFixed(4)}`, name, cls: String(f.properties.class), lng, lat };
+        })
+        .filter((p) => !seen.has(p.key) && (seen.add(p.key), true))
+        .sort((a, b) => haversineM(c.lat, c.lng, a.lat, a.lng) - haversineM(c.lat, c.lng, b.lat, b.lng))
+        .slice(0, 160);
+      const fc: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: feats.map((p) => {
+          const minutes = minutesTo(p.lng, p.lat, ride);
+          // "|Green-B|Red": the lines at the closest stop within a walk, for Explore's line filter
+          const st = nearestStation(stationsRef.current, p.lat, p.lng);
+          const lines = st && haversineM(p.lat, p.lng, st.lat, st.lon) < 900 ? st.lines.map((l) => `|${l === "Mattapan" ? "Red" : l}`).join("") : "";
+          return { type: "Feature", properties: { ...p, minutes, lines, tier: placeTier(p.cls), xp: placePoints(p.cls, minutes).total }, geometry: { type: "Point", coordinates: [p.lng, p.lat] } };
+        }),
+      };
+      // only when the set of places changed, so labels don't jump around while you look at them
+      const next = fc.features.map((f) => `${f.properties?.key}:${f.properties?.xp}`).sort().join("|");
+      if (next === sig) return;
+      sig = next;
+      (map.getSource("poi-xp") as GeoJSONSource | undefined)?.setData(fc);
+    };
+    const onClick = (e: maplibregl.MapLayerMouseEvent) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      const p = f.properties as { key: string; name: string; cls: string; lng: number; lat: number; minutes: number };
+      openSpotRef.current({ key: p.key, name: p.name, cls: p.cls, lng: Number(p.lng), lat: Number(p.lat), minutes: Number(p.minutes) });
+    };
+    void update();
+    map.once("idle", update);
+    map.on("moveend", update);
+    let lastTiles = 0;
+    const onTiles = (ev: maplibregl.MapSourceDataEvent) => {
+      if (ev.sourceId !== poiLayer.source || !ev.isSourceLoaded || Date.now() - lastTiles < 800) return;
+      lastTiles = Date.now();
+      void update();
+    };
+    map.on("sourcedata", onTiles);
+    map.on("click", "poi-xp", onClick);
+    return () => {
+      alive = false;
+      map.off("moveend", update);
+      map.off("sourcedata", onTiles);
+      map.off("click", "poi-xp", onClick);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, originKey]);
+
+  /** Real check-in: your location goes to the database, which says yes only within 75 m. */
+  async function checkInHere(send: (loc: { lat: number; lon: number }) => Promise<{ ok: true; xp: number; sub?: string } | { ok: false; error: Parameters<typeof errorCopy>[0] }>): Promise<{ ok: boolean; text: string }> {
+    try {
+      const loc = await locate();
+      if ("code" in loc) return { ok: false, text: errorCopy(loc).body };
+      const out = await send(loc);
+      if (!out.ok) return { ok: false, text: errorCopy(out.error).body };
+      setPops((p) => [...p, { id: Date.now(), text: `+${out.xp} XP`, sub: out.sub }]);
+      notifyPlayerChanged();
+      setGameVersion((v) => v + 1);
+      return { ok: true, text: `Checked in. +${out.xp} XP` };
+    } catch {
+      return { ok: false, text: errorCopy({ code: "NETWORK" }).body };
+    }
+  }
+
+  const checkIn = async (q: Quest): Promise<{ ok: boolean; text: string }> => {
+    if (q.real) {
+      return checkInHere(async (loc) => {
+        const out = await data.checkIn(q.id, loc);
+        return out.ok ? { ok: true, xp: out.result.xp_awarded, sub: q.title } : { ok: false, error: out.error };
+      });
+    }
+    if (!game) return { ok: false, text: "The map is still loading." };
+    if (checkedInToday(progress, q.id)) return { ok: false, text: "Already checked in here today." };
+    // sample spots (no quests feed): still only when you're there
+    if (!userLoc || haversineM(userLoc[1], userLoc[0], q.lat, q.lng) > CHECKIN_RADIUS_M) return { ok: false, text: `Get within ${CHECKIN_RADIUS_M} m of ${q.place} to check in.` };
+    const ride = game.rides.get(q.id)!;
+    const visited = !!progress.visits[q.id]?.length;
+    const xp = spotXp(q, ride, visited, game.expeditions.has(q.id));
+    const newArea = !visited && haversineM(q.lat, q.lng, game.home.lat, game.home.lon) > 1400 && !visitedSpots.some((v) => haversineM(q.lat, q.lng, v.lat, v.lng) < 800);
+    const gained = xp.total + (newArea ? NEW_AREA_BONUS : 0);
+    const before = levelOf(progress.xp).level;
+    const next: Progress = { xp: progress.xp + gained, visits: { ...progress.visits, [q.id]: [...(progress.visits[q.id] ?? []), Date.now()] } };
+    setProgress(next);
+    saveProgress(next);
+    setPops((p) => [...p, { id: Date.now(), text: `+${gained} XP`, sub: q.title }]);
+    if (levelOf(next.xp).level > before) setLevelUp(levelOf(next.xp).level);
+    return { ok: true, text: `Checked in. +${gained} XP` };
+  };
+
+  // ---------- one place card for everything on the map ----------
+  // Tap a quest, a place, a campus, a station or any building: the card (Explorer) shows what it is,
+  // the typical spend, sample reviews, XP and check-in, and every way to get there from you right away.
+  const nearStationName = (lat: number, lng: number) => {
+    const st = nearestStation(stationsRef.current, lat, lng);
+    return st && haversineM(lat, lng, st.lat, st.lon) < 1200 ? `${st.name} station` : null;
+  };
+  const openQuest = (q: Quest) => {
+    const ride = game?.rides.get(q.id);
+    const visited = !!progress.visits[q.id]?.length;
+    const xp = ride ? questXp(q, ride, visited, !!game?.expeditions.has(q.id)) : null;
+    const kind: SpotKind = q.kind === "food" ? (q.icon === "Coffee" ? "cafe" : q.icon === "Pizza" ? "fast_food" : "restaurant") : q.kind === "event" ? "event" : "attraction";
+    const rv = sampleReviews(q.title, kind);
+    const info: PlaceInfo = {
+      label: `Quest · ${q.kind === "food" ? "Food" : q.kind === "event" ? "Event" : "Scenery"}`,
+      food: q.kind === "food",
+      description: q.real ? `${q.hint}. Near ${q.place}.` : `Go to ${q.place}. ${q.hint}.`,
+      spend: q.price != null ? ["Free", "Under $10", "$10–20 a person", "$20+ a person"][q.price] : SPEND[kind],
+      rating: kind === "event" ? undefined : rv.rating,
+      ratingCount: kind === "event" ? undefined : rv.count,
+      reviews: kind === "event" ? undefined : rv.reviews,
+      xp: xp ? { total: xp.total, rows: q.real ? [["Quest XP", `+${xp.base}`], ...(visited ? [] : [["First visit", "+25"] as [string, string]])] : [["Base", `+${xp.base}`], ["Distance", `${xp.mult}x`]] } : undefined,
+      checkIn: checkedInToday(progress, q.id) ? undefined : () => checkIn(q),
+      link: q.real ? { href: `/q/${q.id}`, text: "Open the quest page" } : undefined,
+    };
+    setFriend(null);
+    explorer.current?.navigate({ name: q.title, lat: q.lat, lng: q.lng, category: info.label, info });
+  };
+  const openSpot = (p: { key: string; name: string; cls: string; lng: number; lat: number; minutes: number }) => {
+    const kind = spotKind(p.cls);
+    const pts = placePoints(p.cls, p.minutes);
+    const rv = sampleReviews(p.name, kind);
+    const info: PlaceInfo = {
+      label: KIND_LABEL[kind],
+      food: isFood(kind),
+      description: describeSpot(kind, nearStationName(p.lat, p.lng)),
+      spend: SPEND[kind],
+      rating: rv.rating,
+      ratingCount: rv.count,
+      reviews: rv.reviews,
+      xp: { total: pts.total, rows: [["Kind of place", `+${pts.base}`], [`Distance (${p.minutes} min)`, `+${pts.distanceXp}`], ["Budget bonus", `+${pts.budgetXp}`]] },
+      checkIn: () =>
+        checkInHere(async (loc) => {
+          const out = await data.checkInPlace({ key: p.key, name: p.name, category: p.cls, lat: p.lat, lon: p.lng, minutes: p.minutes }, loc);
+          return out.ok ? { ok: true, xp: out.result.xp_awarded, sub: p.name } : { ok: false, error: out.error };
+        }),
+    };
+    setFriend(null);
+    explorer.current?.navigate({ name: p.name, lat: p.lat, lng: p.lng, category: info.label, info });
+  };
+  const openEvent = (e: HostedEvent) => {
+    const k = kindInfo(e.kind);
+    const f = foodInfo(e.food);
+    const info: PlaceInfo = {
+      tag: "Student event",
+      label: k.label,
+      food: e.food !== "none",
+      description: `${e.description || "Hosted by students."} At ${e.place_name}.`,
+      spend: f.spend, // "Free food", "Under $10 for food"...
+      facts: [
+        ["When", whenText(e)],
+        ["Hosted by", e.host_name],
+        ...(e.prizes ? [["Prizes", e.prizes] as [string, string]] : []),
+      ],
+      link: { href: "/host", text: "See all student events" },
+    };
+    setFriend(null);
+    explorer.current?.navigate({ name: e.title, lat: e.lat, lng: e.lon, category: info.label, info });
+  };
+  const openEventRef = useRef(openEvent);
+  openEventRef.current = openEvent;
+  const openSpotRef = useRef(openSpot);
+  openSpotRef.current = openSpot;
+  const openQuestRef = useRef(openQuest);
+  openQuestRef.current = openQuest;
+  // minutes from you to a point (set by the places effect, which has the ride times)
+  const minutesToRef = useRef<(lng: number, lat: number) => number>((lng, lat) => Math.round((haversineM(42.350049, -71.107037, lat, lng) * 1.3) / 80));
 
   // show/hide markers by zoom + toggles
   useEffect(() => {
@@ -553,16 +1031,80 @@ export default function TransitMap() {
       const z = map.getZoom();
       markersRef.current.campus.forEach((m) => (m.getElement().style.display = show.campuses && z >= 11 ? "" : "none"));
       markersRef.current.friends.forEach((m) => (m.getElement().style.display = show.friends && z >= 11.5 ? "" : "none"));
-      markersRef.current.quests.forEach((m) => (m.getElement().style.display = show.friends && z >= 12.5 ? "" : "none"));
+      // Expedition pins show from the whole-network view; the rest once you zoom in a little
+      // pins that would overlap on screen fold into the most valuable one, which shows "+N"
+      const kept: { x: number; y: number; el: HTMLElement; extra: number }[] = [];
+      const byId = new Map(mapQuests.map((q) => [q.id, q]));
+      const now = new Date();
+      const fits = (q: Quest) => {
+        if (filters.craving !== "any" && q.qtype && q.qtype !== filters.craving) return false;
+        if (filters.budget !== null && q.price != null && q.price > filters.budget) return false;
+        const ride = game?.rides.get(q.id);
+        if (filters.minutes !== null && 2 * (ride?.minutes ?? 0) + (q.duration ?? 30) > filters.minutes) return false;
+        if (filters.line !== "any" && !servesLine(nearestStation(stationsRef.current, q.lat, q.lng)?.lines, filters.line)) return false;
+        const visited = !!progress.visits[q.id]?.length;
+        if (filters.hideVisited && visited) return false;
+        if (filters.freeFood && !(q.qtype === "food" && q.price === 0)) return false;
+        if (filters.openNow && q.hours && openState(q.hours, now)?.open === false) return false;
+        if (filters.minXp !== null && ride && questXp(q, ride, visited, !!game?.expeditions.has(q.id)).total < filters.minXp) return false;
+        return true;
+      };
+      const byValue = [...markersRef.current.quests].sort((a, b) => Number(b.getElement().dataset.xp) - Number(a.getElement().dataset.xp));
+      for (const m of byValue) {
+        const el = m.getElement();
+        const exp = el.classList.contains("ob-pin-exp");
+        const q = byId.get(el.dataset.qid ?? "");
+        let on = show.friends && z >= (exp ? 10 : 12.3) && (!q || fits(q));
+        if (on) {
+          const pt = map.project(m.getLngLat());
+          const near = kept.find((k) => Math.abs(k.x - pt.x) < 64 && Math.abs(k.y - pt.y) < 30);
+          if (near) {
+            near.extra++;
+            on = false;
+          } else kept.push({ x: pt.x, y: pt.y, el, extra: 0 });
+        }
+        el.style.display = on ? "" : "none";
+      }
+      for (const k of kept) {
+        let more = k.el.querySelector<HTMLElement>(".ob-quest-more");
+        if (k.extra && !more) {
+          more = document.createElement("span");
+          more.className = "ob-quest-more";
+          k.el.appendChild(more);
+        }
+        if (more) {
+          if (k.extra) more.textContent = `+${k.extra}`;
+          else more.remove();
+        }
+      }
+      for (const m of markersRef.current.quests) if (m.getElement().style.display === "none") m.getElement().querySelector(".ob-quest-more")?.remove();
     };
     update();
     map.on("zoom", update);
+    map.on("moveend", update);
     for (const id of ["campus-fill", "campus-halo", "campus-line"])
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", show.campuses ? "visible" : "none");
     return () => {
       map.off("zoom", update);
+      map.off("moveend", update);
     };
-  }, [ready, show.campuses, show.friends]);
+  }, [ready, show.campuses, show.friends, progress, game, mapQuests, filters]);
+
+  // the same filters on the basemap places' XP labels
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map?.getLayer("poi-xp")) return;
+    const all: unknown[] = ["all"];
+    if (filters.craving === "food") all.push(["in", ["get", "cls"], ["literal", FOOD_CLASSES]]);
+    else if (filters.craving === "scenic") all.push(["in", ["get", "cls"], ["literal", SCENIC_CLASSES]]);
+    else if (filters.craving === "event") all.push(["==", 1, 0]); // events are quests only
+    if (filters.budget !== null) all.push(["<=", ["get", "tier"], filters.budget]);
+    if (filters.minutes !== null) all.push(["<=", ["+", ["*", 2, ["get", "minutes"]], 30], filters.minutes]);
+    if (filters.line !== "any") all.push(["in", `|${filters.line}`, ["get", "lines"]]);
+    if (filters.minXp !== null) all.push([">=", ["get", "xp"], filters.minXp]);
+    if (filters.freeFood) all.push(["==", 1, 0]); // free food = quests and events only
+    map.setFilter("poi-xp", all.length > 1 ? (all as maplibregl.FilterSpecification) : null);
+  }, [ready, filters, originKey]);
 
   // ---------- 3D / 2D ----------
   useEffect(() => {
@@ -595,6 +1137,79 @@ export default function TransitMap() {
       map.off("zoom", pitchCap);
     };
   }, [ready, is3D, show.trains]);
+
+  // ---------- camera: in Rotate mode, dragging turns (left/right) and tilts (up/down) the view ----------
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    if (!orbit || !is3D) {
+      map.dragPan.enable();
+      return;
+    }
+    map.dragPan.disable();
+    const el = map.getCanvasContainer();
+    let last: { x: number; y: number } | null = null;
+    const down = (e: PointerEvent) => {
+      if (e.button !== 0 || !e.isPrimary) return;
+      last = { x: e.clientX, y: e.clientY };
+      el.setPointerCapture(e.pointerId);
+    };
+    const move = (e: PointerEvent) => {
+      if (!last) return;
+      const dx = e.clientX - last.x, dy = e.clientY - last.y;
+      last = { x: e.clientX, y: e.clientY };
+      map.jumpTo({ bearing: map.getBearing() - dx * 0.35, pitch: Math.max(0, Math.min(map.getMaxPitch(), map.getPitch() - dy * 0.3)) });
+    };
+    const up = () => (last = null);
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+    el.style.cursor = "move";
+    return () => {
+      el.removeEventListener("pointerdown", down);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", up);
+      el.style.cursor = "";
+      map.dragPan.enable();
+    };
+  }, [ready, orbit, is3D]);
+
+  // ---------- right-click: directions menu. A right-drag still turns the map, so the menu only
+  // opens when the right button goes up close to where it went down. ----------
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const el = map.getCanvasContainer();
+    let down: { x: number; y: number } | null = null;
+    const onDown = (e: MouseEvent) => {
+      if (e.button === 2) down = { x: e.clientX, y: e.clientY };
+      else setCtxMenu(null);
+    };
+    const onUp = (e: MouseEvent) => {
+      if (e.button !== 2 || !down) return;
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+      down = null;
+      if (moved > 6) return;
+      const r = map.getContainer().getBoundingClientRect();
+      const x = e.clientX - r.left, y = e.clientY - r.top;
+      const ll = map.unproject([x, y]);
+      setCtxMenu({ x, y, lng: ll.lng, lat: ll.lat });
+    };
+    const noMenu = (e: Event) => e.preventDefault();
+    const close = () => setCtxMenu(null);
+    el.addEventListener("mousedown", onDown);
+    window.addEventListener("mouseup", onUp);
+    el.addEventListener("contextmenu", noMenu);
+    map.on("movestart", close);
+    return () => {
+      el.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mouseup", onUp);
+      el.removeEventListener("contextmenu", noMenu);
+      map.off("movestart", close);
+    };
+  }, [ready]);
 
   // ---------- weather outside (light, clouds, rain/snow), refreshed every 15 min ----------
   useEffect(() => {
@@ -638,6 +1253,35 @@ export default function TransitMap() {
       meMarker.current = new maplibregl.Marker({ element: el }).setLngLat(userLoc).addTo(map);
     } else meMarker.current.setLngLat(userLoc);
   }, [ready, userLoc]);
+
+  // The Outbound Guide's "Show route on map": ?go=lat,lng&name=... when coming from another page,
+  // or an "outbound:go" event when the map is already open. Draws the T + walking route there.
+  useEffect(() => {
+    if (!ready) return;
+    const go = (t: { name: string; lat: number; lng: number }) => {
+      if (Number.isFinite(t.lat) && Number.isFinite(t.lng)) explorer.current?.navigate(t);
+    };
+    const qs = new URLSearchParams(window.location.search);
+    const at = qs.get("go")?.split(",").map(Number);
+    // /?station=<id> (a station link from another page): show that station on the map
+    const st = stationsRef.current.find((x) => x.id === qs.get("station"));
+    if (st && at?.length !== 2) mapRef.current?.flyTo({ center: [st.lon, st.lat], zoom: 15.4, duration: 1600 });
+    if (at?.length === 2) {
+      const name = qs.get("name") || "Your destination";
+      const eventId = qs.get("event");
+      // a student event: wait for the events to load so the card shows its details
+      if (eventId) pendingEventRef.current = { id: eventId, name, lat: at[0], lng: at[1] };
+      // wait a frame so the Explorer has the map
+      else requestAnimationFrame(() => go({ name, lat: at[0], lng: at[1] }));
+      qs.delete("go");
+      qs.delete("name");
+      qs.delete("event");
+      window.history.replaceState(null, "", `${window.location.pathname}${qs.size ? `?${qs}` : ""}`);
+    }
+    const onGo = (e: Event) => go((e as CustomEvent<{ name: string; lat: number; lng: number }>).detail);
+    window.addEventListener("outbound:go", onGo);
+    return () => window.removeEventListener("outbound:go", onGo);
+  }, [ready]);
 
   // ---------- illustrated / realistic ----------
   useEffect(() => {
@@ -683,6 +1327,7 @@ export default function TransitMap() {
   const pushFrame = (trains: Train[], durationMs: number) => {
     animRef.current?.ingest(trains, durationMs);
     setTrainCount(trains.length);
+    setTrainList(trains);
     setLastUpdate(Date.now());
   };
 
@@ -783,7 +1428,7 @@ export default function TransitMap() {
       last = ts;
       const map = mapRef.current, anim = animRef.current;
       if (!map || !anim) return;
-      const snap = anim.snapshot();
+      const snap = anim.snapshot(performance.now(), (layerRef.current?.scaleFor(map.getZoom()) ?? 0) * TRACK_HALF_GAP);
       (map.getSource("trains-2d") as GeoJSONSource | undefined)?.setData({
         type: "FeatureCollection",
         features: snap.map((t) => ({ type: "Feature", properties: { id: t.id, line: t.line }, geometry: { type: "Point", coordinates: [t.lng, t.lat] } })),
@@ -822,87 +1467,122 @@ export default function TransitMap() {
     <div className="ob-map absolute inset-0 overflow-hidden bg-[#dfe9f3]">
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
       <WeatherFx weather={weather} active={loaded && is3D} />
-      {/* top-left: feed status, Tiger Data badges (the app shell shows the logo). The page can
-          push the overlays down with --ob-map-top (Explore's filter card sits above them). */}
-      <div className="absolute left-3 top-[calc(var(--ob-map-top,0px)+12px)] flex max-w-[calc(100%-84px)] flex-col gap-2 sm:left-4 sm:top-[calc(var(--ob-map-top,0px)+16px)] desk:max-w-[calc(100%-224px)]">
-        <div className="ob-panel flex items-center gap-3 px-3 py-2">
-          <span className="flex items-center gap-1.5 text-xs text-[var(--ob-ink-2)]">
-            <span
-              className={`rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white ${feedMode === "live" && lastUpdate ? "bg-emerald-600" : feedMode === "replay" ? "bg-sky-600" : "bg-amber-500"}`}
-              title={feedMode === "live" ? "Real MBTA positions" : "Not real-time: MBTA feed unreachable"}
-            >
-              {feedMode === "live" && lastUpdate ? "LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
-            </span>
-            {statusText}
-          </span>
-          {weather && <WeatherChip w={weather} night={isNight} />}
+      {/* Overlays. Desktop: the map panel top left; the place card under the Explore card top right
+          (--ob-map-top is the card's bottom edge); zoom and locate bottom right; the Quest of the Week
+          bottom middle; Ask Guide bottom left. Nothing overlaps: each column stops above the corner
+          controls. Phones: one column under the Explore card (the wrapper is display: contents on desktop). */}
+      <div className="pointer-events-none absolute top-[calc(var(--ob-map-top,0px)+10px)] right-[64px] bottom-[150px] left-3 flex flex-col gap-2 desk:contents">
+        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 shrink-0 flex-col desk:absolute desk:top-4 desk:bottom-[100px] desk:left-4 desk:w-[clamp(380px,29vw,440px)] desk:shrink">
+          <MapPanel
+            collapsed={panelFolded || guideOpen}
+            setCollapsed={foldPanel}
+            is3D={is3D}
+            setIs3D={setIs3D}
+            realistic={realistic}
+            setRealistic={GOOGLE_KEY || !offlineBasemap ? setRealistic : null}
+            show={show}
+            setShow={setShow}
+            delayColors={delayColors}
+            setDelayColors={setDelayColors}
+            replaying={feedMode === "replay"}
+            replayLabel={feedMode === "live" ? "Replay" : "Live"}
+            onReplay={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
+          />
         </div>
-        <SearchBox
-          map={ready ? mapRef.current : null}
-          stations={stationsRef.current}
-          online={!offlineBasemap}
-          onStation={(id) => {
-            const s = stationsRef.current.find((x) => x.id === id);
-            if (!s) return;
-            setTrain(null);
-            openStationHub(s.id);
-          }}
-          onTextSearch={(q) => explorer.current?.search(q)}
-          onPlace={(p) => explorer.current?.show(p)}
-        />
-        <Explorer ref={explorer} map={ready ? mapRef.current : null} userLoc={userLoc} />
-        {autoFallback && feedMode !== "live" && (
-          <div className="ob-panel px-3 py-1.5 text-xs text-amber-800">Live feed is down. Showing {feedMode === "replay" ? "saved trains" : "demo trains"}; retrying every 30 s.</div>
-        )}
-        {notice && (
-          <button className="ob-panel px-3 py-1.5 text-left text-xs text-amber-800" onClick={() => setNotice(null)}>
-            {notice}
-          </button>
-        )}
+        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 flex-col gap-2 desk:absolute desk:top-[calc(var(--ob-map-top,0px)+12px)] desk:right-4 desk:bottom-[76px] desk:w-[clamp(380px,29vw,440px)]">
+          {(() => {
+            const search = (
+              <SearchBox
+                inCard={!!searchSlot}
+                map={ready ? mapRef.current : null}
+                stations={stationsRef.current}
+                online={!offlineBasemap}
+                onStation={(id) => {
+                  const s = stationsRef.current.find((x) => x.id === id);
+                  if (!s) return;
+                  setTrain(null);
+                  openStationHub(s.id);
+                }}
+                onTextSearch={(q) => explorer.current?.search(q)}
+                onPlace={(p) => explorer.current?.show(p)}
+              />
+            );
+            return searchSlot ? createPortal(search, searchSlot) : search;
+          })()}
+          <LinesPanel
+            collapsed={linesFolded}
+            setCollapsed={foldLines}
+            badge={feedMode === "live" && lastUpdate ? "LIVE" : feedMode === "replay" ? "REPLAY" : "DEMO"}
+            status={statusText}
+            weather={weather ? <WeatherChip w={weather} night={isNight} /> : null}
+            trains={trainList}
+            lateness={lateness?.lines ?? null}
+            stationName={stationName}
+            onTrain={(t) => mapRef.current?.flyTo({ center: [t.lon, t.lat], zoom: Math.max(mapRef.current.getZoom(), 15), duration: 1500 })}
+          />
+          <Explorer ref={explorer} map={ready ? mapRef.current : null} userLoc={userLoc} />
+          {notice && (
+            <button className="ob-panel px-3 py-2 text-left text-[13px] text-amber-800" onClick={() => setNotice(null)}>
+              {notice}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* top-right: controls. Phones get round Layers and Locate buttons; Layers opens the panel. */}
-      <div className="absolute right-3 top-[calc(var(--ob-map-top,0px)+12px)] flex flex-col items-end gap-2 sm:right-4 sm:top-[calc(var(--ob-map-top,0px)+16px)]">
-        <div className="flex flex-col gap-2 desk:hidden">
+      {/* right-click menu: directions to / from this point */}
+      {ctxMenu && (
+        <div
+          role="menu"
+          className="ob-panel absolute z-20 flex w-[220px] flex-col overflow-hidden p-1 text-[14px]"
+          style={{ left: Math.min(ctxMenu.x, (box.current?.clientWidth ?? 9999) - 230), top: Math.min(ctxMenu.y, (box.current?.clientHeight ?? 9999) - 150) }}
+        >
           <button
-            type="button"
-            aria-label="Map layers"
-            aria-expanded={controlsOpen}
-            onClick={() => setControlsOpen((o) => !o)}
-            className={`ob-panel flex size-12 items-center justify-center !rounded-full ${controlsOpen ? "!bg-[var(--ob-maroon)] !text-white" : "text-[var(--ob-ink)]"}`}
-          >
-            <Layers size={20} strokeWidth={2} aria-hidden />
-          </button>
-          <button
-            type="button"
-            aria-label="Show where I am"
+            role="menuitem"
+            className="rounded-lg px-3 py-2 text-left font-semibold text-[var(--ob-ink)] hover:bg-[var(--ob-cream)]"
             onClick={() => {
-              if (userLoc) mapRef.current?.flyTo({ center: userLoc, zoom: Math.max(mapRef.current.getZoom(), 15), duration: 1200 });
-              else setNotice("Turn on location for Outbound to see where you are on the map.");
+              explorer.current?.navigate({ name: "Dropped pin", category: "The spot you right-clicked", lat: ctxMenu.lat, lng: ctxMenu.lng }, routeStart ? { ...routeStart, label: "from your start point" } : undefined);
+              setRouteStart(null);
+              setCtxMenu(null);
             }}
-            className="ob-panel flex size-12 items-center justify-center !rounded-full text-[var(--ob-ink)]"
           >
-            <LocateFixed size={20} strokeWidth={2} aria-hidden />
+            Directions to here
+            <span className="block text-[12px] font-normal text-[var(--ob-muted)]">{routeStart ? "from the start point you set" : userLoc ? "from where you are" : "from BU Central"}</span>
           </button>
-        </div>
-        <div className={`ob-panel w-[176px] flex-col gap-2 p-2.5 text-xs desk:flex ${controlsOpen ? "flex" : "hidden"}`}>
-          <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
-          {(GOOGLE_KEY || !offlineBasemap) && <Seg options={[["Illustrated", false], ["Realistic", true]]} value={realistic} onChange={setRealistic} />}
-          <div className="mt-1 flex flex-col gap-1">
-            <Toggle label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
-            <Toggle label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />
-            <Toggle label="Friends" on={show.friends} set={(v) => setShow({ ...show, friends: v })} />
-            <Toggle label="Delays" on={show.delays} set={(v) => setShow({ ...show, delays: v })} />
-            {show.delays && <Toggle label="Color lines by delay" on={delayColors} set={setDelayColors} small />}
-          </div>
           <button
-            className="mt-1 rounded-lg bg-[var(--ob-maroon)] px-2 py-1.5 font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
-            onClick={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
+            role="menuitem"
+            className="rounded-lg px-3 py-2 text-left text-[var(--ob-ink)] hover:bg-[var(--ob-cream)]"
+            onClick={() => {
+              setRouteStart({ lng: ctxMenu.lng, lat: ctxMenu.lat });
+              setNotice("Start point set. Right-click where you want to go.");
+              setCtxMenu(null);
+            }}
           >
-            {feedMode === "live" ? "Replay saved trains" : "Back to live"}
+            Directions from here
+          </button>
+          <button role="menuitem" className="rounded-lg px-3 py-2 text-left text-[var(--ob-muted)] hover:bg-[var(--ob-cream)]" onClick={() => setCtxMenu(null)}>
+            Cancel
           </button>
         </div>
-      </div>
+      )}
+
+      {/* back to where you are (desktop; phones have it under Layers) */}
+      <button
+        type="button"
+        aria-label="Back to my location"
+        title="Back to my location"
+        onClick={() => {
+          const map = mapRef.current;
+          if (!map) return;
+          if (userLoc) map.flyTo({ center: userLoc, zoom: Math.max(map.getZoom(), 15.5), duration: 1200 });
+          else {
+            map.flyTo({ center: [-71.107037, 42.350049], zoom: 15, duration: 1200 });
+            setNotice("Turn on location for Outbound to see where you are. Showing BU for now.");
+          }
+        }}
+        className="ob-panel absolute right-[10px] bottom-[172px] flex size-11 items-center justify-center !rounded-full text-[var(--ob-ink)] hover:text-[var(--ob-maroon)] desk:right-[150px] desk:bottom-4"
+      >
+        <LocateFixed size={22} strokeWidth={2} aria-hidden />
+      </button>
 
       {/* replay bar */}
       {feedMode === "replay" && replay && (
@@ -999,42 +1679,6 @@ export default function TransitMap() {
         </Card>
       )}
 
-      {/* quest card */}
-      {quest && (
-        <Card onClose={() => setQuest(null)}>
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-              {(() => {
-                const I = QUEST_ICONS[quest.icon];
-                return <I size={22} strokeWidth={2} aria-hidden />;
-              })()}
-            </span>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600">Passport quest · +{quest.points} pts</p>
-              <h2 className="truncate text-base font-semibold text-[var(--ob-ink)]">{quest.title}</h2>
-            </div>
-          </div>
-          <p className="mt-2 text-[13px] text-[var(--ob-ink-2)]">
-            Go to <b>{quest.place}</b>. {quest.hint}.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => {
-                explorer.current?.show({ id: `quest-${quest.id}`, name: quest.place, address: `Quest: ${quest.title}`, lng: quest.lng, lat: quest.lat, types: [], category: "", rating: null, ratings: 0, price: null, openNow: null, url: null });
-                setQuest(null);
-              }}
-              className="flex-1 rounded-lg bg-[var(--ob-maroon)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
-            >
-              Directions
-            </button>
-            <Link href="/passport" className="rounded-lg bg-[var(--ob-sand)] px-3 py-2 text-sm font-medium text-[var(--ob-ink-2)] hover:bg-[var(--ob-line)]">
-              Passport
-            </Link>
-          </div>
-          <p className="mt-1.5 text-[10px] uppercase tracking-wide text-[var(--ob-muted)]">sample quests</p>
-        </Card>
-      )}
-
       {/* train card */}
       {train && (
         <Card onClose={() => setTrain(null)}>
@@ -1057,32 +1701,21 @@ export default function TransitMap() {
         </Card>
       )}
 
+      <div className="pointer-events-none absolute left-1/2 top-[38%] z-20 -translate-x-1/2">
+        {pops.map((p) => (
+          <div key={p.id} className="ob-xp-pop text-center" onAnimationEnd={() => setPops((all) => all.filter((x) => x.id !== p.id))}>
+            <div className="text-3xl font-extrabold text-amber-500 [text-shadow:0_2px_0_#fff,0_4px_12px_rgba(0,0,0,.25)]">{p.text}</div>
+            {p.sub && <div className="text-xs font-semibold text-[var(--ob-ink-2)] [text-shadow:0_1px_0_#fff]">{p.sub}</div>}
+          </div>
+        ))}
+      </div>
+      {levelUp && (
+        <div onAnimationEnd={() => setLevelUp(null)} className="ob-panel ob-levelup pointer-events-none absolute left-1/2 top-20 z-20 -translate-x-1/2 px-5 py-3 text-center">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Level up</div>
+          <div className="text-2xl font-extrabold text-[var(--ob-maroon)]">Level {levelUp}</div>
+        </div>
+      )}
     </div>
-  );
-}
-
-function Seg<T>({ options, value, onChange }: { options: [string, T][]; value: T; onChange: (v: T) => void }) {
-  return (
-    <div className="flex rounded-lg bg-[var(--ob-sand)] p-0.5">
-      {options.map(([label, v]) => (
-        <button
-          key={label}
-          onClick={() => onChange(v)}
-          className={`flex-1 rounded-md px-2 py-1 font-medium ${value === v ? "bg-white text-[var(--ob-ink)] shadow-sm" : "text-[var(--ob-muted)]"}`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Toggle({ label, on, set, small }: { label: string; on: boolean; set: (v: boolean) => void; small?: boolean }) {
-  return (
-    <label className={`flex cursor-pointer items-center justify-between gap-2 ${small ? "pl-3 text-[11px] text-[var(--ob-muted)]" : "text-[var(--ob-ink-2)]"}`}>
-      {label}
-      <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} className="accent-[var(--ob-maroon)]" />
-    </label>
   );
 }
 
@@ -1108,9 +1741,11 @@ function Stars({ value, small }: { value: number; small?: boolean }) {
   );
 }
 
+
+
 function Card({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="ob-panel absolute bottom-24 left-3 w-[min(300px,calc(100vw-24px))] p-3.5 text-sm sm:left-4">
+    <div className="ob-panel absolute bottom-24 left-3 z-10 w-[min(380px,calc(100vw-24px))] p-4 text-[15px] sm:left-4 desk:bottom-28">
       <button onClick={onClose} className="absolute right-2.5 top-2 text-lg leading-none text-[var(--ob-muted)] hover:text-[var(--ob-ink-2)]" aria-label="Close">
         ×
       </button>
@@ -1142,3 +1777,37 @@ function loadLocalFrames(): ReplayFrame[] {
     return [];
   }
 }
+
+/** A database quest as a map pin. */
+function toMapQuest(q: DbQuest, st: DbStation | undefined): Quest {
+  const tags = q.vibe_tags ?? [];
+  const has = (...t: string[]) => t.some((x) => tags.includes(x) || q.title.toLowerCase().includes(x));
+  const icon: Quest["icon"] =
+    q.type === "event" ? "Trophy"
+    : q.type === "food" ? (has("coffee", "cafe", "tea") ? "Coffee" : has("pizza") ? "Pizza" : "Soup")
+    : has("park", "nature", "garden", "trees") ? "Trees" : has("sunset", "view", "harbor", "water") ? "Sunset" : has("library", "book") ? "BookOpen" : "Landmark";
+  return {
+    id: q.id,
+    title: q.title,
+    place: st ? `${st.name} (${st.neighborhood})` : q.title,
+    lng: q.lon,
+    lat: q.lat,
+    points: q.xp,
+    hint: (q.description ?? "").replace(/\.$/, ""),
+    icon,
+    kind: q.type === "food" ? "food" : q.type === "event" ? "event" : "scenery",
+    real: true,
+    qtype: q.type,
+    price: q.price_tier,
+    duration: q.duration_min,
+    hours: q.hours,
+  };
+}
+
+/** What a pin is worth. Real quests: the quest's XP plus the first-visit bonus check_in() adds.
+ *  Sample spots: Verna's distance multiplier and Expedition bonus (this browser only). */
+function questXp(q: Quest, ride: Ride, visited: boolean, exp: boolean) {
+  if (!q.real) return spotXp(q, ride, visited, exp);
+  return { base: q.points, mult: 1, distanceXp: q.points, expeditionBonus: 0, firstVisit: !visited, total: q.points + (visited ? 0 : 25) };
+}
+

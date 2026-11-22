@@ -58,4 +58,34 @@ export interface DemoAccount {
   blurb: string;
 }
 
+/** A student-hosted event (010_hosted_events.sql), shown on the map and the Host page. */
+export type HostedEventKind = "party" | "social" | "food" | "study" | "sports" | "music" | "workshop" | "other";
+export type HostedFood = "free" | "cheap" | "paid" | "none";
+export interface HostedEvent {
+  id: string;
+  host_id: string | null;
+  host_name: string;
+  title: string;
+  kind: HostedEventKind;
+  description: string;
+  food: HostedFood;
+  prizes: string | null;
+  starts_at: string;
+  ends_at: string;
+  place_name: string;
+  lat: number;
+  lon: number;
+  station_id: string | null;
+  created_at: string;
+}
+export type NewHostedEvent = Omit<HostedEvent, "id" | "host_id" | "created_at">;
+
+export interface PlaceCheckInResult {
+  xp_awarded: number;
+  base: number;
+  distance_xp: number;
+  budget_xp: number;
+  total_xp: number;
+}
+export type PlaceCheckInOutcome = { ok: true; result: PlaceCheckInResult } | { ok: false; error: CheckInError };
 export type CheckInOutcome = { ok: true; result: CheckInResult } | { ok: false; error: CheckInError };

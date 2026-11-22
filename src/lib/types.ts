@@ -98,7 +98,8 @@ export type CheckInErrorHint =
   | "LOCATION_REQUIRED"
   | "TOO_FAR"
   | "NOT_IN_SQUAD"
-  | "ALREADY_CHECKED_IN_TODAY";
+  | "ALREADY_CHECKED_IN_TODAY"
+  | "DAILY_LIMIT"; // check_in_place(): 8 places a day
 
 export interface Filters {
   craving: QuestType | "any" | string;

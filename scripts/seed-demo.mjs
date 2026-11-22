@@ -11,7 +11,7 @@
 // Makes:
 //   - 4 team logins you can sign in with during the demo (no visits yet, so you can show progress live):
 //       outbound-demo1@bu.edu, outbound-demo2@northeastern.edu, outbound-demo3@mit.edu, outbound-demo4@harvard.edu
-//     They're marked is_demo, so they can check in without being at the spot.
+//     They must be at the spot to check in, like every player (is_demo stays false).
 //   - 27 "players" across 6 schools with check-ins spread over this week, so 4 schools reach the
 //     5-player minimum and the leaderboard has a real race. They can't log in (random passwords).
 // All demo emails start with "outbound-", which is how --delete finds them.
@@ -91,7 +91,7 @@ async function main() {
 
   for (const [email, name] of TEAM) {
     const u = await ensureUser(email, pw);
-    const { error } = await db.from("profiles").update({ display_name: name, is_demo: true, privacy: "public" }).eq("id", u.id);
+    const { error } = await db.from("profiles").update({ display_name: name, is_demo: false, privacy: "public" }).eq("id", u.id);
     if (error) throw error;
   }
   console.log(`Team logins ready: ${TEAM.map((t) => t[0]).join(", ")}`);
@@ -119,7 +119,7 @@ async function main() {
       const { data: mine, error: se } = await db.from("visits").select("xp_awarded").eq("user_id", u.id);
       if (se) throw se;
       const xp = mine.reduce((s, v) => s + v.xp_awarded, 0);
-      const { error: pe } = await db.from("profiles").update({ display_name: name, is_demo: true, privacy: "public", xp }).eq("id", u.id);
+      const { error: pe } = await db.from("profiles").update({ display_name: name, is_demo: false, privacy: "public", xp }).eq("id", u.id);
       if (pe) throw pe;
       players++; visits += mine.length;
     }

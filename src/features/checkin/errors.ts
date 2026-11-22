@@ -51,6 +51,8 @@ export function errorCopy(e: FlowError): ErrorCopy {
         body: "We couldn't get your location. Step outside or near a window, then try again.",
         steps: ["retry"],
       };
+    case "DAILY_LIMIT":
+      return { title: "That's 8 places today", body: "You've checked in at 8 places today. Quests still count, and places open up again tomorrow.", steps: ["close"] };
     case "NOT_SIGNED_IN":
       return { title: "Sign in to check in", body: "Your stamps and XP are saved to your account.", steps: ["signin"] };
     case "NOT_IN_SQUAD":

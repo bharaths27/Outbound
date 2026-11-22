@@ -8,7 +8,7 @@
 //   hours and time cards side by side) and a sticky side column (stamp, reward, Check in,
 //   distance note, student deals).
 
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Clock, Navigation } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { CheckInButton } from "@/features/checkin";
@@ -161,8 +161,19 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
       <span>{rewardText}</span>
     </div>
   );
+  // Opens the map with every MBTA way there (Explorer's route options), from you or BU Central.
+  const directionsHref = `/?go=${quest.lat.toFixed(5)},${quest.lon.toFixed(5)}&name=${encodeURIComponent(quest.title)}`;
+  const directions = (
+    <Link
+      href={directionsHref}
+      className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-maroon px-4 text-sm font-semibold text-white outline-none hover:bg-maroon-600 focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2"
+    >
+      <Navigation className="size-4" aria-hidden /> Directions
+    </Link>
+  );
   const actions = (
     <div className="flex flex-wrap gap-2">
+      {directions}
       <ShareQuestButton questId={quest.id} questTitle={quest.title} />
       <RecommendButton questId={quest.id} visits={player.visits} />
     </div>
@@ -242,7 +253,8 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
           {reward}
           <div className="w-full">{checkIn}</div>
           <p className="text-[13px] text-muted-foreground">You&apos;ll need to be within {quest.checkin_radius_m} m.</p>
-          <div className="flex w-full flex-col gap-2 [&>button]:w-full">
+          <div className="flex w-full flex-col gap-2 [&>a]:w-full [&>button]:w-full">
+            {directions}
             <ShareQuestButton questId={quest.id} questTitle={quest.title} />
             <RecommendButton questId={quest.id} visits={player.visits} />
           </div>

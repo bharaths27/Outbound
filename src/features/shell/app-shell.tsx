@@ -13,6 +13,7 @@ import {
   PHONE_NAV,
   NotificationsBell,
   ProfileLink,
+  ThemeToggle,
   XpPill,
   isActive,
 } from "./shell-parts";
@@ -77,6 +78,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3">
             {!guideFloats && <AskGuideButton />}
             <XpPill player={player} />
+            <ThemeToggle tint />
             <NotificationsBell tint />
             <ProfileLink player={player} />
           </div>
@@ -95,6 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
           </div>
           <XpPill player={player} size="sm" />
+          <ThemeToggle />
           <NotificationsBell />
           <ProfileLink player={player} size={34} />
         </header>

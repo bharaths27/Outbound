@@ -5,6 +5,7 @@
 // demos behave like the real thing. The backend stays the source of truth: if the schema
 // changes, update this file, and never import these rules into UI code.
 
+import { placePoints } from "@/components/map/gamify";
 import { parseCheckInError } from "../checkInErrors";
 import type { DataService } from "../service";
 import type {
@@ -24,6 +25,7 @@ import type {
   Visit,
   XpReason,
 } from "../types";
+import type { HostedEvent } from "../types";
 import { matchesFilters } from "@/lib/search/matchFilters";
 import { parseQuery } from "@/lib/search/fallbackParser";
 import * as seed from "./seed";
@@ -40,6 +42,34 @@ const wait = (ms = DELAY_MS) =>
 const clone = <T>(v: T): T => structuredClone(v);
 
 /** Raised like a Postgres exception: supabase-js exposes `hint` on the error. */
+const placeVisits = new Set<string>();
+// Hosted events: the Spark! example plus whatever you publish, kept in this browser.
+const HOSTED_KEY = "outbound.mock.hosted.v1";
+function hostedEvents(): HostedEvent[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(HOSTED_KEY) ?? "null");
+    if (Array.isArray(saved)) return saved;
+  } catch {}
+  const start = new Date();
+  start.setMinutes(0, 0, 0);
+  return [{
+    id: "ev-spark", host_id: null, host_name: "BU Spark!", title: "Spark! Demo Night", kind: "party",
+    description: "Student teams show what they built this semester. Meet people from other schools, try the demos, vote for your favorite.",
+    food: "free", prizes: "Raffle: headphones and Spark! swag", starts_at: start.toISOString(), ends_at: new Date(start.getTime() + 12 * 3600_000).toISOString(),
+    place_name: "BU Spark!, 665 Commonwealth Ave", lat: 42.3505, lon: -71.1035, station_id: "place-bucen", created_at: start.toISOString(),
+  }];
+}
+function saveHostedEvents(list: HostedEvent[]) {
+  try {
+    localStorage.setItem(HOSTED_KEY, JSON.stringify(list));
+  } catch {}
+}
+const haversine = (aLat: number, aLon: number, bLat: number, bLon: number) => {
+  const r = Math.PI / 180, dLat = (bLat - aLat) * r, dLon = (bLon - aLon) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * r) * Math.cos(bLat * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(h));
+};
+
 class RpcError extends Error {
   constructor(message: string, readonly hint: CheckInErrorHint) {
     super(message);
@@ -414,6 +444,44 @@ export const mockService: DataService = {
       const err = e instanceof RpcError ? e : { message: e instanceof Error ? e.message : String(e) };
       return { ok: false as const, error: parseCheckInError(err) };
     }
+  },
+
+  async checkInPlace(place, location) {
+    await wait(CHECK_IN_DELAY_MS);
+    try {
+      const user = requireMe();
+      if (!location) throw new RpcError("location required", "LOCATION_REQUIRED");
+      const d = haversine(place.lat, place.lon, location.lat, location.lon);
+      if (d > 75) throw new RpcError(`too far: ${Math.round(d)} m away (need within 75 m)`, "TOO_FAR");
+      const key = `${user.id}:${place.key}:${new Date().toDateString()}`;
+      if (placeVisits.has(key)) throw new RpcError("already checked in to this place today", "ALREADY_CHECKED_IN_TODAY");
+      placeVisits.add(key);
+      const p = placePoints(place.category, place.minutes);
+      setXp(user, user.xp + p.total);
+      return { ok: true as const, result: { xp_awarded: p.total, base: p.base, distance_xp: p.distanceXp, budget_xp: p.budgetXp, total_xp: user.xp } };
+    } catch (e) {
+      const err = e instanceof RpcError ? e : { message: e instanceof Error ? e.message : String(e) };
+      return { ok: false as const, error: parseCheckInError(err) };
+    }
+  },
+
+  async getHostedEvents() {
+    await wait();
+    return clone(hostedEvents().filter((e) => new Date(e.ends_at).getTime() > Date.now()).sort((a, b) => a.starts_at.localeCompare(b.starts_at)));
+  },
+
+  async createHostedEvent(e) {
+    await wait();
+    const user = requireMe();
+    const ev: HostedEvent = { ...e, id: `ev-${Date.now()}`, host_id: user.id, created_at: new Date().toISOString() };
+    saveHostedEvents([...hostedEvents(), ev]);
+    return clone(ev);
+  },
+
+  async deleteHostedEvent(id) {
+    await wait();
+    const user = requireMe();
+    saveHostedEvents(hostedEvents().filter((e) => !(e.id === id && e.host_id === user.id)));
   },
 
   async getPassport(userId) {

@@ -6,6 +6,9 @@
 import type {
   AuthResult,
   CheckInOutcome,
+  HostedEvent,
+  NewHostedEvent,
+  PlaceCheckInOutcome,
   Deal,
   Filters,
   GameProgress,
@@ -50,6 +53,18 @@ export interface DataService {
     location: { lat: number; lon: number } | null,
     opts?: { qr?: string; squadId?: string },
   ): Promise<CheckInOutcome>;
+
+  // rpc('check_in_place') (009_place_points.sql): points for any restaurant or place on the map.
+  // Needs your location within 75 m of the place; XP is computed by the database.
+  checkInPlace(
+    place: { key: string; name: string; category: string; lat: number; lon: number; minutes: number },
+    location: { lat: number; lon: number } | null,
+  ): Promise<PlaceCheckInOutcome>;
+
+  // Host (010_hosted_events.sql): events students publish; everyone sees them on the map.
+  getHostedEvents(): Promise<HostedEvent[]>;
+  createHostedEvent(e: NewHostedEvent): Promise<HostedEvent>; // signed in only
+  deleteHostedEvent(id: string): Promise<void>; // your own only
 
   // passport and visits
   getPassport(userId: string): Promise<PassportNeighborhood[]>;

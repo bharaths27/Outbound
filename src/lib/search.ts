@@ -10,10 +10,16 @@ export interface SearchResult {
 }
 
 // Tags used in quests today. Gemini may only pick from these; keywords catch the rest.
+// Tags Gemini may pick. Must cover every tag in content/quests.csv (search.test.ts checks), so search can match quests.
 export const KNOWN_TAGS = [
   "photo-spot", "iconic", "outdoors", "history", "freedom-trail", "campus", "sports",
   "street-art", "culture", "architecture", "quiet", "study-spot", "dessert", "date-night",
   "late-night", "rooftop", "group-friendly", "dumplings", "chowder", "local", "market", "hackathon",
+  // Suki's content tags
+  "photo", "coffee", "pastry", "bagel", "takeout", "snack", "dim-sum", "sit-down", "park", "river", "water",
+  "walk", "indoors", "museum", "art", "books", "cozy",
+  // tags on the newer quests
+  "nature", "produce", "science", "ice-cream", "theater", "night",
 ];
 
 const CRAVINGS = ["food", "scenic", "event", "any"] as const;

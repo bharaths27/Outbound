@@ -4,6 +4,8 @@ import {
   getExploreFilters,
   hasExploreFilters,
   setExploreFilters,
+  moreFilterCount,
+  servesLine,
   subscribeExploreFilters,
 } from "./explore-filters";
 
@@ -20,11 +22,21 @@ describe("Explore filters", () => {
     const off = subscribeExploreFilters(listener);
     setExploreFilters({ craving: "food" });
     setExploreFilters({ budget: 1 });
-    expect(getExploreFilters()).toEqual({ craving: "food", budget: 1, minutes: null });
+    expect(getExploreFilters()).toEqual({ ...NO_EXPLORE_FILTERS, craving: "food", budget: 1 });
     expect(hasExploreFilters()).toBe(true);
     expect(listener).toHaveBeenCalledTimes(2);
     off();
     setExploreFilters({ minutes: 60 });
     expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it("count the map-only extras and match lines", () => {
+    setExploreFilters({ line: "Green", openNow: true });
+    expect(moreFilterCount()).toBe(2);
+    expect(hasExploreFilters()).toBe(true);
+    expect(servesLine(["Green-B"], "Green")).toBe(true);
+    expect(servesLine(["Mattapan"], "Red")).toBe(true);
+    expect(servesLine(["Orange"], "Red")).toBe(false);
+    expect(servesLine(["Orange"], "any")).toBe(true);
   });
 });

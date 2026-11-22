@@ -31,9 +31,18 @@ export const BUDGET_OPTIONS: { value: PriceTier; label: string }[] = [
 
 /** Minutes available, counted from the player when their ride time is known, else from the station. */
 export const TIME_OPTIONS: { value: number; label: string }[] = [
+  { value: 15, label: "15 min" },
   { value: 30, label: "30 min" },
+  { value: 45, label: "45 min" },
   { value: 60, label: "1 hr" },
+  { value: 90, label: "1.5 hr" },
   { value: 120, label: "2 hr" },
+  { value: 150, label: "2.5 hr" },
+  { value: 180, label: "3 hr" },
+  { value: 240, label: "4 hr" },
+  { value: 300, label: "5 hr" },
+  { value: 360, label: "6 hr" },
+  { value: 480, label: "All day" },
 ];
 
 const TYPE_VALUES = new Set<string>(TYPE_OPTIONS.map((o) => o.value));

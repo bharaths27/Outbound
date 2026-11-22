@@ -1,3 +1,4 @@
+import { THEME_SCRIPT } from "@/features/theme/theme-script";
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner";
@@ -39,7 +40,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     // Font variables go on <html>, where the font family is applied (globals.css).
-    <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`}>
+    <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Applies the saved light/dark choice before the first paint. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>
         <AppShell>{children}</AppShell>
         {/* The station hub opens over any page from ?station=<id> (src/features/hub). */}
