@@ -7,15 +7,13 @@
 // map falls back to its free search (Photon / OpenStreetMap).
 export const dynamic = "force-dynamic";
 
-const KEY = process.env.GOOGLE_MAPS_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "";
-const BASE = "https://places.googleapis.com/v1";
+import { googleMapsKey, PLACES_BASE, searchPlaces, type GooglePlace } from "@/lib/google-places";
 
 const FIELDS = ["id", "displayName", "formattedAddress", "location", "types", "rating", "userRatingCount", "priceLevel", "currentOpeningHours.openNow", "primaryTypeDisplayName", "googleMapsUri"];
 const PRICE: Record<string, number> = { PRICE_LEVEL_FREE: 0, PRICE_LEVEL_INEXPENSIVE: 1, PRICE_LEVEL_MODERATE: 2, PRICE_LEVEL_EXPENSIVE: 3, PRICE_LEVEL_VERY_EXPENSIVE: 4 };
 
 /** The place fields the map uses. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function shape(p: any) {
+function shape(p: GooglePlace) {
   return {
     id: p.id,
     name: p.displayName?.text ?? "",
@@ -26,14 +24,15 @@ function shape(p: any) {
     category: p.primaryTypeDisplayName?.text ?? "",
     rating: p.rating ?? null,
     ratings: p.userRatingCount ?? 0,
-    price: p.priceLevel in PRICE ? PRICE[p.priceLevel] : null,
+    price: PRICE[p.priceLevel ?? ""] ?? null,
     openNow: p.currentOpeningHours?.openNow ?? null,
     url: p.googleMapsUri ?? null,
   };
 }
 
 export async function GET(req: Request) {
-  if (!KEY) return Response.json({ disabled: true });
+  const key = googleMapsKey();
+  if (!key) return Response.json({ disabled: true });
   const url = new URL(req.url);
   const q = url.searchParams.get("q");
   const id = url.searchParams.get("id");
@@ -42,18 +41,12 @@ export async function GET(req: Request) {
   try {
     if (text) {
       const lat = Number(url.searchParams.get("lat") ?? 42.36), lng = Number(url.searchParams.get("lng") ?? -71.06);
-      const r = await fetch(`${BASE}/places:searchText`, {
-        method: "POST",
-        headers: { "X-Goog-Api-Key": KEY, "content-type": "application/json", "X-Goog-FieldMask": FIELDS.map((f) => `places.${f}`).join(",") },
-        body: JSON.stringify({ textQuery: text, pageSize: 20, locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 8000 } } }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error?.message ?? `HTTP ${r.status}`);
-      return Response.json({ places: (j.places ?? []).map(shape) });
+      const places = await searchPlaces(FIELDS, { textQuery: text, pageSize: 20, locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 8000 } } });
+      return Response.json({ places: places.map(shape) });
     }
     if (id) {
-      const r = await fetch(`${BASE}/places/${encodeURIComponent(id)}${session ? `?sessionToken=${session}` : ""}`, {
-        headers: { "X-Goog-Api-Key": KEY, "X-Goog-FieldMask": [...FIELDS, "viewport"].join(",") },
+      const r = await fetch(`${PLACES_BASE}/places/${encodeURIComponent(id)}${session ? `?sessionToken=${session}` : ""}`, {
+        headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": [...FIELDS, "viewport"].join(",") },
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error?.message ?? `HTTP ${r.status}`);
@@ -61,9 +54,9 @@ export async function GET(req: Request) {
       return Response.json({ ...shape(j), bbox: v ? [v.low.longitude, v.low.latitude, v.high.longitude, v.high.latitude] : null });
     }
     if (!q || q.trim().length < 2) return Response.json({ results: [] });
-    const r = await fetch(`${BASE}/places:autocomplete`, {
+    const r = await fetch(`${PLACES_BASE}/places:autocomplete`, {
       method: "POST",
-      headers: { "X-Goog-Api-Key": KEY, "content-type": "application/json" },
+      headers: { "X-Goog-Api-Key": key, "content-type": "application/json" },
       body: JSON.stringify({
         input: q,
         sessionToken: session,

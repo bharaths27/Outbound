@@ -1,11 +1,13 @@
 "use client";
-// Floating "Ask Outbound Guide" chat, powered by Grok via /api/guide. Type, or snap a photo of food or a place.
-// Self-contained: drop <GrokGuide /> anywhere (it's in the root layout so it shows on every page).
+// Floating "Ask Outbound Guide" chat for typed quest searches and photo trips.
+// Mounted by ShellGuide, which controls the launcher placement.
 import { Camera, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { OPEN_GUIDE_EVENT, type OpenGuideDetail } from "@/features/guide/open-guide";
 import { useEffect, useRef, useState } from "react";
+import type { PhotoPreview } from "@/lib/photo-trip/types";
 import { cn } from "@/lib/utils";
+import PhotoTripCard from "./PhotoTripCard";
 
 interface Pick {
   id: string;
@@ -20,6 +22,7 @@ interface Msg {
   content: string;
   image?: string; // data URL, shown in the chat only (not resent in history)
   quests?: Pick[];
+  photoTrip?: PhotoPreview;
 }
 
 // Shrink any photo (including iPhone HEIC, which the browser can decode) to a JPEG of at most 1024 px.
@@ -43,7 +46,7 @@ async function toJpeg(file: File): Promise<string> {
 const PRICE = ["Free", "$", "$$", "$$$"];
 const STARTERS = ["Cheap eats open now", "Photo spot on the Green Line", "Date night, about 2 hours"];
 const WELCOME =
-  "Hey! Tell me your craving, budget, or how much time you have, or tap the camera to snap a photo of food or a place. I'll find you a quest on the T.";
+  "Tell me your craving, budget, or how much time you have to find a quest. Tap the camera to plan an MBTA trip from a photo of a dish or Boston landmark.";
 
 /**
  * The launcher sits bottom-left, clear of the map's zoom buttons (bottom-right) and the
@@ -71,7 +74,7 @@ export default function GrokGuide({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [msgs, busy]);
+  }, [msgs, busy, open]);
 
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -90,8 +93,6 @@ export default function GrokGuide({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
-
-  if (hideLauncher && !open) return null;
 
   async function pickPhoto(file: File | undefined) {
     if (!file) return;
@@ -125,7 +126,7 @@ export default function GrokGuide({
       setMsgs((m) => [
         ...m,
         res.ok
-          ? { role: "assistant", content: data.reply, quests: data.quests }
+          ? { role: "assistant", content: data.reply, quests: data.quests, photoTrip: data.token ? data : undefined }
           : { role: "assistant", content: data.error ?? "Something went wrong. Try again?" },
       ]);
     } catch {
@@ -137,12 +138,14 @@ export default function GrokGuide({
 
   return (
     <div
+      hidden={hideLauncher && !open}
       className={cn(
-        "fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-4 z-[60] flex flex-col items-start gap-2",
+        hideLauncher && !open ? "hidden" : "flex",
+        "fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-4 z-[60] flex-col items-start gap-2",
         openFromHeader ? "desk:top-20 desk:right-6 desk:bottom-auto desk:left-auto" : "desk:bottom-6 desk:left-6",
       )}
     >
-      {open && (
+      <div hidden={!open}>
         <div
           role="dialog"
           aria-labelledby="guide-title"
@@ -151,7 +154,7 @@ export default function GrokGuide({
           <div className="flex items-center justify-between border-b border-border py-1.5 pr-1.5 pl-4">
             <div>
               <p id="guide-title" className="text-sm font-semibold">Outbound Guide</p>
-              <p className="text-xs text-muted-foreground">Powered by Grok</p>
+              <p className="text-xs text-muted-foreground">Quests and photo trips</p>
             </div>
             <button
               onClick={() => setOpen(false)}
@@ -164,7 +167,7 @@ export default function GrokGuide({
 
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm" aria-live="polite">
             {msgs.map((m, i) => (
-              <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
+              <div key={i} className={m.role === "user" ? "flex flex-col items-end" : ""}>
                 {m.image && (
                   // eslint-disable-next-line @next/next/no-img-element -- local data URL preview
                   <img src={m.image} alt="Your photo" className="mb-1 ml-auto max-h-40 rounded-2xl" />
@@ -174,6 +177,7 @@ export default function GrokGuide({
                     {m.content}
                   </div>
                 )}
+                {m.photoTrip && <PhotoTripCard preview={m.photoTrip} />}
                 {m.quests && m.quests.length > 0 && (
                   <div className="mt-2 space-y-1.5">
                     {m.quests.map((q) => (
@@ -247,7 +251,7 @@ export default function GrokGuide({
             </button>
           </form>
         </div>
-      )}
+      </div>
       {!hideLauncher && (
         <button
           onClick={() => setOpen((o) => !o)}
