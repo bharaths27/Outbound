@@ -94,9 +94,13 @@ export function SquadsTab({ myId }: { myId: string }) {
             No squads yet. Start one and send the link to friends, from any school.
           </p>
         )}
-        {squads.map((s) => (
-          <SquadCard key={s.id} squad={s} myId={myId} onLeave={() => setLeaving(s)} />
-        ))}
+        {squads.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 desk:grid-cols-2">
+            {squads.map((s) => (
+              <SquadCard key={s.id} squad={s} myId={myId} onLeave={() => setLeaving(s)} />
+            ))}
+          </div>
+        )}
       </section>
 
       <AlertDialog open={leaving !== null} onOpenChange={(o) => !o && setLeaving(null)}>

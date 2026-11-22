@@ -43,3 +43,38 @@ export function initials(name: string | null): string {
 export function squadName(squad: Pick<SquadWithMembers, "name" | "code">): string {
   return squad.name?.trim() || `Squad ${squad.code}`;
 }
+
+const ABBR: Record<string, string> = {
+  "Boston University": "BU",
+  Northeastern: "NEU",
+  "Northeastern University": "NEU",
+  "Harvard University": "HU",
+  Harvard: "HU",
+  "Tufts University": "TU",
+  Tufts: "TU",
+  "Boston College": "BC",
+  "UMass Boston": "UMB",
+};
+
+/** Short school mark for avatars: "Boston University" → "BU", "MIT" → "MIT", "Emerson" → "EM". */
+export function schoolAbbr(name: string): string {
+  if (ABBR[name]) return ABBR[name];
+  if (/^[A-Z]{2,4}$/.test(name)) return name;
+  const words = name.split(/\s+/).filter((w) => w && !/^(of|the|and|at)$/i.test(w));
+  if (words.length > 1) return words.map((w) => w[0]).join("").toUpperCase().slice(0, 3);
+  return name.slice(0, 2).toUpperCase();
+}
+
+/** Monday (YYYY-MM-DD) of the week containing a Boston date key, matching the weekly reset. */
+export function weekStart(dateKey: string): string {
+  const d = new Date(`${dateKey}T12:00:00Z`);
+  const back = (d.getUTCDay() + 6) % 7; // Mon = 0
+  d.setUTCDate(d.getUTCDate() - back);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The player's XP from check-ins this week (Monday on), for "Your school contribution". */
+export function weeklyXp(visits: { visit_date: string; xp_awarded: number }[], dateKey: string): number {
+  const from = weekStart(dateKey);
+  return visits.filter((v) => v.visit_date >= from && v.visit_date <= dateKey).reduce((s, v) => s + v.xp_awarded, 0);
+}

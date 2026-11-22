@@ -22,22 +22,27 @@ async function loadPlayer(): Promise<Player> {
   return { profile, visits, passport };
 }
 
-export function usePlayer(): { player: Player; reload: () => void } {
+export function usePlayer(): { player: Player; reload: () => void; loaded: boolean } {
   const [player, setPlayer] = useState<Player>(EMPTY);
+  const [loaded, setLoaded] = useState(false); // false until the first load settles
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     loadPlayer()
-      .then((p) => !cancelled && setPlayer(p))
-      .catch(() => !cancelled && setPlayer(EMPTY)); // progress is a bonus; never block the hub
+      .catch(() => EMPTY) // progress is a bonus; never block the hub
+      .then((p) => {
+        if (cancelled) return;
+        setPlayer(p);
+        setLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
   }, [version]);
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
-  return { player, reload };
+  return { player, reload, loaded };
 }
 
 /** The player's most recent visit to a quest, if any. */

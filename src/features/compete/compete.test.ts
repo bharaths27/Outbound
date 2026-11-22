@@ -66,3 +66,25 @@ describe("squads", () => {
     expect(initials(null)).toBe("?");
   });
 });
+
+import { schoolAbbr, weekStart, weeklyXp } from "./compete";
+
+describe("schoolAbbr", () => {
+  it("abbreviates school names", () => {
+    expect(schoolAbbr("Boston University")).toBe("BU");
+    expect(schoolAbbr("MIT")).toBe("MIT");
+    expect(schoolAbbr("Emerson")).toBe("EM");
+    expect(schoolAbbr("Wentworth Institute of Technology")).toBe("WIT");
+  });
+});
+
+describe("weekly XP", () => {
+  it("starts the week on Monday", () => {
+    expect(weekStart("2026-11-22")).toBe("2026-11-16"); // Sunday
+    expect(weekStart("2026-11-16")).toBe("2026-11-16"); // Monday
+  });
+  it("sums this week's visits only", () => {
+    const v = (visit_date: string, xp_awarded: number) => ({ visit_date, xp_awarded });
+    expect(weeklyXp([v("2026-11-15", 100), v("2026-11-16", 50), v("2026-11-21", 25)], "2026-11-21")).toBe(75);
+  });
+});
