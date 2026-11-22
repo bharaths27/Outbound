@@ -22,6 +22,7 @@ export const REASON_LABEL: Record<XpReason, string> = {
   new_neighborhood: "New neighborhood",
   squad: "Squad bonus",
   cross_school: "Cross-school bonus",
+  quest_of_the_week: "Quest of the Week",
 };
 
 export const TIER_LABEL: Record<Tier, string> = { bronze: "Bronze", silver: "Silver", gold: "Gold" };
