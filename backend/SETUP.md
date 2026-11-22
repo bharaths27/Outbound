@@ -44,7 +44,7 @@ You should see a line every 15 s like `13:40:15 trains=58 predictions=140 with_s
 ## Step 3. Supabase (Suki runs it, 5 min)
 
 1. Supabase, then **SQL Editor**, then **New query**. Paste all of `supabase/schema.sql` and **Run**.
-   Then, one new query each, in order: `supabase/002_frontend_requests.sql`, `supabase/003_passport_privacy.sql`, `supabase/004_api_grants.sql`, `supabase/seed_stations.sql`, `supabase/seed_quests_starter.sql` (all safe to re-run; they keep data).
+   Then, one new query each, in order: `supabase/002_frontend_requests.sql`, `supabase/003_passport_privacy.sql`, `supabase/004_api_grants.sql`, `supabase/005_rewards.sql` (then the secret line that `node scripts/solana-setup.mjs` prints), `supabase/seed_stations.sql`, `supabase/seed_quests_starter.sql` (all safe to re-run; they keep data).
 2. Re-running it wipes Outbound data (not logins), so only re-run before real users exist.
 3. **Authentication, then Providers, then Email**: keep enabled. Turn **Confirm email** off for the hackathon, so sign-up works instantly without the low built-in email limit. Or add custom SMTP (Resend) under **Authentication, then Emails, then SMTP Settings**.
 4. **Authentication, then URL Configuration**: Site URL = the Vercel URL; add `http://localhost:3000/**` to redirect URLs.
