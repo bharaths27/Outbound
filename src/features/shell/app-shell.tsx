@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { guideFloatsOn } from "@/features/guide/placement";
 import { cn } from "@/lib/utils";
-import { NAV, NavIcon, PHONE_NAV, NotificationsBell, ProfileLink, XpPill, isActive } from "./shell-parts";
+import { AskGuideButton, NAV, NavIcon, PHONE_NAV, NotificationsBell, ProfileLink, XpPill, isActive } from "./shell-parts";
 import { useShellPlayer } from "./use-shell-player";
 
 /** Routes that render without the shell (full-screen flows and dev pages). */
@@ -23,6 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const player = useShellPlayer();
   if (isBareRoute(pathname)) return <>{children}</>;
   const onExplore = pathname === "/";
+  const guideFloats = guideFloatsOn(pathname);
 
   return (
     <div className="flex h-dvh flex-col bg-background">
@@ -52,6 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="flex items-center gap-3">
+            {!guideFloats && <AskGuideButton />}
             <XpPill player={player} />
             <NotificationsBell tint />
             <ProfileLink player={player} />
@@ -72,8 +75,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
       )}
 
-      {/* Bottom padding keeps the floating Ask Guide button off the last row of every page. */}
-      <main className="relative min-h-0 flex-1 overflow-y-auto pb-20">{children}</main>
+      {/* Where the floating Ask Guide button shows, bottom padding keeps it off the last row. */}
+      <main className={cn("relative min-h-0 flex-1 overflow-y-auto", guideFloats && "pb-20")}>{children}</main>
 
       {/* Mobile tab bar */}
       <nav

@@ -1,9 +1,9 @@
 "use client";
 
 // Pieces of the shell shared by the mobile header, desktop top bar, and page headers:
-// nav items, the XP pill, the notifications bell, and the player avatar (DESIGN.md §4–5).
+// nav items, the XP pill, the Ask Guide button, the notifications bell, and the player avatar (DESIGN.md §4–5).
 
-import { Bell } from "lucide-react";
+import { Bell, Sparkles } from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -11,6 +11,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { openGuide } from "@/features/guide/open-guide";
 import { cn } from "@/lib/utils";
 import type { ShellPlayer } from "./use-shell-player";
 
@@ -83,6 +84,29 @@ export function XpPill({ player, size = "md" }: { player: ShellPlayer | null | u
       </svg>
       {player.profile.xp.toLocaleString("en-US")} XP
     </Link>
+  );
+}
+
+/**
+ * "Ask Guide" in a page header, for pages where the floating button is hidden
+ * (src/features/guide/placement.ts). Opens the same chat as the floating button.
+ */
+export function AskGuideButton({ compact = false }: { compact?: boolean }) {
+  const base =
+    "flex shrink-0 items-center justify-center rounded-full border border-gold/70 bg-white/12 text-on-maroon outline-none hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-gold";
+  // Compact (phone title bands): icon only, so long titles like "Today's Quests" still fit.
+  if (compact) {
+    return (
+      <button type="button" onClick={() => openGuide()} aria-label="Ask Guide" title="Ask Guide" className={cn(base, "size-11")}>
+        <Sparkles className="size-5 text-gold" aria-hidden />
+      </button>
+    );
+  }
+  return (
+    <button type="button" onClick={() => openGuide()} className={cn(base, "h-9 gap-1.5 px-3.5 text-sm font-bold")}>
+      <Sparkles className="size-4 text-gold" aria-hidden />
+      Ask Guide
+    </button>
   );
 }
 

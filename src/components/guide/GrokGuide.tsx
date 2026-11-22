@@ -5,6 +5,7 @@ import { Camera, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { OPEN_GUIDE_EVENT, type OpenGuideDetail } from "@/features/guide/open-guide";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface Pick {
   id: string;
@@ -46,10 +47,18 @@ const WELCOME =
 
 /**
  * The launcher sits bottom-left, clear of the map's zoom buttons (bottom-right) and the
- * station hub (right sheet on desktop). `hideLauncher` hides only the button, e.g. while the
- * phone hub drawer is up; the hub has its own Ask Guide button that opens the same chat.
+ * station hub (right sheet on desktop). `hideLauncher` hides only the button (on pages that
+ * have a header Ask Guide button, or while the phone hub drawer is up); the chat still opens
+ * from openGuide(), and the panel's × closes it.
  */
-export default function GrokGuide({ hideLauncher = false }: { hideLauncher?: boolean }) {
+export default function GrokGuide({
+  hideLauncher = false,
+  openFromHeader = false,
+}: {
+  hideLauncher?: boolean;
+  /** The page opens the chat from a header button: on desktop the panel drops from the top right. */
+  openFromHeader?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
     { role: "assistant", content: WELCOME },
@@ -127,7 +136,12 @@ export default function GrokGuide({ hideLauncher = false }: { hideLauncher?: boo
   }
 
   return (
-    <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-4 z-[60] flex flex-col items-start gap-2 desk:bottom-6 desk:left-6">
+    <div
+      className={cn(
+        "fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-4 z-[60] flex flex-col items-start gap-2",
+        openFromHeader ? "desk:top-20 desk:right-6 desk:bottom-auto desk:left-auto" : "desk:bottom-6 desk:left-6",
+      )}
+    >
       {open && (
         <div
           role="dialog"
@@ -234,20 +248,22 @@ export default function GrokGuide({ hideLauncher = false }: { hideLauncher?: boo
           </form>
         </div>
       )}
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex h-14 items-center gap-2 rounded-full border-2 border-gold bg-maroon pr-5 pl-4 text-base font-bold text-white shadow-float outline-none hover:bg-maroon-600 focus-visible:ring-2 focus-visible:ring-gold"
-      >
-        {open ? (
-          "Close guide"
-        ) : (
-          <>
-            <Sparkles className="size-5 text-gold" aria-hidden />
-            Ask Guide
-          </>
-        )}
-      </button>
+      {!hideLauncher && (
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex h-14 items-center gap-2 rounded-full border-2 border-gold bg-maroon pr-5 pl-4 text-base font-bold text-white shadow-float outline-none hover:bg-maroon-600 focus-visible:ring-2 focus-visible:ring-gold"
+        >
+          {open ? (
+            "Close guide"
+          ) : (
+            <>
+              <Sparkles className="size-5 text-gold" aria-hidden />
+              Ask Guide
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }
