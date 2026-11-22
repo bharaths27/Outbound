@@ -15,6 +15,7 @@ import { FilterBar } from "./filter-bar";
 import { EMPTY_FILTERS, applyFilters, cravingOptions, fromSearch, type HubFilters } from "./filter-state";
 import { HubHeader, HubHeaderSkeleton } from "./hub-header";
 import { QuestCard } from "./quest-card";
+import { useRideMinutes } from "./ride-time";
 import { QuestDetail } from "./quest-detail";
 import { SearchBar } from "./search-bar";
 import { useNow } from "./use-now";
@@ -133,7 +134,8 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
   }, [stationId, attempt]);
 
   const quests = load.status === "ready" ? load.quests : NO_QUESTS;
-  const results = useMemo(() => applyFilters(quests, filters, now), [quests, filters, now]);
+  const rideMin = useRideMinutes(stationId);
+  const results = useMemo(() => applyFilters(quests, filters, now, rideMin), [quests, filters, now, rideMin]);
   const cravings = useMemo(() => cravingOptions(quests, filters.craving), [quests, filters.craving]);
   const knownTags = useMemo(() => [...new Set(quests.flatMap((q) => q.vibe_tags))], [quests]);
 
@@ -220,7 +222,7 @@ export function StationHub({ stationId, onClose }: { stationId: string; onClose:
               onSearch={(result) => setFilters((f) => fromSearch(f, result))}
               onChange={setFilters}
             />
-            <FilterBar filters={filters} cravings={cravings} resultCount={results.length} onChange={setFilters} />
+            <FilterBar filters={filters} cravings={cravings} resultCount={results.length} rideMin={rideMin} onChange={setFilters} />
           </div>
 
           <section aria-label={`Quests near ${station.name}`} className="flex flex-col gap-3">

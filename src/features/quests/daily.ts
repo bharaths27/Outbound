@@ -65,6 +65,12 @@ export function pickDailyQuests(quests: Quest[], dateKey: string, count = DAILY_
   return picked;
 }
 
+/** Puts this week's featured quest (quest_of_the_week()) first when it's in today's list. */
+export function featuredFirst(daily: Quest[], featuredId: string | null): Quest[] {
+  const i = featuredId ? daily.findIndex((q) => q.id === featuredId) : -1;
+  return i <= 0 ? daily : [daily[i], ...daily.slice(0, i), ...daily.slice(i + 1)];
+}
+
 /**
  * XP the player earned on this Boston date (what check_in awarded, bonuses included).
  * Pass `questIds` to count only those quests (today's list), so "+XP" agrees with "N of 5 done".

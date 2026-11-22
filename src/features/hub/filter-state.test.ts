@@ -59,6 +59,12 @@ describe("applyFilters", () => {
     expect(ids).toEqual(["noodles", "slice", "park"]);
   });
 
+  it("counts the ride from the player when it's known", () => {
+    // 10 min ride + 2*walk + duration: noodles 40, slice 29, tour 95, park 40
+    const ids = applyFilters(all, { ...EMPTY_FILTERS, minutes: 30 }, nov("12:00"), 10).map((q) => q.id);
+    expect(ids).toEqual(["slice"]);
+  });
+
   it("open now hides closed places but keeps ones with unknown hours", () => {
     const ids = applyFilters(all, { ...EMPTY_FILTERS, openNow: true }, nov("23:30")).map((q) => q.id);
     expect(ids).toEqual(["slice", "park"]);
