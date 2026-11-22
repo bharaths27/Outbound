@@ -62,6 +62,8 @@ interface StationData extends Pick<Station, "id" | "name" | "lat" | "lon"> {
 
 /** Span of the subway lines (from mbta-lines.geojson) with a little room around it. */
 const T_BOUNDS: [[number, number], [number, number]] = [[-71.275, 42.193], [-70.97, 42.452]];
+/** The subway lines themselves, end to end. */
+const T_LINES: [[number, number], [number, number]] = [[-71.2526, 42.2075], [-70.9914, 42.439]];
 const VIEWS = {
   usa: { center: [-96.5, 39.2] as [number, number], zoom: 2.9, pitch: 0, bearing: 0 },
   mass: { center: [-71.55, 42.25] as [number, number], zoom: 7.6, pitch: 30, bearing: 0 },
@@ -155,13 +157,22 @@ export default function TransitMap() {
         canvasContextAttributes: { antialias: true },
       });
       mapRef.current = map;
+      // the farthest you can zoom out is the whole T network filling the screen
+      const m0 = map;
+      const fitMinZoom = () => {
+        const cam = m0.cameraForBounds(T_LINES, { padding: 24, bearing: 0 });
+        if (cam?.zoom != null) m0.setMinZoom(Math.max(9, Math.min(12, cam.zoom)));
+      };
+      fitMinZoom();
+      map.on("resize", fitMinZoom);
+      map.on("zoomend", () => { if (m0.getZoom() < m0.getMinZoom() - 0.01) m0.easeTo({ zoom: m0.getMinZoom(), duration: 200 }); });
       if (process.env.NODE_ENV !== "production") (window as unknown as { __obMap: MlMap }).__obMap = map; // for tests
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
       map.on("error", (e) => console.warn("[map]", e.error?.message ?? e)); // e.g. a tile or font that failed to load
 
       map.on("style.load", () => {
         const m = map!;
-        m.setProjection({ type: "globe" });
+        m.setProjection({ type: "mercator" }); // flat map: the view is locked to the T network, so no globe
         m.setSky({
           "sky-color": "#8ec5ff",
           "horizon-color": "#e3f1ff",
@@ -535,8 +546,16 @@ export default function TransitMap() {
     const map = mapRef.current;
     if (!ready || !map) return;
     if (layerRef.current) layerRef.current.visible = show.trains; // 2D shows the same train models from above
-    // 2D is the same city seen straight from above (roofs), with tilting locked
-    map.setMaxPitch(is3D ? 85 : 0);
+    // 2D is the same city seen straight from above (roofs), with tilting locked. In 3D, tilt is limited when zoomed
+    // out so the horizon never shows land past the T lines; full tilt comes back as you zoom in.
+    const pitchCap = () => {
+      if (!is3D) return map.setMaxPitch(0);
+      const t = Math.min(1, Math.max(0, (map.getZoom() - map.getMinZoom()) / 2.5));
+      const cap = 25 + t * 60;
+      if (Math.abs(map.getMaxPitch() - cap) > 0.5) map.setMaxPitch(cap);
+    };
+    pitchCap();
+    map.on("zoom", pitchCap);
     map.setPaintProperty(
       "trains-2d",
       "circle-opacity",
@@ -549,6 +568,9 @@ export default function TransitMap() {
     );
     if (map.getZoom() > 5 && is3D) map.easeTo({ pitch: 58, duration: 900 });
     map.triggerRepaint();
+    return () => {
+      map.off("zoom", pitchCap);
+    };
   }, [ready, is3D, show.trains]);
 
   // ---------- weather outside (light, clouds, rain/snow), refreshed every 15 min ----------
