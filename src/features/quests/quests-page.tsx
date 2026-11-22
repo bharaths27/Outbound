@@ -37,7 +37,7 @@ interface Loaded {
 export function QuestsPage() {
   const [loaded, setLoaded] = useState<Loaded | null | "error">(null);
   const [filter, setFilter] = useState<Filter>("all");
-  const { player } = usePlayer();
+  const { player, loaded: playerLoaded } = usePlayer();
   const dateKey = bostonDateKey(new Date());
 
   useEffect(() => {
@@ -66,7 +66,10 @@ export function QuestsPage() {
   );
   const total = daily.length || DAILY_COUNT;
   const shown = filter === "all" ? daily : daily.filter((q) => q.type === filter);
-  const progressLabel = `${doneQuests.length} of ${total} done · +${doneXp} XP today`;
+  // Until both the quests and the player's visits are in, don't claim "0 of 5 done".
+  const progressReady = playerLoaded && loaded !== null;
+  const progressLabel = progressReady ? `${doneQuests.length} of ${total} done · +${doneXp} XP today` : "Checking today’s progress…";
+  const progressValue = progressReady ? doneQuests.length : 0;
   const profile = player.profile;
 
   return (
@@ -79,12 +82,12 @@ export function QuestsPage() {
               <span>Daily progress</span>
               <span className="font-semibold text-muted-foreground tabular-nums">{progressLabel}</span>
             </div>
-            <Progress value={doneQuests.length} max={total} className="mt-2.5 h-2.5 bg-sand" fill="bg-gold-500" />
+            <Progress value={progressValue} max={total} className="mt-2.5 h-2.5 bg-sand" fill="bg-gold-500" />
           </div>
         }
       >
         <div className="flex items-center gap-3">
-          <Progress value={doneQuests.length} max={total} className="h-2 flex-1 bg-white/20" fill="bg-gold" />
+          <Progress value={progressValue} max={total} className="h-2 flex-1 bg-white/20" fill="bg-gold" />
           <span className="text-[13px] text-on-maroon-muted tabular-nums">{progressLabel}</span>
         </div>
       </PageHeader>
@@ -286,7 +289,7 @@ function QuestRow({
           {quest.title}
         </Link>
         {station && (
-          <p className="mt-1 flex items-center gap-1.5 text-[13px] text-muted-foreground desk:text-sm">
+          <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-muted-foreground desk:text-sm">
             {line && <LineLetter line={line.line} size={16} />}
             <span className="truncate">{where}</span>
           </p>

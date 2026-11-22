@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { openGuide } from "@/features/guide/open-guide";
 import { data } from "@/lib/data";
 import type { Quest, Station } from "@/lib/data/types";
+import { getExploreFilters } from "@/features/explore/explore-filters";
 import { FilterBar } from "./filter-bar";
 import { EMPTY_FILTERS, applyFilters, cravingOptions, fromSearch, type HubFilters } from "./filter-state";
 import { HubHeader, HubHeaderSkeleton } from "./hub-header";
@@ -106,7 +107,8 @@ function NoMatches({
 export function StationHub({ stationId, onClose }: { stationId: string; onClose: () => void }) {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
-  const [filters, setFilters] = useState<HubFilters>(EMPTY_FILTERS);
+  // Starts from the Explore card's Craving / Budget / Time picks, if any.
+  const [filters, setFilters] = useState<HubFilters>(() => ({ ...EMPTY_FILTERS, ...getExploreFilters() }));
   const [openQuestId, setOpenQuestId] = useState<string | null>(null);
   const { player, reload } = usePlayer();
   const now = useNow();

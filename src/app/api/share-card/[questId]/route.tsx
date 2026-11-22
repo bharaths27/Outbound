@@ -2,13 +2,19 @@
 import { ImageResponse } from "next/og";
 import QRCode from "qrcode";
 import { getPublicQuest } from "@/lib/public-quest";
+import { publicSiteUrl } from "@/lib/site-url";
+
+// Cards change only when a quest's title, station or XP does: let browsers keep one for an
+// hour and the CDN for a day, serving the old one while it refreshes.
+const CACHE_CONTROL = "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800";
 
 export async function GET(request: Request, { params }: { params: Promise<{ questId: string }> }) {
   const { questId } = await params;
   const quest = await getPublicQuest(questId);
   if (!quest) return new Response("Quest not found", { status: 404 });
 
-  const shareUrl = new URL(`/q/${encodeURIComponent(quest.id)}`, request.url);
+  // The QR code points at the public site, not whichever preview or host served the card.
+  const shareUrl = new URL(`/q/${encodeURIComponent(quest.id)}`, publicSiteUrl(request.url));
   const qr = await QRCode.toDataURL(shareUrl.href, { width: 220, margin: 4 });
 
   return new ImageResponse(
@@ -35,6 +41,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ ques
         </div>
       </div>
     ),
-    { width: 1200, height: 630 },
+    { width: 1200, height: 630, headers: { "Cache-Control": CACHE_CONTROL } },
   );
 }

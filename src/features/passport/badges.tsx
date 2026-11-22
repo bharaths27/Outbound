@@ -6,6 +6,7 @@
 
 import { Flame, Map as MapIcon, Moon, TrainFront, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { data } from "@/lib/data";
 import type { BadgeId, GameProgress } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,9 @@ export const BADGES: { id: BadgeId; name: string; how: string; icon: LucideIcon 
 ];
 
 export function BadgesAndStreak({ className }: { className?: string }) {
-  const [progress, setProgress] = useState<GameProgress | null | "error">(null);
+  // undefined while loading; null when signed out (nothing to show).
+  const [progress, setProgress] = useState<GameProgress | null | undefined | "error">(undefined);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,10 +32,30 @@ export function BadgesAndStreak({ className }: { className?: string }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
-  if (progress === "error") return null; // optional extra; the passport stands without it
-  if (progress === null) {
+  if (progress === null) return null;
+  if (progress === "error") {
+    // DESIGN.md §9 error state: title, one line, Try again.
+    return (
+      <section aria-label="Badges and streak" className={cn("flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3", className)}>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-ink">Badges and streak didn&apos;t load.</p>
+          <p className="text-[13px] text-muted-foreground">Your stamps are fine. Try again in a moment.</p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setProgress(undefined);
+            setAttempt((a) => a + 1);
+          }}
+        >
+          Try again
+        </Button>
+      </section>
+    );
+  }
+  if (progress === undefined) {
     return <div className={cn("h-[132px] animate-pulse rounded-xl bg-sand motion-reduce:animate-none", className)} aria-hidden />;
   }
 
@@ -69,13 +92,13 @@ export function BadgesAndStreak({ className }: { className?: string }) {
               key={b.id}
               className={cn(
                 "flex items-center gap-2.5 rounded-xl border p-2.5",
-                has ? "border-gold-500 bg-[#FFF4D6]" : "border-border bg-surface",
+                has ? "border-gold-500 bg-badge-earned" : "border-border bg-surface",
               )}
             >
               <span
                 className={cn(
                   "flex size-10 shrink-0 items-center justify-center rounded-full",
-                  has ? "bg-maroon text-gold" : "bg-sand text-[#B7ABA4]",
+                  has ? "bg-maroon text-gold" : "bg-sand text-badge-locked-ink",
                 )}
               >
                 <Icon className="size-5" aria-hidden />

@@ -18,7 +18,7 @@ import Explorer, { type ExplorerHandle } from "./Explorer";
 import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
-import { BookOpen, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Landmark, Moon, Soup, Star, Sun, Sunset, Trophy, Waves } from "lucide-react";
+import { BookOpen, Cloud, Layers, LocateFixed, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Landmark, Moon, Soup, Star, Sun, Sunset, Trophy, Waves } from "lucide-react";
 import { createElement, Landmark as LandmarkN, Waves as WavesN, Soup as SoupN, BookOpen as BookOpenN, Sunset as SunsetN, Trophy as TrophyN } from "lucide";
 
 const QUEST_ICONS = { Landmark, Waves, Soup, BookOpen, Sunset, Trophy };
@@ -100,6 +100,8 @@ export default function TransitMap() {
   const [realistic, setRealistic] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Phones: the controls panel folds into a Layers button (DESIGN.md §6 Explore map controls).
+  const [controlsOpen, setControlsOpen] = useState(false);
   const [userLoc, setUserLoc] = useState<[number, number] | null>(null);
   const userLocRef = useRef<[number, number] | null>(null);
   const meMarker = useRef<maplibregl.Marker | null>(null);
@@ -820,8 +822,9 @@ export default function TransitMap() {
     <div className="ob-map absolute inset-0 overflow-hidden bg-[#dfe9f3]">
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
       <WeatherFx weather={weather} active={loaded && is3D} />
-      {/* top-left: feed status, Tiger Data badges (the app shell shows the logo) */}
-      <div className="absolute left-3 top-3 flex max-w-[calc(100vw-212px)] sm:max-w-[calc(100vw-24px)] flex-col gap-2 sm:left-4 sm:top-4">
+      {/* top-left: feed status, Tiger Data badges (the app shell shows the logo). The page can
+          push the overlays down with --ob-map-top (Explore's filter card sits above them). */}
+      <div className="absolute left-3 top-[calc(var(--ob-map-top,0px)+12px)] flex max-w-[calc(100%-84px)] flex-col gap-2 sm:left-4 sm:top-[calc(var(--ob-map-top,0px)+16px)] desk:max-w-[calc(100%-224px)]">
         <div className="ob-panel flex items-center gap-3 px-3 py-2">
           <span className="flex items-center gap-1.5 text-xs text-[var(--ob-ink-2)]">
             <span
@@ -858,23 +861,47 @@ export default function TransitMap() {
         )}
       </div>
 
-      {/* top-right: controls */}
-      <div className="ob-panel absolute right-3 top-3 flex w-[176px] flex-col gap-2 p-2.5 text-xs sm:right-4 sm:top-4">
-        <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
-        {(GOOGLE_KEY || !offlineBasemap) && <Seg options={[["Illustrated", false], ["Realistic", true]]} value={realistic} onChange={setRealistic} />}
-        <div className="mt-1 flex flex-col gap-1">
-          <Toggle label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
-          <Toggle label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />
-          <Toggle label="Friends" on={show.friends} set={(v) => setShow({ ...show, friends: v })} />
-          <Toggle label="Delays" on={show.delays} set={(v) => setShow({ ...show, delays: v })} />
-          {show.delays && <Toggle label="Color lines by delay" on={delayColors} set={setDelayColors} small />}
+      {/* top-right: controls. Phones get round Layers and Locate buttons; Layers opens the panel. */}
+      <div className="absolute right-3 top-[calc(var(--ob-map-top,0px)+12px)] flex flex-col items-end gap-2 sm:right-4 sm:top-[calc(var(--ob-map-top,0px)+16px)]">
+        <div className="flex flex-col gap-2 desk:hidden">
+          <button
+            type="button"
+            aria-label="Map layers"
+            aria-expanded={controlsOpen}
+            onClick={() => setControlsOpen((o) => !o)}
+            className={`ob-panel flex size-12 items-center justify-center !rounded-full ${controlsOpen ? "!bg-[var(--ob-maroon)] !text-white" : "text-[var(--ob-ink)]"}`}
+          >
+            <Layers size={20} strokeWidth={2} aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label="Show where I am"
+            onClick={() => {
+              if (userLoc) mapRef.current?.flyTo({ center: userLoc, zoom: Math.max(mapRef.current.getZoom(), 15), duration: 1200 });
+              else setNotice("Turn on location for Outbound to see where you are on the map.");
+            }}
+            className="ob-panel flex size-12 items-center justify-center !rounded-full text-[var(--ob-ink)]"
+          >
+            <LocateFixed size={20} strokeWidth={2} aria-hidden />
+          </button>
         </div>
-        <button
-          className="mt-1 rounded-lg bg-[var(--ob-maroon)] px-2 py-1.5 font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
-          onClick={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
-        >
-          {feedMode === "live" ? "Replay saved trains" : "Back to live"}
-        </button>
+        <div className={`ob-panel w-[176px] flex-col gap-2 p-2.5 text-xs desk:flex ${controlsOpen ? "flex" : "hidden"}`}>
+          <Seg options={[["3D", true], ["2D", false]]} value={is3D} onChange={setIs3D} />
+          {(GOOGLE_KEY || !offlineBasemap) && <Seg options={[["Illustrated", false], ["Realistic", true]]} value={realistic} onChange={setRealistic} />}
+          <div className="mt-1 flex flex-col gap-1">
+            <Toggle label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
+            <Toggle label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />
+            <Toggle label="Friends" on={show.friends} set={(v) => setShow({ ...show, friends: v })} />
+            <Toggle label="Delays" on={show.delays} set={(v) => setShow({ ...show, delays: v })} />
+            {show.delays && <Toggle label="Color lines by delay" on={delayColors} set={setDelayColors} small />}
+          </div>
+          <button
+            className="mt-1 rounded-lg bg-[var(--ob-maroon)] px-2 py-1.5 font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
+            onClick={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
+          >
+            {feedMode === "live" ? "Replay saved trains" : "Back to live"}
+          </button>
+        </div>
       </div>
 
       {/* replay bar */}
