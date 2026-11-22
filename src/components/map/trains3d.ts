@@ -261,7 +261,8 @@ export class Trains3DLayer implements CustomLayerInterface {
 
   /** Model size multiplier: real size when zoomed in, gently enlarged when zoomed out so trains stay readable. */
   scaleFor(zoom: number) {
-    return Math.min(6, Math.max(1, Math.pow(2, (15.6 - zoom) * 0.62)));
+    // big and easy to spot when zoomed out (matching the thick T lines), shrinking to real size at street level
+    return Math.min(18, Math.max(1, Math.pow(2, (18 - zoom) * 0.78)));
   }
 
   render(_gl: WebGLRenderingContext | WebGL2RenderingContext, args: CustomRenderMethodInput) {

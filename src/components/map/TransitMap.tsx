@@ -199,21 +199,21 @@ export default function TransitMap() {
           type: "line",
           source: "mbta-lines",
           layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": "#999", "line-width": ["interpolate", ["linear"], ["zoom"], 9, 4, 13, 7, 17, 14], "line-blur": 4, "line-opacity": 0.55 },
+          paint: { "line-color": "#999", "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 7, 9, 10, 11, 13, 13, 16, 18, 18, 34, 20, 110], "line-blur": 4, "line-opacity": 0.55 },
         }, beforeLines);
         m.addLayer({
           id: "lines-casing",
           type: "line",
           source: "mbta-lines",
           layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.6, 13, 2.8, 17, 5.5], "line-opacity": 0.9 },
+          paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 7, 4.5, 10, 6, 13, 7.5, 16, 11, 18, 26, 20, 96], "line-opacity": 0.9 },
         }, beforeLines);
         m.addLayer({
           id: "lines",
           type: "line",
           source: "mbta-lines",
           layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": lineColorExpr(LINE_COLORS), "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.9, 13, 1.7, 17, 3.4] },
+          paint: { "line-color": lineColorExpr(LINE_COLORS), "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 7, 3, 10, 4.2, 13, 5.5, 16, 8, 18, 20, 20, 84] },
         }, beforeLines);
 
         // campuses: one outline + see-through fill per school (real campus areas from OpenStreetMap via Overture Maps)
@@ -328,10 +328,10 @@ export default function TransitMap() {
           type: "circle",
           source: "stations",
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, ["case", ["get", "transfer"], 1.8, 1.2], 13, ["case", ["get", "transfer"], 3.6, 2.6], 17, ["case", ["get", "transfer"], 6, 4.5]],
+            "circle-radius": ["interpolate", ["exponential", 1.6], ["zoom"], 9, ["case", ["get", "transfer"], 3.4, 2.6], 13, ["case", ["get", "transfer"], 5.2, 4.2], 17, ["case", ["get", "transfer"], 9, 7.5], 20, ["case", ["get", "transfer"], 30, 26]],
             "circle-color": "#ffffff",
             "circle-stroke-color": ["case", ["get", "transfer"], "#1f2937", lineColorExpr(LINE_COLORS)],
-            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 9, 0.8, 14, 1.6],
+            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 9, 1.4, 14, 2.2, 20, 5],
             "circle-pitch-alignment": "map",
           },
         });
@@ -405,7 +405,7 @@ export default function TransitMap() {
           type: "circle",
           source: "trains-2d",
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 2.5, 12, 4, 15, 6, 18, 10],
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 4, 12, 6.5, 15, 8, 18, 12],
             "circle-color": lineColorExpr(LINE_COLORS),
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 1.5,
