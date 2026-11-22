@@ -102,24 +102,72 @@ group by p.id, s.id;
 revoke all on public.leaderboard_players_weekly from public, anon, authenticated;
 grant select on public.leaderboard_players_weekly to anon, authenticated;
 
--- Rotate through regular quests in ID order. Expo and other QR quests stay out.
--- Ordering and check-in both use the same Boston calendar date.
-create or replace function public.quest_of_the_day()
-returns table (quest_id text, quest_date date, base_xp_multiplier int)
-language sql stable security invoker set search_path = public
+-- Weekly game data is written only through the RPCs below.
+create table if not exists public.quest_recommendations (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  quest_id text not null references public.quests(id) on delete cascade,
+  week_start date not null,
+  primary key (user_id, quest_id, week_start)
+);
+create index if not exists quest_recommendations_week_idx
+  on public.quest_recommendations (week_start, quest_id);
+
+create table if not exists public.featured_quests (
+  week_start date primary key,
+  quest_id text not null references public.quests(id)
+);
+alter table public.quest_recommendations enable row level security;
+alter table public.featured_quests enable row level security;
+revoke all on public.quest_recommendations, public.featured_quests
+  from public, anon, authenticated;
+
+create or replace function public.quest_of_the_week()
+returns table (quest_id text, week_start date, base_xp_multiplier int)
+language plpgsql security definer set search_path = ''
 as $$
-  with clock as (
-    select (now() at time zone 'America/New_York')::date as today
-  ), eligible as (
-    select q.id, row_number() over (order by q.id) as position, count(*) over () as total
-    from public.quests q where q.qr_code is null and q.xp > 0
-  )
-  select e.id, c.today, 2
-  from eligible e cross join clock c
-  where e.position = mod(c.today - date '2000-01-01', e.total) + 1;
+declare
+  v_week date := date_trunc('week', now() at time zone 'America/New_York')::date;
+begin
+  if not exists (select 1 from public.featured_quests f where f.week_start = v_week) then
+    insert into public.featured_quests (week_start, quest_id)
+    select v_week, q.id
+    from public.quests q
+    left join public.quest_recommendations r
+      on r.quest_id = q.id and r.week_start = v_week - 7
+    where q.qr_code is null and q.xp > 0
+    group by q.id
+    order by count(r.user_id) desc, q.id
+    limit 1
+    on conflict on constraint featured_quests_pkey do nothing;
+  end if;
+  return query select f.quest_id, f.week_start, 2
+    from public.featured_quests f where f.week_start = v_week;
+end;
 $$;
-revoke all on function public.quest_of_the_day() from public;
-grant execute on function public.quest_of_the_day() to anon, authenticated;
+
+create or replace function public.recommend_quest(p_quest_id text)
+returns void
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_week date := date_trunc('week', now() at time zone 'America/New_York')::date;
+begin
+  if v_user is null or not exists (
+    select 1 from public.visits v
+    where v.user_id = v_user and v.quest_id = p_quest_id
+      and v.visit_date >= v_week and v.visit_date < v_week + 7
+  ) then
+    raise exception 'A check-in this week is required to recommend this quest';
+  end if;
+  insert into public.quest_recommendations values (v_user, p_quest_id, v_week)
+  on conflict do nothing;
+end;
+$$;
+
+revoke all on function public.quest_of_the_week(), public.recommend_quest(text) from public, anon;
+grant execute on function public.quest_of_the_week() to anon, authenticated;
+grant execute on function public.recommend_quest(text) to authenticated;
 
 create or replace function public.check_in(
   p_quest_id text,
@@ -201,10 +249,6 @@ begin
   -- XP, with a breakdown entry per reason
   v_xp := q.xp;
   v_parts := v_parts || json_build_object('reason', 'base', 'xp', q.xp);
-  if exists (select 1 from public.quest_of_the_day() daily where daily.quest_id = q.id) then
-    v_xp := v_xp + q.xp;
-    v_parts := v_parts || json_build_object('reason', 'quest_of_the_day', 'xp', q.xp);
-  end if;
   if v_first then
     v_xp := v_xp + 25;
     v_parts := v_parts || json_build_object('reason', 'first_visit', 'xp', 25);
@@ -221,6 +265,19 @@ begin
   if v_cross then
     v_parts := v_parts || json_build_object('reason', 'cross_school', 'xp', v_xp);
     v_xp := v_xp * 2;
+  end if;
+
+  -- Add the weekly bonus after regular bonuses to double base XP only.
+  if exists (
+    select 1 from public.quest_of_the_week() featured
+    where featured.quest_id = q.id and not exists (
+      select 1 from public.visits v
+      where v.user_id = v_user and v.quest_id = q.id
+        and v.visit_date >= featured.week_start and v.visit_date < featured.week_start + 7
+    )
+  ) then
+    v_xp := v_xp + q.xp;
+    v_parts := v_parts || json_build_object('reason', 'quest_of_the_week', 'xp', q.xp);
   end if;
 
   insert into visits (user_id, quest_id, squad_id, xp_awarded, cross_school)

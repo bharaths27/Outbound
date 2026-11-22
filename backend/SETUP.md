@@ -137,7 +137,7 @@ Then wire these calls into the frontend:
 | --- | --- |
 | Signed-in passport or profile | `supabase.rpc("my_game_progress")` returns `badges`, `current_streak`, and `longest_streak`. Refresh after check-in. |
 | Players tab by the school rankings | `supabase.from("leaderboard_players_weekly").select("*").order("rank").order("user_id").limit(10)` |
-| Daily quest highlight | `supabase.rpc("quest_of_the_day")` returns zero or one row with `quest_id`, `quest_date`, and `base_xp_multiplier`. The `check_in` response lists the extra base XP as `quest_of_the_day` in `xp_breakdown`. |
+| Weekly quest highlight | `supabase.rpc("quest_of_the_week")` returns zero or one row with `quest_id`, `week_start`, and `base_xp_multiplier`. The `check_in` response lists the extra base XP as `quest_of_the_week` in `xp_breakdown`. |
 | Share a quest | `/api/share-card/<questId>` renders a PNG with a QR linking to `/q/<questId>`. That page shows the quest and station. The card contains only catalog details. |
 
 Line Collector credits the Red, Orange, and Green lines served by visited stations,
@@ -147,6 +147,5 @@ in the same squad at the same station within one hour. Cross-town counts four
 distinct neighborhoods in one Monday–Sunday week. A streak stays active until
 you miss a full Boston calendar day.
 
-Rankings show only public players and count only visible visits. The daily quest
-rotates through non-QR quests with positive XP. Changes to the eligible catalog
-can shift the rotation. On check-in, its base XP doubles before other bonuses.
+Rankings show only public players and count only visible visits. The featured quest is fixed for each Boston calendar week. It is selected on first access using last week's recommendations among non-QR quests with positive XP. Ties and weeks without votes use quest ID order. The first check-in to the featured quest each week earns an extra copy of its base XP.
+After check-in, call `supabase.rpc("recommend_quest", { p_quest_id: quest.id })` to record a recommendation for the current week.
