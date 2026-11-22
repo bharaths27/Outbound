@@ -1,0 +1,93 @@
+/* Outbound design tokens (v1 · Maroon). Source of truth: DESIGN.md §3. Light mode only (no dark mode). */
+:root {
+  /* Brand */
+  --color-maroon-700: #6B1F33;   /* primary: headers, nav, active pills, primary buttons, map pins */
+  --color-maroon-800: #4A1424;   /* text on gold, hover */
+  --color-maroon-600: #8A2A44;   /* podium pedestals, food accent, stamp ink */
+  --color-maroon-500: #7D2A40;   /* passport cover page */
+  --color-gold-400:   #F2C14E;   /* XP pills, level badges, Check in button, headline text on maroon */
+  --color-gold-500:   #E5A92F;   /* progress fills, bookmark ribbon, gold tier */
+  --color-gold-600:   #C7901A;   /* filled stamp-progress dots, trophy icon */
+
+  /* Surfaces */
+  --color-page:        #FFF8EF;  /* desktop page background */
+  --color-surface:     #FFFFFF;  /* cards, map overlays, passport page, inputs */
+  --color-paper:       #FBF6EC;  /* tab bar, map control buttons, active nav pill on maroon */
+  --color-sand-100:    #F1E6D3;  /* chips, segmented-control track, inactive filter buttons, bar tracks */
+  --color-cream-200:   #F6EDDD;  /* mobile Quests/Leaderboard page background */
+  --color-border:      #EADDC8;  /* card borders */
+  --color-border-strong:#E2D3BC; /* button/chip borders */
+  --color-divider:     #E6D8C2;
+
+  /* Text */
+  --color-ink:         #2B1A1F;
+  --color-ink-2:       #3D2A2E;
+  --color-muted:       #6E5A5E;  /* secondary text — passes 4.5:1 on white and #FBF6EC */
+  --color-muted-2:     #5A4549;
+  --color-on-maroon:   #FFFFFF;
+  --color-on-maroon-muted: #F6E6EA;
+
+  /* Quest categories: [tint bg, ink] */
+  --cat-food-bg:    #F8E1E6; --cat-food-ink:    #8A2A44;
+  --cat-event-bg:   #E8E2F5; --cat-event-ink:   #4B3A80;
+  --cat-scenery-bg: #DDE8F5; --cat-scenery-ink: #1F4A7A;
+  --xp-chip-bg:     #FCE9B8; --xp-chip-ink:     #5C3F00;
+
+  /* MBTA lines (map + line badges) */
+  --t-green:  #00843D;
+  --t-red:    #DA291C;
+  --t-orange: #ED8B00;   /* use #C46A00 behind white text (badges) for contrast */
+  --t-blue:   #003DA5;
+  --t-silver: #5B6770;
+
+  /* Map illustration */
+  --map-land:  #EDE2CC;
+  --map-block: #E2CFBA;
+  --map-water: #9FC4D8;
+  --map-park:  #B7CC95;
+
+  /* Stamp tiers */
+  --tier-bronze: #A8643A;
+  --tier-silver: #9AA3B2;
+  --tier-gold:   #E5A92F;
+  --stamp-gold-ring: #D9A21B;
+  --stamp-gold-bg:   #FFF4D6;
+  --stamp-locked-ink:#8C7F79;
+  --stamp-locked-bg: #F3EDE3;
+  --stamp-dot-off:   #DCCFBD;
+  --stamp-silver-ink:#6B7486;   /* darker than --tier-silver so rim text is readable */
+  --stamp-silver-bg: #F4F5F8;
+  --success:   #2F6B4F;   /* "Open until…", school-email check, saved */
+  --danger:    #B3121F;   /* field errors */
+  --closed:    #8A2A44;   /* "Closed · opens…" */
+
+  /* Type */
+  --font-display: 'Fraunces', Georgia, serif;          /* 500/600/700 + italic 500/600 */
+  --font-body: 'DM Sans', system-ui, sans-serif;      /* 400/500/600/700 */
+
+  /* Radii */
+  --radius-pill: 999px;
+  --radius-sm: 12px;   /* icon buttons, checkboxes */
+  --radius-md: 14px;   /* thumbnails, primary buttons */
+  --radius-lg: 20px;   /* cards */
+  --radius-xl: 24px;   /* hero/panel cards */
+  --radius-map: 28px;  /* desktop map card */
+
+  /* Elevation (maroon-tinted shadows) */
+  --shadow-card:   0 8px 24px 0 rgba(74, 20, 36, 0.20);  /* #4a142433 */
+  --shadow-float:  0 4px 14px rgba(74, 20, 36, 0.18);   /* map controls */
+  --shadow-panel:  0 10px 30px rgba(74, 20, 36, 0.12);  /* map card */
+  --shadow-nav-active: 0 2px 10px 0 rgba(74, 20, 36, 0.20);
+  --shadow-drawer-tab: -4px 4px 16px rgba(74, 20, 36, 0.25);
+  --shadow-dialog: 0 20px 60px rgba(43, 26, 31, 0.35);
+  --scrim: rgba(43, 26, 31, 0.55);   /* behind dialogs and sheets */
+
+  /* Layout */
+  --container-max: 1360px;
+  --gutter-desktop: 32px;
+  --gap-desktop: 24px;
+  --gutter-mobile: 16px;
+  --hub-panel-width: 420px;   /* desktop station hub */
+  --breakpoint-desktop: 1024px;
+  --tap-min: 44px;
+}

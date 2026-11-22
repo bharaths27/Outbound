@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Outbound · Welcome (desktop)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#6B1F33}a:hover{color:#4A1424}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 32px; box-sizing: border-box; font-family: 'DM Sans', system-ui, sans-serif; color: #2B1A1F; background-color: #FFF8EF">
+  <img src="../../assets/outbound-wordmark.svg" alt="Outbound" style="height: 28px; width: auto; display: block; padding: 10px 16px; border-radius: 12px; background: #6B1F33">
+  <div style="width: 100%; max-width: 1000px; margin-top: 28px; border-radius: 28px; background: #FFFFFF; border: 1px solid #EADDC8; box-shadow: 0px 8px 24px 0px #4a142433; display: flex; flex-direction: column; overflow: hidden">
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 24px 40px 0">
+    <div role="img" aria-label="Step {{stepNum}} of 3" style="display: flex; gap: 6px">
+      <sc-for list="{{dots}}" as="d" hint-placeholder-count="3">
+        <sc-if value="{{d.on}}" hint-placeholder-val="{{false}}"><span style="width: 24px; height: 8px; border-radius: 999px; background: #6B1F33"></span></sc-if>
+        <sc-if value="{{d.off}}" hint-placeholder-val="{{true}}"><span style="width: 8px; height: 8px; border-radius: 999px; background: #DCCFBD"></span></sc-if>
+      </sc-for>
+    </div>
+    <a href="explore-default.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 8px; font-size: 15px; font-weight: 700">Skip</a>
+  </div>
+
+  <main style="min-height: 520px; padding: 20px 48px 24px; display: flex; flex-direction: column">
+    <sc-if value="{{s1}}" hint-placeholder-val="{{true}}">
+      <div style="flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 40px">
+        <div style="flex: 1 1 380px; position: relative; height: 380px; border-radius: 28px; background: #6B1F33; display: flex; align-items: center; justify-content: center; overflow: hidden">
+          <svg aria-hidden="true" width="100%" height="100%" viewBox="0 0 340 220" preserveAspectRatio="xMidYMid slice" style="position: absolute; inset: 0"><path d="M-10 150 C80 140 160 120 220 110 S320 96 360 90" stroke="#00843D" stroke-width="8" fill="none" stroke-linecap="round"></path><path d="M120 -10 C140 60 180 100 220 110 S240 180 230 240" stroke="#ED8B00" stroke-width="8" fill="none" stroke-linecap="round"></path><circle cx="220" cy="110" r="14" fill="#F2C14E" stroke="#FFFFFF" stroke-width="5"></circle><circle cx="70" cy="143" r="8" fill="#FFFFFF" stroke="#00843D" stroke-width="4"></circle><circle cx="300" cy="96" r="8" fill="#FFFFFF" stroke="#00843D" stroke-width="4"></circle></svg>
+          <div style="position: relative; display: flex; border-radius: 50%; background: #FFF8EF; margin-left: -80px"><svg width="170" height="170" viewBox="0 0 100 100" role="img" aria-label="Example stamp" style="flex: none; transform: rotate(-8deg)"><circle cx="50" cy="50" r="46" fill="#FFF4D6" stroke="#D9A21B" stroke-width="3.5" stroke-dasharray="2.5 3"></circle><circle cx="50" cy="50" r="39" fill="none" stroke="#1F4A7A" stroke-width="1.4"></circle><path id="arc-ob1" d="M17 54 A33 33 0 0 1 83 54" fill="none"></path><text font-family="DM Sans, sans-serif" font-size="9" font-weight="700" letter-spacing="0.8" fill="#1F4A7A"><textPath href="#arc-ob1" startOffset="50%" text-anchor="middle">BACK BAY</textPath></text><path d="M28 66V48h14v18M42 66V44h16v22M58 66V48h14v18M32 54h6M46 52h8M62 54h6" transform="translate(50 62) scale(0.72) translate(-50 -52)" fill="none" stroke="#1F4A7A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+        </div>
+        <div style="flex: 1 1 340px; min-width: 0">
+          <h1 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 44px; font-weight: 700; line-height: 1.1; color: #6B1F33">Every stop is a quest</h1>
+          <ul style="margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 15px; line-height: 1.45; color: #3D2A2E">
+            <li style="list-style: none; display: flex; gap: 10px"><b style="color: #6B1F33">1</b>Tap any station on the map.</li>
+            <li style="list-style: none; display: flex; gap: 10px"><b style="color: #6B1F33">2</b>Filter by what you’re craving, your budget and the time you have.</li>
+            <li style="list-style: none; display: flex; gap: 10px"><b style="color: #6B1F33">3</b>Check in at the spot for XP and a passport stamp.</li>
+          </ul>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{s2}}" hint-placeholder-val="{{false}}">
+      <div style="flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 40px">
+        <div style="flex: 1 1 380px; height: 380px; border-radius: 28px; background: #B3121F; color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px">
+          <svg width="84" height="84" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#FFFFFF"></circle><text x="32" y="40" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="22" font-weight="700" fill="#B3121F">BU</text></svg>
+          <div style="font-family: 'Fraunces', Georgia, serif; font-size: 22px; font-weight: 600">Boston University</div>
+        </div>
+        <div style="flex: 1 1 340px; min-width: 0">
+          <h1 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 44px; font-weight: 700; line-height: 1.1; color: #6B1F33">You play for BU</h1>
+          <p style="margin: 12px 0 0; font-size: 15px; line-height: 1.5; color: #3D2A2E">Every check-in adds XP to your school’s weekly total. The leaderboard resets every Monday.</p>
+          <p style="margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: #3D2A2E">Squads can mix schools. Check in with a friend from another school for bonus XP.</p>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{s3}}" hint-placeholder-val="{{false}}">
+      <div style="flex: 1; max-width: 560px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; padding-top: 12px">
+        <h1 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 44px; font-weight: 700; line-height: 1.1; color: #6B1F33">Make it yours</h1>
+        <div>
+          <label for="ob-name" style="font-size: 14px; font-weight: 700">Display name</label>
+          <input id="ob-name" value="Verna" style="box-sizing: border-box; width: 100%; height: 50px; margin-top: 6px; padding: 0 14px; border: 1px solid #E2D3BC; border-radius: 14px; background: #FFFFFF; font: 500 16px 'DM Sans', sans-serif">
+        </div>
+        <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px">
+          <legend style="font-size: 14px; font-weight: 700; margin-bottom: 8px">Who can see your visits?</legend>
+          <button role="radio" aria-checked="true" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 2px solid #6B1F33; border-radius: 16px; background: #FFFFFF; text-align: left; font-family: 'DM Sans', sans-serif; cursor: pointer"><span style="width: 20px; height: 20px; flex: none; margin-top: 1px; border-radius: 50%; border: 6px solid #6B1F33; box-sizing: border-box"></span><span><span style="display: block; font-size: 15px; font-weight: 700; color: #2B1A1F">Everyone on Outbound</span><span style="display: block; margin-top: 2px; font-size: 13px; color: #5A4549">Your stamps show on your profile and the leaderboard.</span></span></button>
+          <button role="radio" aria-checked="false" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid #E2D3BC; border-radius: 16px; background: #FFFFFF; text-align: left; font-family: 'DM Sans', sans-serif; cursor: pointer"><span style="width: 20px; height: 20px; flex: none; margin-top: 1px; border-radius: 50%; border: 2px solid #CDBBA3; box-sizing: border-box"></span><span><span style="display: block; font-size: 15px; font-weight: 700; color: #2B1A1F">Friends only</span><span style="display: block; margin-top: 2px; font-size: 13px; color: #5A4549">Only people you add can see where you’ve been.</span></span></button>
+          <button role="radio" aria-checked="false" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid #E2D3BC; border-radius: 16px; background: #FFFFFF; text-align: left; font-family: 'DM Sans', sans-serif; cursor: pointer"><span style="width: 20px; height: 20px; flex: none; margin-top: 1px; border-radius: 50%; border: 2px solid #CDBBA3; box-sizing: border-box"></span><span><span style="display: block; font-size: 15px; font-weight: 700; color: #2B1A1F">Only me</span><span style="display: block; margin-top: 2px; font-size: 13px; color: #5A4549">Ghost mode. Your XP still counts for your school.</span></span></button>
+        </fieldset>
+        <p style="margin: 0; font-size: 13px; color: #6E5A5E">You can change this any time in Privacy.</p>
+      </div>
+    </sc-if>
+  </main>
+
+  <div style="display: flex; justify-content: flex-end; gap: 10px; padding: 16px 48px 32px; border-top: 1px solid #F1E6D3">
+    <sc-if value="{{hasBack}}" hint-placeholder-val="{{false}}"><button onClick="{{back}}" style="flex: 0 0 140px; height: 52px; border: 1px solid #E2D3BC; border-radius: 16px; background: #FFFFFF; color: #2B1A1F; font: 700 16px 'DM Sans', sans-serif; cursor: pointer">Back</button></sc-if>
+    <sc-if value="{{notLast}}" hint-placeholder-val="{{true}}"><button onClick="{{next}}" style="flex: 0 0 200px; height: 52px; border: 0; border-radius: 16px; background: #6B1F33; color: #FFFFFF; font: 700 16px 'DM Sans', sans-serif; cursor: pointer">Next</button></sc-if>
+    <sc-if value="{{isLast}}" hint-placeholder-val="{{false}}"><a href="explore-default.html" style="flex: 0 0 220px; display: flex; align-items: center; justify-content: center; height: 52px; border-radius: 16px; background: #F2C14E; color: #4A1424; font-size: 16px; font-weight: 700; text-decoration: none">Start exploring</a></sc-if>
+  </div>
+  </div>
+</div>
+</div></x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { i: 0 }; }
+  renderVals() {
+    const i = this.state.i;
+    return {
+      s1: i === 0, s2: i === 1, s3: i === 2, stepNum: i + 1,
+      dots: [0, 1, 2].map((k) => ({ on: k === i, off: k !== i })),
+      hasBack: i > 0, notLast: i < 2, isLast: i === 2,
+      next: () => this.setState({ i: Math.min(2, i + 1) }), back: () => this.setState({ i: Math.max(0, i - 1) })
+    };
+  }
+}
+</script>
+</body>
+</html>

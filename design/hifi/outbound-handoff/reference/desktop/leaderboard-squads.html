@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Outbound · Squads (desktop)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#6B1F33}a:hover{color:#4A1424}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; font-family: 'DM Sans', system-ui, sans-serif; color: #2B1A1F; background-color: #FFF8EF">
+  <header style="background: #6B1F33; color: #FFFFFF">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 12px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px">
+      <a href="explore-default.html" style="display: flex; align-items: center; padding: 8px 0; text-decoration: none"><img src="../../assets/outbound-wordmark.svg" alt="Outbound home" style="height: 28px; width: auto; display: block"></a>
+      <nav aria-label="Primary" style="flex: 1; display: flex; flex-wrap: wrap; gap: 4px">
+        <a href="explore-default.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Explore</a>
+        <a href="quests.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Quests</a>
+        <a href="passport.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Passport</a>
+        <a href="leaderboard-schools.html" aria-current="page" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; background: #FBF6EC; color: #6B1F33; font-size: 15px; font-weight: 700; text-decoration: none; box-shadow: 0px 2px 10px 0px #4a142433">Leaderboard</a>
+        <a href="#" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px; color: #F6E6EA; font-size: 15px; font-weight: 600; text-decoration: none">Events</a>
+      </nav>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; background: #F2C14E; color: #4A1424; font-size: 14px; font-weight: 700"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z"></path></svg>3,420 XP</span>
+        <button aria-label="Notifications" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 12px; background: rgba(255, 255, 255, 0.12); color: #FFFFFF; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"></path></svg></button>
+        <a href="passport.html" aria-label="Your profile" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #F2C14E; color: #4A1424; border: 2px solid #FBF6EC; box-sizing: border-box; font-family: 'Fraunces', Georgia, serif; font-size: 18px; font-weight: 700; text-decoration: none">V</a>
+      </div>
+    </div>
+  </header>
+
+  <div style="max-width: 1360px; margin: 0 auto; padding: 32px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px">
+      <div style="flex: 1 1 420px; min-width: 0">
+        <h1 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 40px; font-weight: 600; color: #6B1F33">Leaderboard</h1>
+        <p style="margin: 6px 0 0; font-size: 16px; color: #6E5A5E">Squads can mix schools. Check in together for bonus XP.</p>
+      </div>
+      <div role="tablist" aria-label="Compete" style="display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: #F1E6D3">
+        <a href="leaderboard-schools.html" role="tab" aria-selected="false" style="height: 44px; padding: 0 24px; display: flex; align-items: center; border-radius: 999px; color: #5A4549; font-size: 15px; font-weight: 600; text-decoration: none">Schools</a>
+        <span role="tab" aria-selected="true" style="height: 44px; padding: 0 24px; display: flex; align-items: center; border-radius: 999px; background: #6B1F33; color: #FFFFFF; font-size: 15px; font-weight: 700">Squads</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+      <main style="flex: 999 1 600px; min-width: 0">
+        <h2 style="margin: 0 0 12px; font-family: 'Fraunces', Georgia, serif; font-size: 24px; font-weight: 600">Your squads</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 16px">
+      <article style="padding: 16px; border-radius: 20px; background: #FFFFFF; border: 1px solid #EADDC8">
+        <div style="display: flex; align-items: center; gap: 8px"><h3 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600">Night Owls</h3><span style="padding: 2px 8px; border-radius: 999px; background: #FCE9B8; color: #5C3F00; font-size: 11px; font-weight: 700">Cross-school</span></div>
+        <div style="margin-top: 2px; font-size: 13px; color: #6E5A5E">3 members · BU, Northeastern</div>
+        <div style="display: flex; align-items: center; margin-top: 12px; padding-left: 8px"><span title="You" style="width: 36px; height: 36px; margin-left: -8px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #F2C14E; color: #4A1424; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #B3121F; font-family: 'Fraunces', Georgia, serif; font-size: 15px; font-weight: 700">V</span><span title="M" style="width: 36px; height: 36px; margin-left: -8px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #F2C14E; color: #4A1424; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #26262B; font-family: 'Fraunces', Georgia, serif; font-size: 15px; font-weight: 700">M</span><span title="J" style="width: 36px; height: 36px; margin-left: -8px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #F2C14E; color: #4A1424; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #26262B; font-family: 'Fraunces', Georgia, serif; font-size: 15px; font-weight: 700">J</span></div>
+        <p style="margin: 10px 0 0; font-size: 13px; color: #5A4549">Check in together for the cross-school bonus.</p>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #F1E6D3">
+          <button style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border: 1px solid #E2D3BC; border-radius: 12px; background: #FFFFFF; color: #2B1A1F; font: 700 13px 'DM Sans', sans-serif; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Copy invite link</button>
+          <span style="font-family: ui-monospace, Menlo, monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.08em; color: #3D2A2E">NGHT42</span>
+          <button onClick="{{askLeave}}" style="margin-left: auto; min-height: 40px; padding: 0 8px; border: 0; background: transparent; color: #8A2A44; font: 700 13px 'DM Sans', sans-serif; cursor: pointer">Leave</button>
+        </div>
+      </article>
+      <article style="padding: 16px; border-radius: 20px; background: #FFFFFF; border: 1px solid #EADDC8">
+        <div style="display: flex; align-items: center; gap: 8px"><h3 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600">Study Buddies</h3></div>
+        <div style="margin-top: 2px; font-size: 13px; color: #6E5A5E">2 members · BU</div>
+        <div style="display: flex; align-items: center; margin-top: 12px; padding-left: 8px"><span title="You" style="width: 36px; height: 36px; margin-left: -8px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #F2C14E; color: #4A1424; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #B3121F; font-family: 'Fraunces', Georgia, serif; font-size: 15px; font-weight: 700">V</span><span title="A" style="width: 36px; height: 36px; margin-left: -8px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #F2C14E; color: #4A1424; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #B3121F; font-family: 'Fraunces', Georgia, serif; font-size: 15px; font-weight: 700">A</span></div>
+        
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #F1E6D3">
+          <button style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border: 1px solid #E2D3BC; border-radius: 12px; background: #FFFFFF; color: #2B1A1F; font: 700 13px 'DM Sans', sans-serif; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Copy invite link</button>
+          <span style="font-family: ui-monospace, Menlo, monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.08em; color: #3D2A2E">STDY08</span>
+          <button onClick="{{askLeave}}" style="margin-left: auto; min-height: 40px; padding: 0 8px; border: 0; background: transparent; color: #8A2A44; font: 700 13px 'DM Sans', sans-serif; cursor: pointer">Leave</button>
+        </div>
+      </article>
+        </div>
+      </main>
+      <aside style="flex: 1 1 340px; min-width: 0; padding: 20px; border-radius: 22px; background: #FFFFFF; border: 1px solid #EADDC8; box-shadow: 0px 8px 24px 0px #4a142433; display: flex; flex-direction: column; gap: 16px">
+        <div>
+          <label for="dsq-new" style="font-size: 16px; font-weight: 700">Start a squad</label>
+          <div style="display: flex; gap: 8px; margin-top: 8px"><input id="dsq-new" placeholder="Squad name" style="box-sizing: border-box; flex: 1; min-width: 0; height: 48px; padding: 0 14px; border: 1px solid #E2D3BC; border-radius: 14px; background: #FFFFFF; font: 500 16px 'DM Sans', sans-serif; color: #2B1A1F"><button style="flex: none; height: 48px; padding: 0 16px; border: 0; border-radius: 14px; background: #6B1F33; color: #FFFFFF; font: 700 15px 'DM Sans', sans-serif; cursor: pointer">Create squad</button></div>
+          <div style="margin-top: 6px; font-size: 13px; color: #6E5A5E">We’ll copy the invite link for you right away.</div>
+        </div>
+        <div style="padding-top: 16px; border-top: 1px solid #F1E6D3">
+          <label for="dsq-join" style="font-size: 16px; font-weight: 700">Join with a code</label>
+          <div style="display: flex; gap: 8px; margin-top: 8px"><input id="dsq-join" value="NOPE00" aria-invalid="true" aria-describedby="dsq-join-err" style="box-sizing: border-box; flex: 1; min-width: 0; height: 48px; padding: 0 14px; border: 1px solid #E2D3BC; border-radius: 14px; background: #FFFFFF; font: 500 16px 'DM Sans', sans-serif; color: #2B1A1F; border-color: #B3121F; letter-spacing: 0.08em"><button style="flex: none; height: 48px; padding: 0 16px; border: 0; border-radius: 14px; background: #6B1F33; color: #FFFFFF; font: 700 15px 'DM Sans', sans-serif; cursor: pointer">Join</button></div>
+          <div id="dsq-join-err" style="margin-top: 6px; font-size: 13px; font-weight: 600; color: #B3121F">No squad has the code NOPE00. Check the link or ask for a new one.</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <sc-if value="{{confirm}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; inset: 0; background: rgba(43, 26, 31, 0.55); display: flex; align-items: center; justify-content: center; padding: 24px">
+      <section role="alertdialog" aria-modal="true" aria-labelledby="dsq-leave" style="width: 100%; max-width: 440px; padding: 26px; border-radius: 24px; background: #FFF8EF; display: flex; flex-direction: column; gap: 12px">
+        <h2 id="dsq-leave" style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 24px; font-weight: 600">Leave Night Owls?</h2>
+        <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #5A4549">Your stamps and XP stay. You can rejoin later with the code NGHT42.</p>
+        <div style="display: flex; gap: 10px; margin-top: 6px">
+          <button onClick="{{closeLeave}}" style="flex: 1; height: 50px; border: 1px solid #E2D3BC; border-radius: 14px; background: #FFFFFF; color: #2B1A1F; font: 700 15px 'DM Sans', sans-serif; cursor: pointer">Stay</button>
+          <button onClick="{{closeLeave}}" style="flex: 1; height: 50px; border: 0; border-radius: 14px; background: #8A2A44; color: #FFFFFF; font: 700 15px 'DM Sans', sans-serif; cursor: pointer">Leave squad</button>
+        </div>
+      </section>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { confirm: false }; }
+  renderVals() { return { confirm: this.state.confirm, askLeave: () => this.setState({ confirm: true }), closeLeave: () => this.setState({ confirm: false }) }; }
+}
+</script>
+</body>
+</html>
