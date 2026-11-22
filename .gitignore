@@ -47,3 +47,4 @@ __pycache__/
 replay.json
 tiger-cloud-*.txt
 tiger-cloud-*.env
+/public/maplibre-gl-worker.mjs

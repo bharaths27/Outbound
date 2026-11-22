@@ -1,6 +1,6 @@
 // Shared data shapes. Change only with both frontend and backend in the loop.
 
-export type Line = "Red" | "Orange" | "Green";
+export type Line = "Red" | "Orange" | "Green" | "Blue";
 
 export interface Train {
   id: string;
