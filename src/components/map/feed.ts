@@ -108,7 +108,6 @@ export class DemoFeed {
   constructor(private net: TrackNetwork) {
     let n = 0;
     net.polys.forEach((p, pi) => {
-      if (p.line === "Blue") return; // /api/trains only covers Red, Orange, Green
       const count = Math.max(1, Math.floor(p.len / 1800));
       for (let i = 0; i < count; i++)
         this.trains.push({ id: `demo-${n++}`, line: p.line, poly: pi, along: ((i + 0.5) / count) * p.len, dir: i % 2 ? 1 : -1 });
