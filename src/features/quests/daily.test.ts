@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Quest, Visit } from "@/lib/data/types";
-import { bostonDateKey, bostonWeekStart, dailyEligible, doneToday, pickDailyQuests, xpToday } from "./daily";
+import { bostonDateKey, bostonWeekStart, dailyEligible, doneToday, featuredFirst, pickDailyQuests, xpToday } from "./daily";
 
 function quest(id: string, station_id: string, type: Quest["type"]): Quest {
   return {
@@ -112,5 +112,18 @@ describe("bostonWeekStart", () => {
     expect(bostonWeekStart("2026-11-22")).toBe("2026-11-16"); // Sunday
     expect(bostonWeekStart("2026-11-16")).toBe("2026-11-16"); // Monday
     expect(bostonWeekStart("2026-11-18")).toBe("2026-11-16");
+  });
+});
+
+describe("featuredFirst", () => {
+  const q = (id: string) => ({ id }) as Parameters<typeof featuredFirst>[0][number];
+  const list = [q("a"), q("b"), q("c")];
+  it("moves the featured quest to the front", () => {
+    expect(featuredFirst(list, "c").map((x) => x.id)).toEqual(["c", "a", "b"]);
+  });
+  it("leaves the list alone when it isn't there or is already first", () => {
+    expect(featuredFirst(list, "z")).toBe(list);
+    expect(featuredFirst(list, "a")).toBe(list);
+    expect(featuredFirst(list, null)).toBe(list);
   });
 });

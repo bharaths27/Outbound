@@ -16,8 +16,8 @@ import { LineLetter, groupLines } from "@/features/hub/line-badge";
 import { XpChip } from "@/features/hub/quest-card";
 import { usePlayer } from "@/features/hub/use-player";
 import { PageHeader } from "@/features/shell/page-header";
-import { QuestOfTheWeekCard, QuestOfWeekBadge } from "@/features/weekly/quest-of-the-week";
-import { DAILY_COUNT, bostonDateKey, dailyEligible, doneToday, pickDailyQuests, xpToday } from "./daily";
+import { QuestOfTheWeekCard, QuestOfWeekBadge, useQuestOfTheWeekId } from "@/features/weekly/quest-of-the-week";
+import { DAILY_COUNT, bostonDateKey, dailyEligible, doneToday, featuredFirst, pickDailyQuests, xpToday } from "./daily";
 
 type Filter = "all" | QuestType;
 const FILTERS: { id: Filter; label: string }[] = [
@@ -52,9 +52,14 @@ export function QuestsPage() {
     };
   }, []);
 
+  const featuredId = useQuestOfTheWeekId();
+  // This week's featured quest leads the list when it's one of today's five.
   const daily = useMemo(
-    () => (loaded && loaded !== "error" ? pickDailyQuests(dailyEligible(loaded.quests, new Date()), dateKey) : []),
-    [loaded, dateKey],
+    () =>
+      loaded && loaded !== "error"
+        ? featuredFirst(pickDailyQuests(dailyEligible(loaded.quests, new Date()), dateKey), featuredId)
+        : [],
+    [loaded, dateKey, featuredId],
   );
   const done = useMemo(() => doneToday(player.visits, dateKey), [player.visits, dateKey]);
   const doneQuests = daily.filter((q) => done.has(q.id));

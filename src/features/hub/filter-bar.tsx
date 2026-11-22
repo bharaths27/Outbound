@@ -16,6 +16,8 @@ export interface FilterBarProps {
   filters: HubFilters;
   cravings: { value: string; label: string }[];
   resultCount: number;
+  /** Ride time from the player to this station, when known; the time filter counts it. */
+  rideMin?: number | null;
   onChange: (next: HubFilters) => void;
 }
 
@@ -36,7 +38,7 @@ function ChipRow({ label, hint, children }: { label: string; hint?: string; chil
   );
 }
 
-export function FilterBar({ filters, cravings, resultCount, onChange }: FilterBarProps) {
+export function FilterBar({ filters, cravings, resultCount, rideMin = null, onChange }: FilterBarProps) {
   const openId = useId();
   const set = (patch: Partial<HubFilters>) => onChange({ ...filters, ...patch });
   // ToggleGroup values are strings; tags match loosely ("late night" = "late-night").
@@ -79,7 +81,7 @@ export function FilterBar({ filters, cravings, resultCount, onChange }: FilterBa
         </ToggleGroup>
       </ChipRow>
 
-      <ChipRow label="Time you have" hint="from the station">
+      <ChipRow label="Time you have" hint={rideMin === null ? "from the station" : `from you · ${rideMin} min ride`}>
         <ToggleGroup
           type="single"
           variant="chip"
