@@ -75,32 +75,32 @@ export default function MapPanel(props: {
 }) {
   const { collapsed, setCollapsed, show, setShow } = props;
   return (
-    <section aria-label="Map view" className="ob-panel flex max-h-full min-h-0 flex-col overflow-hidden !rounded-2xl text-[15px]">
+    <section aria-label="Map view" className="ob-panel flex max-h-full min-h-0 flex-col overflow-hidden !rounded-2xl text-[14px]">
       {/* header: always visible, folds the panel */}
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
         aria-expanded={!collapsed}
-        className="flex w-full shrink-0 items-center gap-2.5 px-4 py-3 text-left hover:bg-[var(--ob-cream)]"
+        className="flex w-full shrink-0 items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--ob-cream)]"
       >
-        <span className="grid size-8 place-items-center rounded-lg bg-[var(--ob-maroon)] text-white" aria-hidden>
+        <span className="grid size-7 place-items-center rounded-lg bg-[var(--ob-maroon)] text-white [&_svg]:size-4" aria-hidden>
           <MapIcon size={17} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[16px] leading-tight font-semibold text-[var(--ob-ink)]">Map view</span>
-          <span className="block truncate text-[13px] text-[var(--ob-ink-2)]">
+          <span className="block text-[14.5px] leading-tight font-semibold text-[var(--ob-ink)]">Map view</span>
+          <span className="block truncate text-[12px] text-[var(--ob-ink-2)]">
             {props.is3D ? "3D" : "2D"}
             {props.setRealistic ? (props.realistic ? " · realistic" : " · illustrated") : ""} · {Object.values(show).filter(Boolean).length} layers on
           </span>
         </span>
-        <span className="ob-link flex items-center gap-0.5 text-[13px] font-semibold text-[var(--ob-maroon)]">
+        <span className="ob-link flex items-center gap-0.5 text-[12px] font-semibold text-[var(--ob-maroon)]">
           {collapsed ? <ChevronDown size={18} aria-hidden /> : <ChevronUp size={18} aria-hidden />}
           {collapsed ? "Show" : "Hide"}
         </span>
       </button>
 
       {!collapsed && (
-        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto border-t border-[var(--ob-line)] px-4 pt-3 pb-4">
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto border-t border-[var(--ob-line)] px-3.5 pt-3 pb-3.5">
           {/* view */}
           <div className="grid grid-cols-2 gap-2">
             <BigSeg
@@ -127,7 +127,7 @@ export default function MapPanel(props: {
           {/* layers */}
           <div>
             <p className="mb-1.5 text-[11px] font-bold tracking-[0.08em] text-[var(--ob-muted)] uppercase">On the map</p>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="flex flex-wrap gap-1.5">
               <Tile icon={<TrainFront size={18} />} label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
               <Tile icon={<GraduationCap size={18} />} label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />
               <Tile icon={<PartyPopper size={18} />} label="Events" on={show.events} set={(v) => setShow({ ...show, events: v })} />
@@ -136,7 +136,7 @@ export default function MapPanel(props: {
               <Tile icon={<History size={18} />} label={props.replayLabel} on={props.replaying} set={() => props.onReplay()} />
             </div>
             {show.delays && (
-              <label className="mt-2 flex cursor-pointer items-center justify-between gap-2 rounded-lg px-1 text-[13px] text-[var(--ob-ink-2)]">
+              <label className="mt-2 flex cursor-pointer items-center justify-between gap-2 rounded-lg px-1 text-[12px] text-[var(--ob-ink-2)]">
                 Color the lines by delay
                 <input type="checkbox" checked={props.delayColors} onChange={(e) => props.setDelayColors(e.target.checked)} className="size-4 accent-[var(--ob-maroon)]" />
               </label>
@@ -164,31 +164,31 @@ export function LinesPanel(props: {
   const { collapsed, setCollapsed } = props;
   const badgeClass = props.badge === "LIVE" ? "bg-emerald-600" : props.badge === "REPLAY" ? "bg-sky-600" : "bg-amber-500";
   return (
-    <section aria-label="MBTA live trains" className="ob-panel flex min-h-[64px] shrink flex-col overflow-hidden !rounded-2xl text-[15px]">
+    <section aria-label="MBTA live trains" className="ob-panel flex min-h-[52px] shrink flex-col overflow-hidden !rounded-2xl text-[14px]">
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
         aria-expanded={!collapsed}
-        className="flex w-full shrink-0 items-center gap-2.5 px-4 py-3 text-left hover:bg-[var(--ob-cream)]"
+        className="flex w-full shrink-0 items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--ob-cream)]"
       >
-        <span className="grid size-8 place-items-center rounded-lg bg-[var(--ob-maroon)] text-white" aria-hidden>
+        <span className="grid size-7 place-items-center rounded-lg bg-[var(--ob-maroon)] text-white [&_svg]:size-4" aria-hidden>
           <TrainFront size={17} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[16px] leading-tight font-semibold text-[var(--ob-ink)]">MBTA live trains</span>
-          <span className="flex items-center gap-1.5 text-[13px] text-[var(--ob-ink-2)]">
+          <span className="block text-[14.5px] leading-tight font-semibold text-[var(--ob-ink)]">MBTA live trains</span>
+          <span className="flex items-center gap-1.5 text-[12px] text-[var(--ob-ink-2)]">
             <span className={`rounded px-1.5 py-px text-[10px] font-bold tracking-wider text-white ${badgeClass}`}>{props.badge}</span>
             <span className="truncate">{props.status}</span>
           </span>
         </span>
         {props.weather}
-        <span className="ob-link flex items-center gap-0.5 text-[13px] font-semibold text-[var(--ob-maroon)]">
+        <span className="ob-link flex items-center gap-0.5 text-[12px] font-semibold text-[var(--ob-maroon)]">
           {collapsed ? <ChevronDown size={18} aria-hidden /> : <ChevronUp size={18} aria-hidden />}
           {collapsed ? "Show" : "Hide"}
         </span>
       </button>
       {!collapsed && (
-        <div className="min-h-0 overflow-y-auto border-t border-[var(--ob-line)] px-3 pt-2.5 pb-3">
+        <div className="min-h-0 overflow-y-auto border-t border-[var(--ob-line)] px-2.5 pt-2 pb-2.5">
           <Lines trains={props.trains} lateness={props.lateness} stationName={props.stationName} onTrain={props.onTrain} />
         </div>
       )}
@@ -206,7 +206,7 @@ function BigSeg({ label, options }: { label: string; options: { label: string; i
           role="radio"
           aria-checked={o.on}
           onClick={o.pick}
-          className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-[14px] font-semibold transition-colors ${
+          className={`flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold transition-all duration-200 [&_svg]:size-4 ${
             o.on ? "bg-[var(--ob-maroon)] text-white shadow-sm" : "text-[var(--ob-ink-2)] hover:bg-[var(--ob-sand)]"
           }`}
         >
@@ -224,10 +224,10 @@ function Tile({ icon, label, on, set }: { icon: ReactNode; label: string; on: bo
       type="button"
       aria-pressed={on}
       onClick={() => set(!on)}
-      className={`flex flex-col items-center justify-center gap-1 rounded-xl border px-1 py-2 text-[12.5px] font-semibold transition-colors ${
+      className={`flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[12.5px] font-semibold transition-all duration-200 active:scale-95 [&_svg]:size-[15px] ${
         on
-          ? "border-[var(--ob-maroon)] bg-[var(--ob-maroon)] text-white shadow-sm"
-          : "border-[var(--ob-line)] text-[var(--ob-muted)] hover:bg-[var(--ob-cream)]"
+          ? "border-[var(--ob-maroon)] bg-[color-mix(in_srgb,var(--ob-maroon)_10%,transparent)] text-[var(--ob-maroon)]"
+          : "border-[var(--ob-line)] text-[var(--ob-muted)] hover:border-[var(--ob-maroon)] hover:text-[var(--ob-ink)]"
       }`}
     >
       <span aria-hidden>{icon}</span>
@@ -269,7 +269,7 @@ function Lines({
 
   return (
     <div>
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-1.5">
         {GROUPS.map((g) => {
           const count = g.routes.reduce((n, r) => n + (byRoute.get(r)?.length ?? 0), 0);
           const late = lateness?.find((l) => l.line === g.id);
@@ -277,19 +277,19 @@ function Lines({
           const lastHere = (last ?? []).filter((l) => g.routes.includes(l.route));
           const nextLast = lastHere.filter((l) => new Date(l.departs).getTime() > Date.now()).sort((a, b) => a.departs.localeCompare(b.departs))[0];
           return (
-            <li key={g.id} className="overflow-hidden rounded-xl border border-[var(--ob-line)] bg-[var(--ob-cream)]" style={{ borderLeft: `5px solid ${g.color}` }}>
+            <li key={g.id} className="overflow-hidden rounded-xl border border-[var(--ob-line)] bg-[var(--ob-cream)]" style={{ borderLeft: `4px solid ${g.color}` }}>
               <button
                 type="button"
-                className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--ob-sand)]"
+                className="flex w-full items-center gap-2.5 px-2.5 py-1.5 text-left transition-colors hover:bg-[var(--ob-sand)]"
                 onClick={() => setOpen(isOpen ? null : g.id)}
                 aria-expanded={isOpen}
               >
-                <span className="grid size-9 shrink-0 place-items-center rounded-full text-[15px] font-extrabold text-white" style={{ background: g.color }} aria-hidden>
+                <span className="grid size-7 shrink-0 place-items-center rounded-full text-[13px] font-extrabold text-white" style={{ background: g.color }} aria-hidden>
                   {g.letter}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block font-semibold text-[var(--ob-ink)]">{g.label}</span>
-                  <span className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-[var(--ob-ink-2)]">
+                  <span className="block text-[13.5px] font-semibold text-[var(--ob-ink)]">{g.label}</span>
+                  <span className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-[var(--ob-ink-2)]">
                     {count ? `${count} train${count > 1 ? "s" : ""} running` : "No trains right now"}
                     {late && late.method !== "none" && (
                       <span className={`rounded-full px-1.5 py-px text-[11px] font-semibold ${DELAY_STYLE[late.color]}`} title={late.badge}>
@@ -299,7 +299,7 @@ function Lines({
                     {!count && nextLast && <span className="text-[var(--ob-muted)]">· last at {fmt(nextLast.departs)}</span>}
                   </span>
                 </span>
-                <span className="text-[22px] leading-none font-bold tabular-nums" style={{ color: g.color }}>
+                <span className="text-[17px] leading-none font-bold tabular-nums" style={{ color: g.color }}>
                   {count}
                 </span>
                 {isOpen ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}

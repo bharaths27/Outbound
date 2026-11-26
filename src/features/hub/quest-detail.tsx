@@ -166,7 +166,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   const directions = (
     <Link
       href={directionsHref}
-      className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-maroon px-4 text-sm font-semibold text-white outline-none hover:bg-maroon-600 focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2"
+      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-maroon px-4 text-sm font-semibold text-white outline-none hover:bg-maroon-600 focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2"
     >
       <Navigation className="size-4" aria-hidden /> Directions
     </Link>
@@ -187,7 +187,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
           <button
             type="button"
             onClick={onBack}
-            className="-ml-1 inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-bold text-maroon"
+            className="-ml-1 inline-flex min-h-9 items-center gap-1.5 self-start text-sm font-bold text-maroon"
           >
             <ArrowLeft className="size-[18px]" aria-hidden />
             All quests

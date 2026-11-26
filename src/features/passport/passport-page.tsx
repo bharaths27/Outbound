@@ -100,6 +100,7 @@ export function PassportPage() {
               )}
               {load.status === "signed-out" && (
                 <Centered
+                  preview
                   title="Sign in to start your passport"
                   body="Every quest you finish adds a stamp. Collect enough in a neighborhood to go from Bronze to Gold."
                   action={
@@ -424,9 +425,48 @@ function Neighborhood({ n }: { n: NeighborhoodView }) {
   );
 }
 
-function Centered({ title, body, action }: { title: string; body: string; action?: React.ReactNode }) {
+// Three sample stamps (Bronze, Silver, Gold) so the empty passport shows what you're collecting.
+const PREVIEW = [
+  { id: "place-chncl", hood: "Chinatown", tier: "bronze", rotate: -8 },
+  { id: "place-kencl", hood: "Fenway-Kenmore", tier: "gold", rotate: 3 },
+  { id: "place-harsq", hood: "Harvard Square", tier: "silver", rotate: 7 },
+] as const;
+
+function Centered({
+  title,
+  body,
+  action,
+  preview = false,
+}: {
+  title: string;
+  body: string;
+  action?: React.ReactNode;
+  preview?: boolean;
+}) {
   return (
     <div className="flex flex-col items-center gap-3 py-12 text-center">
+      {preview && (
+        <div className="mb-3 flex items-end justify-center -space-x-3" aria-hidden>
+          {PREVIEW.map((p, i) => (
+            <div
+              key={p.id}
+              className="animate-in fade-in zoom-in-75 fill-mode-both duration-500 motion-reduce:animate-none"
+              style={{ animationDelay: `${i * 120}ms` }}
+            >
+              <Stamp
+                questId={p.id}
+                title={p.hood}
+                neighborhood={p.hood}
+                stationId={p.id}
+                tier={p.tier}
+                rotate={p.rotate}
+                size={i === 1 ? 104 : 84}
+                label=""
+              />
+            </div>
+          ))}
+        </div>
+      )}
       <p className="type-heading">{title}</p>
       <p className="type-body max-w-sm text-muted-foreground">{body}</p>
       {action}

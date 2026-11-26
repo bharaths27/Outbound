@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-dvh flex-col bg-background">
       {/* Desktop top bar */}
       <header className="hidden bg-maroon text-on-maroon desk:block">
-        <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-7 gap-y-3 px-8 py-3">
+        <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-7 gap-y-3 px-8 py-2.5">
           <Link
             href="/"
             className="flex items-center py-2"
@@ -52,7 +52,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <img
               src="/outbound-wordmark.svg"
               alt=""
-              className="block h-7 w-auto"
+              className="block h-6 w-auto"
             />
           </Link>
           <nav aria-label="Primary" className="flex flex-1 flex-wrap gap-1">
@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex h-11 items-center rounded-full px-4 text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-gold",
+                    "flex h-8 items-center rounded-full px-3.5 text-[13.5px] outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-gold",
                     active
                       ? "bg-paper font-bold text-maroon shadow-nav"
                       : "font-semibold text-on-maroon-muted hover:bg-white/10",
@@ -99,7 +99,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <XpPill player={player} size="sm" />
           <ThemeToggle />
           <NotificationsBell />
-          <ProfileLink player={player} size={34} />
+          <ProfileLink player={player} size={30} />
         </header>
       )}
 
@@ -117,7 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Mobile tab bar */}
       <nav
         aria-label="Primary"
-        className="flex shrink-0 justify-around border-t border-divider bg-paper px-1.5 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] desk:hidden"
+        className="flex shrink-0 justify-around border-t border-divider bg-paper px-1.5 pt-1.5 pb-[calc(6px+env(safe-area-inset-bottom))] desk:hidden"
       >
         {PHONE_NAV.map((item) => {
           const active = isActive(pathname, item.href);
@@ -127,8 +127,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-[54px] min-w-[66px] flex-col items-center justify-center gap-[3px] rounded-2xl px-1.5 py-1.5 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-maroon",
-                active ? "bg-maroon text-on-maroon" : "text-muted-foreground",
+                "flex min-h-[46px] min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-1 text-[11px] font-semibold outline-none transition-[background-color,color,transform] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-maroon active:scale-95",
+                active ? "bg-maroon text-on-maroon shadow-[0_4px_12px_rgb(107_31_51/0.25)]" : "text-muted-foreground hover:text-maroon",
               )}
             >
               <NavIcon d={item.d} />

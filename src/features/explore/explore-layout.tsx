@@ -43,7 +43,7 @@ function Frame({ hubOpen, children }: { hubOpen: boolean; children: ReactNode })
     <div className="absolute inset-0 flex">
       <div ref={mapRef} className="relative min-w-0 flex-1">
         {children}
-        <div ref={cardRef} className="absolute top-3 right-3 left-3 z-10 desk:top-4 desk:right-4 desk:left-auto desk:w-[clamp(380px,29vw,440px)]">
+        <div ref={cardRef} className="absolute top-3 right-3 left-3 z-10 desk:top-4 desk:right-4 desk:left-auto desk:w-[clamp(360px,27vw,420px)]">
           <ExploreCard />
         </div>
       </div>

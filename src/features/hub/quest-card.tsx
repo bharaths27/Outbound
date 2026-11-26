@@ -94,11 +94,11 @@ export function QuestCard({ quest, neighborhood, now, tier, visit, onOpen }: Que
       <QuestThumb
         type={quest.type}
         photo={quest.photo_url}
-        className="aspect-[4/3] max-h-[150px] w-full desk:aspect-auto desk:h-24 desk:w-[104px] desk:shrink-0 desk:rounded-md"
+        className="aspect-[4/3] max-h-[132px] w-full desk:aspect-auto desk:h-24 desk:w-[104px] desk:shrink-0 desk:rounded-md"
         iconSize={44}
       />
       <div className={cn("flex min-w-0 flex-col gap-2 px-3.5 pt-3 pb-3.5 desk:flex-1 desk:gap-1.5 desk:p-0", visit && "desk:pr-12")}>
-        <h3 className="text-[17px] leading-6 font-bold desk:text-base">
+        <h3 className="text-base leading-6 font-bold desk:text-[15px]">
           {/* The whole card is the tap target; the title button stretches over it. */}
           <button
             type="button"

@@ -66,7 +66,7 @@ export function OnboardingPage() {
   }
 
   const skip = (
-    <Button variant="ghost" onClick={done} className="min-h-11 px-2 text-[15px] font-bold text-maroon">
+    <Button variant="ghost" onClick={done} className="min-h-9 px-2 text-sm font-bold text-maroon">
       Skip
     </Button>
   );
@@ -170,16 +170,16 @@ export function OnboardingPage() {
 
           <div className="flex gap-2">
             {step > 0 && (
-              <Button variant="outline" className="h-[52px] rounded-2xl px-6 text-base font-bold" onClick={() => setStep((s) => s - 1)}>
+              <Button variant="outline" className="h-11 rounded-2xl px-6 text-base font-bold" onClick={() => setStep((s) => s - 1)}>
                 Back
               </Button>
             )}
             {step < STEPS - 1 ? (
-              <Button className="h-[52px] flex-1 rounded-2xl text-base font-bold" onClick={() => setStep((s) => s + 1)}>
+              <Button className="h-11 flex-1 rounded-2xl text-base font-bold" onClick={() => setStep((s) => s + 1)}>
                 Next
               </Button>
             ) : (
-              <Button variant="gold" className="h-[52px] flex-1 rounded-2xl text-base font-bold" onClick={finish} disabled={saving}>
+              <Button variant="gold" className="h-11 flex-1 rounded-2xl text-base font-bold" onClick={finish} disabled={saving}>
                 {saving && <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden />}
                 Start exploring
               </Button>

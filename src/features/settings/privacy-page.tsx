@@ -107,7 +107,7 @@ export function PrivacyPage() {
                   const q = load.quests.get(v.quest_id);
                   const id = `hide-${v.id}`;
                   return (
-                    <li key={v.id} className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
+                    <li key={v.id} className="flex min-h-12 items-center justify-between gap-3 px-4 py-2">
                       <label htmlFor={id} className="flex min-w-0 flex-col">
                         <span className="type-body truncate">{q?.title ?? "A quest that was removed"}</span>
                         <span className="type-small text-muted-foreground tabular-nums">

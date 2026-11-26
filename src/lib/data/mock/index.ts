@@ -657,6 +657,34 @@ export const mockService: DataService = {
     }
   },
 
+  async getFriendships() {
+    await wait();
+    const user = requireMe();
+    return clone(state.friendships.filter((f) => f.user_id === user.id || f.friend_id === user.id));
+  },
+
+  async getFriendRequests() {
+    await wait();
+    const user = requireMe();
+    const ids = state.friendships.filter((f) => f.status === "pending" && f.friend_id === user.id).map((f) => f.user_id);
+    return clone(state.profiles.filter((p) => ids.includes(p.id)));
+  },
+
+  async acceptFriendRequest(userId) {
+    await wait();
+    const user = requireMe();
+    const row = state.friendships.find((f) => f.user_id === userId && f.friend_id === user.id);
+    if (row) row.status = "accepted";
+  },
+
+  async removeFriend(userId) {
+    await wait();
+    const user = requireMe();
+    state.friendships = state.friendships.filter(
+      (f) => !((f.user_id === user.id && f.friend_id === userId) || (f.user_id === userId && f.friend_id === user.id)),
+    );
+  },
+
   async updatePrivacy(privacy) {
     await wait();
     const user = requireMe();

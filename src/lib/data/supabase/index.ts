@@ -25,6 +25,7 @@ import type {
   LeaderboardRow,
   PassportNeighborhood,
   PlayerLeaderboardRow,
+  Friendship,
   Profile,
   Quest,
   QuestOfTheWeek,
@@ -353,6 +354,37 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
     async sendFriendRequest(userId) {
       const me = await requireId();
       must(await db().from("friends").insert({ user_id: me, friend_id: userId }), "friend request");
+    },
+
+    async getFriendships() {
+      const me = await requireId();
+      return must(
+        await db().from("friends").select("user_id, friend_id, status, created_at").or(`user_id.eq.${me},friend_id.eq.${me}`),
+        "friendships",
+      ) as Friendship[];
+    },
+
+    async getFriendRequests() {
+      const me = await requireId();
+      const rows = must(
+        await db().from("friends").select("user_id").eq("friend_id", me).eq("status", "pending"),
+        "friend requests",
+      ) as { user_id: string }[];
+      if (rows.length === 0) return [];
+      return must(await db().from("profiles").select("*").in("id", rows.map((r) => r.user_id)), "request profiles") as Profile[];
+    },
+
+    async acceptFriendRequest(userId) {
+      const me = await requireId();
+      must(await db().from("friends").update({ status: "accepted" }).eq("user_id", userId).eq("friend_id", me), "accept friend");
+    },
+
+    async removeFriend(userId) {
+      const me = await requireId();
+      must(
+        await db().from("friends").delete().or(`and(user_id.eq.${me},friend_id.eq.${userId}),and(user_id.eq.${userId},friend_id.eq.${me})`),
+        "remove friend",
+      );
     },
 
     // ---------- profile and privacy ----------

@@ -140,7 +140,7 @@ function LoginForms() {
             setFormError(null);
           }}
         >
-          <TabsList className="h-12 w-full">
+          <TabsList className="h-10 w-full">
             <TabsTrigger value="signin">Sign in</TabsTrigger>
             <TabsTrigger value="signup">Create account</TabsTrigger>
           </TabsList>
@@ -202,7 +202,7 @@ function LoginForms() {
           </p>
         )}
 
-        <Button type="submit" disabled={busy} className="mt-1 h-[52px] rounded-2xl text-base font-bold">
+        <Button type="submit" disabled={busy} className="mt-1 h-11 rounded-2xl text-base font-bold">
           {busy && <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden />}
           {mode === "signin" ? "Sign in" : "Create account"}
         </Button>

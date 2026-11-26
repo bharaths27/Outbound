@@ -207,16 +207,16 @@ export function QuestOfTheWeekCard({
     <Link
       href={`/q/${quest.id}`}
       className={cn(
-        "flex items-center gap-3.5 rounded-[18px] bg-maroon p-3.5 text-white outline-none focus-visible:ring-2 focus-visible:ring-gold desk:rounded-xl desk:p-4",
+        "relative flex items-center gap-3 overflow-hidden rounded-2xl bg-maroon bg-[radial-gradient(120%_140%_at_100%_0%,rgb(242_193_78/0.18),transparent_55%)] p-3 text-white outline-none transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-card focus-visible:ring-2 focus-visible:ring-gold motion-reduce:transition-none desk:rounded-xl desk:p-4",
         className,
       )}
     >
-      <QuestThumb type={quest.type} photo={quest.photo_url} iconSize={30} className="size-16 shrink-0 rounded-lg desk:size-[76px]" />
+      <QuestThumb type={quest.type} photo={quest.photo_url} iconSize={26} className="size-14 shrink-0 rounded-lg desk:size-16" />
       <div className="min-w-0 flex-1">
         <p className="type-eyebrow text-gold">Quest of the Week</p>
-        <p className="mt-0.5 font-display text-xl leading-tight font-semibold">{quest.title}</p>
-        {where && <p className="mt-1.5 truncate text-[13px] text-on-maroon-muted">{where}</p>}
-        <p className="mt-1.5 text-[13px] text-on-maroon-muted">
+        <p className="mt-0.5 font-display text-lg leading-tight font-semibold desk:text-xl">{quest.title}</p>
+        {where && <p className="mt-1 truncate text-xs text-on-maroon-muted">{where}</p>}
+        <p className="mt-1 text-xs text-on-maroon-muted">
           {claimed
             ? "You've claimed this week's double XP. A new Quest of the Week comes Monday."
             : "Your first check-in this week earns its XP twice."}

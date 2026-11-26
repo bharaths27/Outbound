@@ -66,7 +66,7 @@ export function BadgesAndStreak({ className }: { className?: string }) {
       <div className="flex items-center gap-3 rounded-xl bg-maroon px-4 py-3 text-white">
         <span
           className={cn(
-            "flex size-11 shrink-0 items-center justify-center rounded-full",
+            "flex size-9 shrink-0 items-center justify-center rounded-full",
             streak > 0 ? "bg-gold text-gold-foreground" : "bg-white/12 text-on-maroon-muted",
           )}
         >

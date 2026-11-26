@@ -48,7 +48,7 @@ export const PHONE_NAV = NAV.filter((item) => !("desktopOnly" in item && item.de
 export const isActive = (pathname: string, href: string) =>
   href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
-export function NavIcon({ d, size = 22 }: { d: string; size?: number }) {
+export function NavIcon({ d, size = 20 }: { d: string; size?: number }) {
   return (
     <svg
       width={size}
@@ -72,7 +72,7 @@ const STAR = "M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5
 export function XpPill({ player, size = "md" }: { player: ShellPlayer | null | undefined; size?: "sm" | "md" }) {
   const base = cn(
     "flex shrink-0 items-center gap-1.5 rounded-full bg-gold px-3 font-bold text-gold-foreground tabular-nums",
-    size === "sm" ? "h-[34px] text-sm" : "h-9 text-sm",
+    size === "sm" ? "h-8 text-[13px]" : "h-8 text-[13px]",
   );
   if (player === undefined) return <span className={cn(base, "w-24 opacity-60")} aria-hidden />;
   if (player === null) {
@@ -92,7 +92,7 @@ export function XpPill({ player, size = "md" }: { player: ShellPlayer | null | u
       aria-label={`Level ${level}, ${xp.toLocaleString("en-US")} XP, ${toNext} XP to level ${level + 1}. See the leaderboard`}
       title={`Level ${level} · ${toNext} XP to level ${level + 1}`}
     >
-      <span className="grid size-[26px] shrink-0 place-items-center rounded-full bg-maroon text-[12px] font-extrabold text-white">{level}</span>
+      <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-maroon text-[11px] font-extrabold text-white">{level}</span>
       <span className="flex flex-col items-start leading-none">
         <span className="flex items-center gap-1">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -118,7 +118,7 @@ export function AskGuideButton({ compact = false }: { compact?: boolean }) {
   // Compact (phone title bands): icon only, so long titles like "Today's Quests" still fit.
   if (compact) {
     return (
-      <button type="button" onClick={() => openGuide()} aria-label="Ask Guide" title="Ask Guide" className={cn(base, "size-11")}>
+      <button type="button" onClick={() => openGuide()} aria-label="Ask Guide" title="Ask Guide" className={cn(base, "size-9")}>
         <Sparkles className="size-5 text-gold" aria-hidden />
       </button>
     );
@@ -142,11 +142,11 @@ export function ThemeToggle({ tint = false }: { tint?: boolean }) {
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
       title={dark ? "Light mode" : "Dark mode"}
       className={cn(
-        "flex size-11 shrink-0 items-center justify-center rounded-md text-on-maroon outline-none focus-visible:ring-2 focus-visible:ring-gold",
+        "flex size-9 shrink-0 items-center justify-center rounded-md text-on-maroon outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-gold",
         tint ? "bg-white/12" : "bg-transparent",
       )}
     >
-      {dark ? <Sun className="size-[22px]" aria-hidden /> : <Moon className="size-[22px]" aria-hidden />}
+      {dark ? <Sun className="size-[18px]" aria-hidden /> : <Moon className="size-[18px]" aria-hidden />}
     </button>
   );
 }
@@ -158,11 +158,11 @@ export function NotificationsBell({ tint = false }: { tint?: boolean }) {
       <DropdownMenuTrigger
         aria-label="Notifications"
         className={cn(
-          "flex size-11 shrink-0 items-center justify-center rounded-md text-on-maroon outline-none focus-visible:ring-2 focus-visible:ring-gold",
+          "flex size-9 shrink-0 items-center justify-center rounded-md text-on-maroon outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-gold",
           tint ? "bg-white/12" : "bg-transparent",
         )}
       >
-        <Bell className="size-[22px]" aria-hidden />
+        <Bell className="size-[18px]" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72 rounded-xl p-2">
         <DropdownMenuLabel className="type-heading px-2 pt-1">Notifications</DropdownMenuLabel>
@@ -205,11 +205,11 @@ export function PlayerAvatar({
   );
 }
 
-export function ProfileLink({ player, size = 44 }: { player: ShellPlayer | null | undefined; size?: number }) {
+export function ProfileLink({ player, size = 36 }: { player: ShellPlayer | null | undefined; size?: number }) {
   if (!player) return null;
   return (
     <Link href="/profile" aria-label="Your profile" className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold">
-      <PlayerAvatar player={player} size={size} />
+      <PlayerAvatar player={player} size={size} className="transition-transform duration-200 hover:scale-105" />
     </Link>
   );
 }

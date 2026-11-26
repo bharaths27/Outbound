@@ -99,9 +99,9 @@ export function Celebration({ quest, result, prevTier, squadName, actions, rewar
         {summary(result, prevTier)}
       </p>
 
-      <div className="flex min-h-11 w-full justify-end">
+      <div className="flex min-h-9 w-full justify-end">
         {!f.done && (
-          <button type="button" onClick={skip} className="min-h-11 px-3 text-sm font-semibold text-on-maroon-muted">
+          <button type="button" onClick={skip} className="min-h-9 px-3 text-sm font-semibold text-on-maroon-muted">
             Skip
           </button>
         )}

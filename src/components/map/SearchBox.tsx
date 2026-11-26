@@ -265,7 +265,7 @@ export default function SearchBox({
       <div
         className={
           inCard
-            ? "flex h-11 items-center gap-2 rounded-full border border-border-strong bg-sand px-4 focus-within:border-maroon"
+            ? "flex h-9 items-center gap-2 rounded-full border border-border-strong bg-sand/70 px-3.5 text-[13px] transition-colors focus-within:border-maroon focus-within:bg-surface"
             : "ob-panel flex items-center gap-2 px-3 py-2"
         }
       >
@@ -297,7 +297,11 @@ export default function SearchBox({
           }}
           placeholder="Where to? Places, food, addresses"
           aria-label="Search places, food, addresses"
-          className={`w-full min-w-0 bg-transparent text-[var(--ob-ink)] outline-none placeholder:text-[var(--ob-muted)] ${inCard ? "text-[15px]" : "text-sm"}`}
+          role="combobox"
+          aria-expanded={open && query.length >= 2}
+          aria-controls="ob-search-results"
+          aria-autocomplete="list"
+          className={`w-full min-w-0 bg-transparent text-[var(--ob-ink)] outline-none placeholder:text-[var(--ob-muted)] ${inCard ? "text-base desk:text-sm" : "text-sm"}`}
         />
         {q && (
           <button onClick={clear} aria-label="Clear search" className="shrink-0 rounded px-1 text-[var(--ob-muted)] hover:text-[var(--ob-ink-2)]">
@@ -306,12 +310,14 @@ export default function SearchBox({
         )}
       </div>
       {open && query.length >= 2 && (
-        <div className={`ob-panel absolute left-0 right-0 top-full z-20 mt-1.5 overflow-auto py-1 text-sm ${inCard ? "max-h-[min(50vh,420px)] shadow-xl" : "max-h-[60vh]"}`}>
+        <div id="ob-search-results" role="listbox" aria-label="Search suggestions" className={`ob-panel !bg-[var(--ob-paper)] absolute left-0 right-0 top-full z-20 mt-1.5 animate-in overflow-auto py-1 text-sm fade-in slide-in-from-top-1 duration-150 ${inCard ? "max-h-[min(50vh,420px)] shadow-xl" : "max-h-[60vh]"}`}>
           {onTextSearch && live && (
             <button
+              role="option"
+              aria-selected={active === -1}
               onMouseEnter={() => setActive(-1)}
               onClick={textSearch}
-              className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left ${active === -1 ? "bg-[var(--ob-sand)]" : ""}`}
+              className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors ${active === -1 ? "bg-[var(--ob-sand)]" : ""}`}
             >
               <Search size={14} className="text-[var(--ob-muted)]" aria-hidden />
               <span className="truncate text-[var(--ob-ink)]">
@@ -323,9 +329,11 @@ export default function SearchBox({
           {results.map((r, i) => (
             <button
               key={r.key}
+              role="option"
+              aria-selected={i === active}
               onMouseEnter={() => setActive(i)}
               onClick={() => go(r)}
-              className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left ${i === active ? "bg-[var(--ob-sand)]" : ""}`}
+              className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors ${i === active ? "bg-[var(--ob-sand)]" : ""}`}
             >
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: KIND_DOT[r.kind] }} />
               <span className="min-w-0">

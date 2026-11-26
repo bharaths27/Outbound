@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import type { Coordinates } from "@/lib/google-routes";
 import type { GuidePlace, PhotoPreview, PhotoTripResult, RestaurantMatch } from "@/lib/photo-trip/types";
 
-const BUTTON = "min-h-10 rounded-lg border border-emerald-700 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-400 dark:text-emerald-300 dark:hover:bg-neutral-800";
+const BUTTON = "min-h-9 rounded-lg border border-emerald-700 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-400 dark:text-emerald-300 dark:hover:bg-neutral-800";
 const LINK = "font-semibold text-emerald-800 underline underline-offset-2 dark:text-emerald-300";
 
 function MapLink({ href, children }: { href: string; children: React.ReactNode }) {

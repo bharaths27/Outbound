@@ -165,6 +165,9 @@ export const friendships: Friendship[] = [
   { user_id: "u-bu-3", friend_id: "demo-maya", status: "accepted", created_at: CREATED },
   { user_id: "demo-jordan", friend_id: "u-neu-3", status: "accepted", created_at: CREATED },
   { user_id: "demo-jordan", friend_id: "u-hvd-1", status: "pending", created_at: CREATED },
+  // Incoming requests, so the Accept button has something to show in the demo.
+  { user_id: "u-mit-1", friend_id: "demo-maya", status: "pending", created_at: CREATED },
+  { user_id: "u-bu-1", friend_id: "demo-sam", status: "pending", created_at: CREATED },
 ];
 
 // ---------- visits ----------

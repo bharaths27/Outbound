@@ -41,12 +41,12 @@ export function PageHeader({ title, back, icon, children, desktopAside, desktopB
           className,
         )}
       >
-        <div className="flex min-h-11 items-center gap-2.5">
+        <div className="flex min-h-9 items-center gap-2.5">
           {back ? (
             <Link
               href={back.href}
               aria-label={`Back to ${back.label}`}
-              className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-gold"
+              className="-ml-2 flex size-9 shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-gold"
             >
               <ArrowLeft className="size-6" aria-hidden />
             </Link>

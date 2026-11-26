@@ -92,7 +92,16 @@ function HubHost() {
       activeSnapPoint={snap}
       setActiveSnapPoint={setSnap}
     >
-      <DrawerContent className="h-[96dvh] border-0 bg-background shadow-[0_-8px_30px_rgb(74_20_36/0.22)] data-[vaul-drawer-direction=bottom]:max-h-[96dvh]">
+      <DrawerContent hideHandle className="h-[96dvh] border-0 bg-background shadow-[0_-8px_30px_rgb(74_20_36/0.22)] data-[vaul-drawer-direction=bottom]:max-h-[96dvh]">
+        {/* Tap the handle to step peek → half → full → peek; dragging still works. */}
+        <button
+          type="button"
+          onClick={() => setSnap((s) => SNAP_POINTS[(SNAP_POINTS.indexOf(s ?? PEEK) + 1) % SNAP_POINTS.length])}
+          aria-label={snap === 1 ? "Shrink station card" : "Expand station card"}
+          className="group mx-auto flex h-6 w-20 shrink-0 items-center justify-center outline-none"
+        >
+          <span className="h-[5px] w-11 rounded-full bg-[#CDBBA3] transition-[width,background-color] duration-200 group-hover:w-14 group-hover:bg-maroon/50 group-focus-visible:bg-maroon" />
+        </button>
         <DrawerTitle className="sr-only">Station</DrawerTitle>
         <DrawerDescription className="sr-only">Quests and filters for this station</DrawerDescription>
         {/* Scrolls only when fully open; below that, drags move the drawer. */}

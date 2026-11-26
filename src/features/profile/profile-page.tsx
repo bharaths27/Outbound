@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { initials, squadName } from "@/features/compete/compete";
 import { buildPassport, type EarnedStamp } from "@/features/passport/build-passport";
 import { Stamp } from "@/features/passport/stamp";
+import { FriendsSection } from "@/features/friends/friends";
 import { privacyLabel } from "@/features/settings/privacy-choice";
 import { XP_PER_LEVEL, data, levelProgress } from "@/lib/data";
 import type { Profile, School, SquadWithMembers, Tier } from "@/lib/data/types";
@@ -209,8 +210,10 @@ function ProfileView({ load, onSignOut }: { load: Ready; onSignOut: () => void }
         )}
       </section>
 
+      <FriendsSection />
+
       <section aria-label="Settings" className="flex flex-col divide-y rounded-xl border">
-        <Link href="/settings/privacy" className="flex min-h-14 items-center gap-3 px-4 py-3 hover:bg-muted">
+        <Link href="/settings/privacy" className="flex min-h-12 items-center gap-3 px-4 py-3 hover:bg-muted">
           <Shield className="size-5 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />
           <span className="flex flex-1 flex-col">
             <span className="type-body">Privacy</span>
@@ -218,7 +221,7 @@ function ProfileView({ load, onSignOut }: { load: Ready; onSignOut: () => void }
           </span>
           <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
         </Link>
-        <button type="button" onClick={onSignOut} className="flex min-h-14 items-center gap-3 px-4 py-3 text-left hover:bg-muted">
+        <button type="button" onClick={onSignOut} className="flex min-h-12 items-center gap-3 px-4 py-3 text-left hover:bg-muted">
           <LogOut className="size-5 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />
           <span className="type-body">Sign out</span>
         </button>

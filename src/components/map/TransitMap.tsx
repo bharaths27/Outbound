@@ -1472,7 +1472,7 @@ export default function TransitMap() {
           bottom middle; Ask Guide bottom left. Nothing overlaps: each column stops above the corner
           controls. Phones: one column under the Explore card (the wrapper is display: contents on desktop). */}
       <div className="pointer-events-none absolute top-[calc(var(--ob-map-top,0px)+10px)] right-[64px] bottom-[150px] left-3 flex flex-col gap-2 desk:contents">
-        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 shrink-0 flex-col desk:absolute desk:top-4 desk:bottom-[100px] desk:left-4 desk:w-[clamp(380px,29vw,440px)] desk:shrink">
+        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 shrink-0 flex-col desk:absolute desk:top-4 desk:bottom-[100px] desk:left-4 desk:w-[clamp(300px,21vw,330px)] desk:shrink">
           <MapPanel
             collapsed={panelFolded || guideOpen}
             setCollapsed={foldPanel}
@@ -1489,7 +1489,7 @@ export default function TransitMap() {
             onReplay={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
           />
         </div>
-        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 flex-col gap-2 desk:absolute desk:top-[calc(var(--ob-map-top,0px)+12px)] desk:right-4 desk:bottom-[76px] desk:w-[clamp(380px,29vw,440px)]">
+        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 flex-col gap-2 desk:absolute desk:top-[calc(var(--ob-map-top,0px)+12px)] desk:right-4 desk:bottom-[76px] desk:w-[clamp(360px,27vw,420px)]">
           {(() => {
             const search = (
               <SearchBox
@@ -1579,7 +1579,7 @@ export default function TransitMap() {
             setNotice("Turn on location for Outbound to see where you are. Showing BU for now.");
           }
         }}
-        className="ob-panel absolute right-[10px] bottom-[172px] flex size-11 items-center justify-center !rounded-full text-[var(--ob-ink)] hover:text-[var(--ob-maroon)] desk:right-[150px] desk:bottom-4"
+        className="ob-panel absolute right-[10px] bottom-[172px] flex size-9 items-center justify-center !rounded-full text-[var(--ob-ink)] hover:text-[var(--ob-maroon)] desk:right-[150px] desk:bottom-4"
       >
         <LocateFixed size={22} strokeWidth={2} aria-hidden />
       </button>
@@ -1614,7 +1614,7 @@ export default function TransitMap() {
       {friend && (
         <Card onClose={() => setFriend(null)}>
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ring-2 ring-white" style={{ background: friend.color, boxShadow: `0 0 0 3px ${friend.color}55` }}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ring-2 ring-white" style={{ background: friend.color, boxShadow: `0 0 0 3px ${friend.color}55` }}>
               {initials(friend.name)}
             </span>
             <div className="min-w-0">

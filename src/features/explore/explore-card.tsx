@@ -4,7 +4,7 @@
 // one line, and Craving / Budget / Time chips. Each chip opens a short menu. The picks carry
 // into every station hub opened afterwards (explore-filters.ts), where the full filters live.
 
-import { ChevronDown, ChevronUp, Clock, CircleDollarSign, Search, SlidersHorizontal, Utensils } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { data } from "@/lib/data";
@@ -53,7 +53,6 @@ export function useExploreFilters() {
 }
 
 function Chip({
-  icon,
   label,
   active,
   menuLabel,
@@ -61,7 +60,6 @@ function Chip({
   options,
   onChange,
 }: {
-  icon: ReactNode;
   label: string;
   active: boolean;
   menuLabel: string;
@@ -74,20 +72,18 @@ function Chip({
       <DropdownMenuTrigger
         aria-label={active ? `${menuLabel}: ${label}` : menuLabel}
         className={cn(
-          "flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border px-3 text-[15px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2 desk:flex-none desk:px-4",
+          "flex h-8 min-w-0 flex-1 items-center justify-center desk:flex-auto gap-1.5 rounded-full border px-3 text-[13px] font-semibold outline-none transition-all duration-200 active:scale-95 focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2 desk:px-3",
           active ? "border-maroon bg-maroon text-white" : "border-border-strong bg-sand text-ink hover:brightness-[0.97]",
         )}
       >
-        {/* Phones drop the icon, so the words fit next to the More button. */}
-        <span className="contents max-desk:hidden">{icon}</span>
         <span className="truncate">{label}</span>
-        <ChevronDown className="hidden size-4 shrink-0 desk:block" aria-hidden />
+        <ChevronDown className="hidden size-3.5 shrink-0 opacity-70 desk:block" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-80 w-52 overflow-y-auto rounded-xl p-1.5">
         <DropdownMenuLabel className="type-eyebrow text-muted-foreground">{menuLabel}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
           {options.map((o) => (
-            <DropdownMenuRadioItem key={o.value} value={o.value} className="min-h-11 rounded-lg text-[15px]">
+            <DropdownMenuRadioItem key={o.value} value={o.value} className="min-h-9 rounded-lg text-sm">
               {o.label}
             </DropdownMenuRadioItem>
           ))}
@@ -121,12 +117,12 @@ export function ExploreCard({ className }: { className?: string }) {
   return (
     <section
       aria-labelledby="explore-title"
-      className={cn("rounded-[22px] bg-surface shadow-card desk:rounded-3xl", collapsed ? "px-4 py-2.5 desk:px-5" : "p-4 desk:p-6", className)}
+      className={cn("rounded-[22px] bg-surface shadow-card desk:rounded-3xl", collapsed ? "px-4 py-2 desk:px-5" : "p-3.5 desk:p-5", className)}
     >
       <div className="flex items-center justify-between gap-3">
         <h1
           id="explore-title"
-          className={cn("font-display leading-tight font-semibold whitespace-nowrap text-maroon italic", collapsed ? "text-[22px]" : "text-[26px] desk:text-[32px]")}
+          className={cn("font-display leading-tight font-semibold whitespace-nowrap text-maroon italic", collapsed ? "text-[20px]" : "text-[24px] desk:text-[28px]")}
         >
           Explore Boston
         </h1>
@@ -135,7 +131,7 @@ export function ExploreCard({ className }: { className?: string }) {
             <button
               type="button"
               onClick={() => setExploreFilters(NO_EXPLORE_FILTERS)}
-              className="min-h-10 px-2 text-sm font-semibold text-maroon underline-offset-4 hover:underline"
+              className="min-h-9 px-2 text-sm font-semibold text-maroon underline-offset-4 hover:underline"
             >
               Clear
             </button>
@@ -149,9 +145,9 @@ export function ExploreCard({ className }: { className?: string }) {
                 collapse(false);
                 requestAnimationFrame(() => document.querySelector<HTMLInputElement>(`#${MAP_SEARCH_SLOT} input`)?.focus());
               }}
-              className="grid size-10 place-items-center rounded-full text-ink hover:bg-sand"
+              className="grid size-8 place-items-center rounded-full text-ink transition-colors hover:bg-sand"
             >
-              <Search className="size-5" aria-hidden />
+              <Search className="size-4" aria-hidden />
             </button>
           )}
           <button
@@ -160,7 +156,7 @@ export function ExploreCard({ className }: { className?: string }) {
             aria-label={collapsed ? "Show the Explore card" : "Hide the Explore card"}
             title={collapsed ? "Show" : "Hide"}
             onClick={() => collapse(!collapsed)}
-            className="flex h-10 items-center gap-1 rounded-full border border-border-strong px-3 text-sm font-semibold text-ink hover:bg-sand"
+            className="flex h-8 items-center gap-1 rounded-full border border-border-strong px-2.5 text-[13px] font-semibold text-ink transition-colors hover:bg-sand"
           >
             {collapsed ? <ChevronDown className="size-4" aria-hidden /> : <ChevronUp className="size-4" aria-hidden />}
             {collapsed ? "Show" : "Hide"}
@@ -169,12 +165,11 @@ export function ExploreCard({ className }: { className?: string }) {
       </div>
       {/* Hidden, not removed: the map's search box lives in the slot below. */}
       <div className={cn(collapsed && "hidden")}>
-        <p className="mt-0.5 text-sm text-muted-foreground desk:text-[15px]">
+        <p className="mt-0.5 text-[13px] text-muted-foreground desk:text-sm">
           {any ? "The map shows only what matches. Tap a station for its quests." : "Find food, events, and hidden spots across the T."}
         </p>
-        <div className="mt-3 flex gap-2 desk:mt-4 desk:flex-wrap desk:gap-2.5">
+        <div className="mt-3 flex gap-1.5 desk:gap-2">
           <Chip
-            icon={<Utensils className="size-4 shrink-0" aria-hidden />}
             label={filters.craving === ANY ? "Craving" : cravingLabel(filters.craving)}
             active={filters.craving !== ANY}
             menuLabel="Craving"
@@ -183,7 +178,6 @@ export function ExploreCard({ className }: { className?: string }) {
             onChange={(v) => setExploreFilters({ craving: v })}
           />
           <Chip
-            icon={<CircleDollarSign className="size-4 shrink-0" aria-hidden />}
             label={filters.budget === null ? "Budget" : budgetLabel(filters.budget)}
             active={filters.budget !== null}
             menuLabel="Budget"
@@ -192,7 +186,6 @@ export function ExploreCard({ className }: { className?: string }) {
             onChange={(v) => setExploreFilters({ budget: v === ANY ? null : (Number(v) as PriceTier) })}
           />
           <Chip
-            icon={<Clock className="size-4 shrink-0" aria-hidden />}
             label={filters.minutes === null ? "Time" : minutesLabel(filters.minutes)}
             active={filters.minutes !== null}
             menuLabel="Time you have"
@@ -203,21 +196,22 @@ export function ExploreCard({ className }: { className?: string }) {
           <button
             type="button"
             aria-expanded={more}
+            title="More filters"
             onClick={() => setMore((m) => !m)}
             className={cn(
-              "flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-[15px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-maroon desk:px-4",
+              "flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold outline-none transition-all duration-200 active:scale-95 focus-visible:ring-2 focus-visible:ring-maroon desk:px-4",
               extras || more ? "border-maroon bg-maroon text-white" : "border-border-strong bg-sand text-ink hover:brightness-[0.97]",
             )}
           >
             <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
             {/* phones: icon only, so Craving / Budget / Time keep their words */}
-            <span className="max-desk:sr-only">More</span>
+            <span className="sr-only">More filters</span>
             {extras ? <span className="rounded-full bg-white/25 px-1.5 text-xs">{extras}</span> : null}
           </button>
         </div>
         {more && <MoreFilters f={filters} />}
         {/* The map's "Where to?" search (TransitMap portals it here). Empty until the map loads. */}
-        <div id={MAP_SEARCH_SLOT} className="mt-3 empty:hidden desk:mt-4" />
+        <div id={MAP_SEARCH_SLOT} className="mt-2.5 empty:hidden desk:mt-3" />
         <HostedEventsLink />
       </div>
     </section>
@@ -265,7 +259,7 @@ function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       aria-pressed={on}
       onClick={onClick}
       className={cn(
-        "flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold",
+        "flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-all duration-200 active:scale-95",
         on ? "border-maroon bg-maroon text-white" : "border-border-strong bg-surface text-ink hover:bg-sand",
       )}
     >
@@ -278,13 +272,13 @@ function Switch({ label, hint, on, set }: { label: string; hint: string; on: boo
   return (
     <label className="flex cursor-pointer items-center gap-3 rounded-xl px-1 py-1.5 hover:bg-surface/60">
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold text-ink">{label}</span>
+        <span className="block text-sm font-semibold text-ink">{label}</span>
         <span className="block text-xs text-muted-foreground">{hint}</span>
       </span>
       <input type="checkbox" role="switch" checked={on} onChange={(e) => set(e.target.checked)} className="peer sr-only" />
       <span
         aria-hidden
-        className="relative h-6 w-11 shrink-0 rounded-full bg-border-strong transition-colors peer-checked:bg-maroon peer-focus-visible:ring-2 peer-focus-visible:ring-maroon after:absolute after:top-0.5 after:left-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5"
+        className="relative h-6 w-9 shrink-0 rounded-full bg-border-strong transition-colors peer-checked:bg-maroon peer-focus-visible:ring-2 peer-focus-visible:ring-maroon after:absolute after:top-0.5 after:left-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5"
       />
     </label>
   );
@@ -313,7 +307,7 @@ function HostedEventsLink() {
   return (
     <Link
       href="/host"
-      className="mt-3 flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-3 py-2 text-[15px] text-violet-900 hover:bg-violet-100 desk:mt-4 dark:bg-violet-950/50 dark:text-violet-100"
+      className="mt-2.5 flex min-h-9 items-center gap-2 rounded-xl bg-violet-50 px-3 py-1.5 text-[13px] text-violet-900 transition-colors hover:bg-violet-100 desk:mt-3 dark:bg-violet-950/50 dark:text-violet-100"
     >
       <span aria-hidden>🎉</span>
       <span className="min-w-0 flex-1">

@@ -16,6 +16,7 @@ import type {
   PassportNeighborhood,
   Privacy,
   PlayerLeaderboardRow,
+  Friendship,
   Profile,
   Quest,
   QuestOfTheWeek,
@@ -92,6 +93,13 @@ export interface DataService {
   // friends (accepted friendships only)
   getFriends(): Promise<Profile[]>;
   sendFriendRequest(userId: string): Promise<void>;
+  /** Every friendship row you're part of (pending both ways, and accepted), for Add / Requested / Accept buttons. */
+  getFriendships(): Promise<Friendship[]>;
+  /** Profiles of people who sent you a request you haven't accepted yet. */
+  getFriendRequests(): Promise<Profile[]>;
+  acceptFriendRequest(userId: string): Promise<void>;
+  /** Unfriend, cancel your request, or decline theirs. */
+  removeFriend(userId: string): Promise<void>;
 
   // profile and privacy
   updatePrivacy(privacy: Privacy): Promise<Profile>;

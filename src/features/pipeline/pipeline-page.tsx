@@ -71,7 +71,7 @@ export function PipelinePage() {
           <button
             type="button"
             onClick={play}
-            className="inline-flex h-12 shrink-0 items-center gap-2 rounded-full bg-maroon px-6 text-base font-bold text-white hover:bg-maroon-600"
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-maroon px-6 text-sm font-bold text-white hover:bg-maroon-600"
           >
             {playing ? <Pause className="size-5" aria-hidden /> : <Play className="size-5" aria-hidden />}
             {playing ? "Pause" : "Play"}

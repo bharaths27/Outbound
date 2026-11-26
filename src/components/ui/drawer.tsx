@@ -47,8 +47,9 @@ function DrawerOverlay({
 function DrawerContent({
   className,
   children,
+  hideHandle = false,
   ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Content>) {
+}: React.ComponentProps<typeof DrawerPrimitive.Content> & { hideHandle?: boolean }) {
   return (
     <DrawerPortal data-slot="drawer-portal">
       <DrawerOverlay />
@@ -60,7 +61,7 @@ function DrawerContent({
         )}
         {...props}
       >
-        <div className="mx-auto mt-3 mb-2 hidden h-[5px] w-11 shrink-0 rounded-full bg-[#CDBBA3] group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
+        {!hideHandle && <div className="mx-auto mt-3 mb-2 hidden h-[5px] w-11 shrink-0 rounded-full bg-[#CDBBA3] group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />}
         {children}
       </DrawerPrimitive.Content>
     </DrawerPortal>
