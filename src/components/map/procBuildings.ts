@@ -15,11 +15,12 @@ const mLng = (lat: number) => 111_320 * Math.cos((lat * Math.PI) / 180);
 
 // Cambridge triple-deckers and row houses come in many colors; bigger buildings are brick, stone or glass.
 const HOUSE_COLORS = [
-  [230, 218, 194], [217, 179, 140], [201, 123, 90], [184, 102, 74], [214, 196, 162],
-  [158, 154, 146], [140, 160, 172], [176, 150, 124], [126, 146, 128], [196, 186, 160],
+  // painted triple-deckers and row houses: cream, butter yellow, sky blue, sage, gray, white, brick, brownstone
+  [236, 226, 204], [232, 198, 110], [120, 152, 190], [134, 166, 120], [150, 150, 148],
+  [243, 238, 228], [172, 78, 54], [128, 80, 60], [196, 120, 96], [96, 104, 116],
 ];
-const BIG_COLORS = [[201, 123, 90], [184, 102, 74], [217, 179, 140], [230, 218, 194], [214, 196, 162], [158, 154, 146], [156, 82, 62], [176, 150, 124]];
-const TOWER_COLORS = [[98, 132, 168], [78, 108, 146], [118, 146, 176]];
+const BIG_COLORS = [[172, 78, 54], [140, 56, 42], [214, 170, 118], [232, 220, 196], [150, 150, 146], [128, 80, 60], [196, 120, 96], [222, 172, 92]];
+const TOWER_COLORS = [[72, 130, 182], [48, 94, 146], [96, 140, 184]];
 
 function hash(n: number) {
   const x = Math.sin(n * 12.9898) * 43758.5453;

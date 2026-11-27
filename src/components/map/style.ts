@@ -157,11 +157,11 @@ export const PALETTE = { land: "#ece6da", water: "#8ec3e6", park: "#b2d895", woo
 
 /** OpenStreetMap buildings (the rest of Massachusetts) in the same pastel palette as the Boston/Cambridge city:
  *  each building gets a color from its id (stable, varied), towers get sky-blue glass. */
-const PASTELS = ["#c97b5a", "#d9b38c", "#e6dac2", "#b8664a", "#d6c4a2", "#9e9a92", "#b0967c", "#e4cfa8"];
+const PASTELS = ["#ac4e36", "#d6aa76", "#e8dcc4", "#8c382a", "#c47860", "#969692", "#80503c", "#dead5c"];
 const BUILDING_COLOR: ExpressionSpecification = [
   "case",
   [">", ["coalesce", ["get", "render_height"], 0], 60],
-  ["match", ["%", ["floor", ["coalesce", ["to-number", ["id"]], ["get", "render_height"]]], 3], 0, "#6284a8", 1, "#8ca6be", "#7692b0"],
+  ["match", ["%", ["floor", ["coalesce", ["to-number", ["id"]], ["get", "render_height"]]], 3], 0, "#4882b6", 1, "#80aace", "#305e92"],
   ["match", ["%", ["floor", ["+", ["coalesce", ["to-number", ["id"]], 0], ["*", ["coalesce", ["get", "render_height"], 10], 7]]], 8],
     0, PASTELS[0], 1, PASTELS[1], 2, PASTELS[2], 3, PASTELS[3], 4, PASTELS[4], 5, PASTELS[5], 6, PASTELS[6], PASTELS[7]],
 ];
