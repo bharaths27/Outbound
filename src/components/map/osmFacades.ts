@@ -10,8 +10,6 @@ import { makeFacadeMaterial, FACADE_NIGHT } from "./facade";
 import { sunLight } from "./sun";
 import type { Weather } from "./weather";
 import { BuildingTiles, tilesForView, tileRadius, type BuildingFeature } from "./buildingTiles";
-import { buildBridgeMesh, bridgeMaterial } from "./bridges3d";
-import { makeLandmarks } from "./landmarks";
 import { buildCityMesh, makeTreeMesh, TREE_TIME, HOUSE_COLORS, type Footprint } from "./procBuildings";
 import type { ExpressionSpecification } from "maplibre-gl";
 
@@ -183,9 +181,6 @@ export class OsmFacadesLayer implements CustomLayerInterface {
   private builtAt: { lng: number; lat: number; zoom: number } | null = null;
   private building = false;
   private tiles!: BuildingTiles;
-  private bridgeMat = bridgeMaterial();
-  /** the Zakim Bridge's towers and cables (the map only has its flat road) */
-  private landmarks: { obj: THREE.Object3D; center: [number, number] }[] = [];
   private again = false;
 
   constructor(private source = "openmaptiles", private sourceLayer = "building") {}
@@ -201,12 +196,6 @@ export class OsmFacadesLayer implements CustomLayerInterface {
     map.on("moveend", this.soon);
     map.on("sourcedata", this.onData);
     this.tiles = new BuildingTiles(map, this.source, this.sourceLayer);
-    this.landmarks = makeLandmarks().filter((l) => l.name === "zakim");
-    for (const l of this.landmarks) {
-      l.obj.matrixAutoUpdate = false;
-      l.obj.frustumCulled = false;
-      this.scene.add(l.obj);
-    }
     this.soon();
     void this.loadTrees();
   }
@@ -304,20 +293,11 @@ export class OsmFacadesLayer implements CustomLayerInterface {
   };
 
   /** The buildings around the view: the zoom-14 tiles (same detail at every zoom), else whatever the map has loaded. */
-  private async features(center: [number, number], zoom: number): Promise<{ buildings: BuildingFeature[]; bridges: BuildingFeature[] }> {
-    if (!this.tiles.template()) {
-      const bridges = this.map.getSource(this.source)?.type === "vector"
-        ? this.map.querySourceFeatures(this.source, { sourceLayer: "transportation", filter: ["==", ["get", "brunnel"], "bridge"] })
-        : [];
-      return { buildings: this.map.querySourceFeatures(this.source, { sourceLayer: this.sourceLayer }), bridges };
-    }
+  private async features(center: [number, number], zoom: number): Promise<BuildingFeature[]> {
+    if (!this.tiles.template()) return this.map.querySourceFeatures(this.source, { sourceLayer: this.sourceLayer });
     const b = this.map.getBounds();
     const want = tilesForView(center, [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], tileRadius(zoom));
-    const [buildings, bridges] = await Promise.all([
-      Promise.all(want.map(([x, y]) => this.tiles.load(x, y))),
-      Promise.all(want.map(([x, y]) => this.tiles.bridges(x, y))),
-    ]);
-    return { buildings: buildings.flat(), bridges: bridges.flat() };
+    return (await Promise.all(want.map(([x, y]) => this.tiles.load(x, y)))).flat();
   }
 
   /** Rebuild the mesh from the basemap tiles around the view, a few hundred buildings at a time. */
@@ -328,7 +308,7 @@ export class OsmFacadesLayer implements CustomLayerInterface {
       const c = this.map.getCenter();
       const zoom = this.map.getZoom();
       const center: [number, number] = [c.lng, c.lat];
-      const { buildings: feats, bridges } = await this.features(center, zoom);
+      const feats = await this.features(center, zoom);
       const fps = footprintsOf(feats, center, maxBuildings(zoom));
       const next: Group = { meshes: [], center };
       this.next = next;
@@ -341,13 +321,6 @@ export class OsmFacadesLayer implements CustomLayerInterface {
         this.scene.add(mesh);
         this.map.triggerRepaint();
         await new Promise((r) => setTimeout(r, 0));
-      }
-      if (bridges.length) {
-        const mesh = new THREE.Mesh(buildBridgeMesh(bridges, center), this.bridgeMat);
-        mesh.matrixAutoUpdate = false;
-        mesh.frustumCulled = false;
-        next.meshes.push(mesh);
-        this.scene.add(mesh);
       }
       // the new city is complete: drop the old one
       this.city?.meshes.forEach((m) => (this.scene.remove(m), m.geometry.dispose()));
@@ -387,12 +360,6 @@ export class OsmFacadesLayer implements CustomLayerInterface {
         m.matrix.copy(this.tmp);
         m.matrixWorld.copy(this.tmp);
       }
-    }
-    for (const l of this.landmarks) {
-      l.obj.visible = showCity;
-      modelMatrix(this.tmp, l.center[0], l.center[1], globe).premultiply(this.originInv);
-      l.obj.matrix.copy(this.tmp);
-      l.obj.matrixWorld.copy(this.tmp);
     }
     if (this.trees) {
       this.trees.visible = showTrees;

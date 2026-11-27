@@ -98,23 +98,3 @@ describe("full-detail building tiles at every zoom", () => {
     for (const [x, y] of t) expect(Math.max(Math.abs(x - cx), Math.abs(y - cy))).toBeLessThanOrEqual(3);
   });
 });
-
-describe("3D bridges", () => {
-  it("puts a parapet on both sides of a bridge, wider for bigger roads", async () => {
-    const { buildBridgeMesh, bridgeWidth } = await import("./bridges3d");
-    expect(bridgeWidth("motorway")).toBeGreaterThan(bridgeWidth("primary"));
-    expect(bridgeWidth("primary")).toBeGreaterThan(bridgeWidth("path"));
-    const line = { id: 1, properties: { class: "primary", brunnel: "bridge" }, geometry: { type: "LineString" as const, coordinates: [[-71.08, 42.36], [-71.075, 42.36]] } };
-    const g = buildBridgeMesh([line, line], [-71.0775, 42.36]); // the same line twice (two tiles): drawn once
-    const pos = g.getAttribute("position");
-    let minZ = Infinity, maxZ = -Infinity;
-    for (let i = 0; i < pos.count; i++) {
-      minZ = Math.min(minZ, pos.getZ(i));
-      maxZ = Math.max(maxZ, pos.getZ(i));
-    }
-    // parapets on both edges of a 17 m deck (plus the deck edge outside them)
-    expect(maxZ - minZ).toBeGreaterThan(17);
-    expect(maxZ - minZ).toBeLessThan(19.5);
-    expect(pos.count).toBe(buildBridgeMesh([line], [-71.0775, 42.36]).getAttribute("position").count);
-  });
-});
