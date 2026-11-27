@@ -35,7 +35,7 @@ export const tileRadius = (zoom: number) => (zoom >= 14.5 ? 2 : zoom >= 13.5 ? 3
 const MAX_CACHED = 160;
 
 export class BuildingTiles {
-  private cache = new Map<string, Promise<BuildingFeature[]>>();
+  private cache = new Map<string, Promise<ArrayBuffer | null>>();
   constructor(private map: MlMap, private source = "openmaptiles", private sourceLayer = "building") {}
 
   /** The vector tile URL template, once the basemap's TileJSON has loaded (null offline / for other sources). */
@@ -45,9 +45,9 @@ export class BuildingTiles {
     return t ?? null;
   }
 
-  async load(x: number, y: number): Promise<BuildingFeature[]> {
+  private raw(x: number, y: number): Promise<ArrayBuffer | null> {
     const tpl = this.template();
-    if (!tpl) return [];
+    if (!tpl) return Promise.resolve(null);
     const key = `${x}/${y}`;
     let p = this.cache.get(key);
     if (!p) {
@@ -57,16 +57,26 @@ export class BuildingTiles {
           if (r.status === 404 || r.status === 204) return null; // no tile there (open water, outside the data)
           return r.ok ? r.arrayBuffer() : Promise.reject(new Error(`tile ${key}: ${r.status}`));
         })
-        .then((buf) => (buf ? decodeBuildings(buf, x, y, this.sourceLayer) : []))
         .catch((e) => {
           this.cache.delete(key); // try again next time
           console.warn("[buildings]", e);
-          return [];
+          return null;
         });
       this.cache.set(key, p);
       if (this.cache.size > MAX_CACHED) this.cache.delete(this.cache.keys().next().value!);
     }
     return p;
+  }
+
+  async load(x: number, y: number): Promise<BuildingFeature[]> {
+    const buf = await this.raw(x, y);
+    return buf ? decodeBuildings(buf, x, y, this.sourceLayer) : [];
+  }
+
+  /** Roads and rail lines on bridges in this tile (OpenMapTiles "transportation" with brunnel=bridge). */
+  async bridges(x: number, y: number): Promise<BuildingFeature[]> {
+    const buf = await this.raw(x, y);
+    return buf ? decodeBuildings(buf, x, y, "transportation").filter((f) => f.properties.brunnel === "bridge") : [];
   }
 }
 

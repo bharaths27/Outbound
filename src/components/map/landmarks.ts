@@ -11,6 +11,7 @@ import { makeFacadeMaterial } from "./facade";
 export interface LandmarkPart {
   obj: THREE.Object3D;
   center: [number, number];
+  name: "state-house" | "zakim" | "cds";
 }
 
 /** Local frame of the BPDA tile BOS_H_4 (meters, x east, y up, z south); the dome sits at (151.2, -134.9). */
@@ -55,7 +56,7 @@ export function makeLandmarks(): LandmarkPart[] {
   const cap = new THREE.SphereGeometry(2.4, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
   cap.translate(151.2, 52.6, -134.9);
   const domeMat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: new THREE.Color(0x4a3000) });
-  parts.push({ obj: new THREE.Mesh(mergeGeometries([painted(dome, gold), painted(lantern, [0.96, 0.93, 0.86]), painted(cap, gold)]), domeMat), center: STATE_HOUSE_TILE });
+  parts.push({ obj: new THREE.Mesh(mergeGeometries([painted(dome, gold), painted(lantern, [0.96, 0.93, 0.86]), painted(cap, gold)]), domeMat), center: STATE_HOUSE_TILE, name: "state-house" });
 
   // ---- Zakim Bridge ----
   // built along +x (deck length), y up; then turned to follow I-93 (NW across the Charles)
@@ -78,7 +79,7 @@ export function makeLandmarks(): LandmarkPart[] {
   const rot = new THREE.Matrix4().makeRotationY((130 * Math.PI) / 180);
   const bridge = mergeGeometries(geos);
   bridge.applyMatrix4(rot);
-  parts.push({ obj: new THREE.Mesh(bridge, mat), center: ZAKIM_CENTER });
+  parts.push({ obj: new THREE.Mesh(bridge, mat), center: ZAKIM_CENTER, name: "zakim" });
 
   // cables: fans from each spire down to both deck edges
   const pts: number[] = [];
@@ -97,8 +98,8 @@ export function makeLandmarks(): LandmarkPart[] {
   cg.applyMatrix4(rot);
   // ---- BU CDS: blue-gray glass blocks, each shifted from the one below ----
   const cds: Footprint[] = CDS_PARTS.map(([b, h, ring], i) => ({ rings: [ring], h, b, rgb: i < 2 ? [150, 160, 172] : [132, 156, 184] }));
-  parts.push({ obj: new THREE.Mesh(buildCityMesh(cds, CDS_CENTER), makeFacadeMaterial(1, 7.1)), center: CDS_CENTER });
+  parts.push({ obj: new THREE.Mesh(buildCityMesh(cds, CDS_CENTER), makeFacadeMaterial(1, 7.1)), center: CDS_CENTER, name: "cds" });
 
-  parts.push({ obj: new THREE.LineSegments(cg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 })), center: ZAKIM_CENTER });
+  parts.push({ obj: new THREE.LineSegments(cg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 })), center: ZAKIM_CENTER, name: "zakim" });
   return parts;
 }
