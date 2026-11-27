@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import type { StyleSpecification } from "maplibre-gl";
 import { evalZoomInterp, metersPerPx, plainStyle } from "./style";
-import { FACADE_MIN_ZOOM, footprintsOf, wallColor } from "./osmFacades";
+import { FACADE_MIN_ZOOM, footprintsOf, wallColor, wallColorExpression } from "./osmFacades";
+import { createExpression } from "@maplibre/maplibre-gl-style-spec";
 
 // A slice of OpenFreeMap Liberty: one road, the subway line, the 3D buildings.
 const liberty = (): StyleSpecification => ({
@@ -45,6 +46,19 @@ describe("facade buildings from the map's OSM buildings", () => {
     expect(wallColor("#aa3311", 20, 1)).toEqual([0xaa, 0x33, 0x11]);
     expect(wallColor(undefined, 120, 7)).toEqual(wallColor(undefined, 120, 7));
     expect(wallColor(undefined, 10, 3)).toBeUndefined(); // small houses: painted house colors
+  });
+  it("zoomed out, the plain buildings get the same wall color as their facades", () => {
+    const ex = createExpression(wallColorExpression(), { type: "color" } as never);
+    expect(ex.result).toBe("success");
+    const ev = (id: number, props: Record<string, unknown>) => {
+      const c = (ex as { value: { evaluate: (g: unknown, f: unknown) => { r: number; g: number; b: number } } }).value.evaluate({ zoom: 14 }, { id, properties: props, type: 3 });
+      return [c.r, c.g, c.b].map((v) => Math.round(v * 255));
+    };
+    for (const id of [1, 77, 4242, 99_871, 123_456_789]) {
+      for (const h of [30, 80, 200]) expect(ev(id, { render_height: h })).toEqual(wallColor(undefined, h, id % 100_003));
+    }
+    expect(ev(5, { render_height: 20, colour: "#aa3311" })).toEqual([0xaa, 0x33, 0x11]);
+    expect(ev(5, { render_height: 8 })).toHaveLength(3); // a house color
   });
   it("drops duplicates (one per tile), hidden parts, and sorts nearest first", () => {
     const f = (id: number, x: number, h = 20, extra = {}) => ({ id, properties: { render_height: h, ...extra }, geometry: { type: "Polygon" as const, coordinates: sq(x, 42.35) } });

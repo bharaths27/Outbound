@@ -15,7 +15,7 @@ const M_LAT = 110_540;
 const mLng = (lat: number) => 111_320 * Math.cos((lat * Math.PI) / 180);
 
 // Cambridge triple-deckers and row houses come in many colors; bigger buildings are brick, stone or glass.
-const HOUSE_COLORS = [
+export const HOUSE_COLORS = [
   // painted triple-deckers and row houses: cream, butter yellow, sky blue, sage, gray, white, brick, brownstone
   [236, 226, 204], [232, 198, 110], [120, 152, 190], [134, 166, 120], [150, 150, 148],
   [243, 238, 228], [172, 78, 54], [128, 80, 60], [196, 120, 96], [96, 104, 116],

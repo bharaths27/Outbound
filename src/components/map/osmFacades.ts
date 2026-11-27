@@ -9,11 +9,15 @@ import { modelMatrix } from "./trains3d";
 import { makeFacadeMaterial, FACADE_NIGHT } from "./facade";
 import { sunLight } from "./sun";
 import type { Weather } from "./weather";
-import { buildCityMesh, type Footprint } from "./procBuildings";
+import { buildCityMesh, makeTreeMesh, TREE_TIME, HOUSE_COLORS, type Footprint } from "./procBuildings";
+import type { ExpressionSpecification } from "maplibre-gl";
 
 /** From this zoom the buildings are drawn with facades; below it, the basemap's plain boxes. */
 export const FACADE_MIN_ZOOM = 15;
 const MAX_BUILDINGS = 7000;
+/** Real trees (public/data/trees.json: canopy found in aerial photos, Cambridge park trees) show from this zoom. */
+export const TREES_MIN_ZOOM = 14;
+const TREES_CENTER: [number, number] = [-71.09, 42.363];
 
 // Boston's real building stock: red brick, brownstone, limestone, granite, painted clapboard; towers are glass.
 const BRICK = [[172, 78, 54], [150, 66, 48], [128, 80, 60], [196, 120, 96]];
@@ -41,6 +45,33 @@ export function wallColor(colour: unknown, height: number, seed: number): number
   if (height > 45) return r > 0.3 ? GLASS[Math.floor(hash(seed + 1) * GLASS.length)] : STONE[Math.floor(hash(seed + 2) * STONE.length)];
   if (height <= 15) return undefined; // houses: painted clapboard / brick colors from procBuildings
   return r > 0.45 ? BRICK[Math.floor(hash(seed + 3) * BRICK.length)] : STONE[Math.floor(hash(seed + 4) * STONE.length)];
+}
+
+const rgbStr = (c: number[]) => `rgb(${c[0]},${c[1]},${c[2]})`;
+const pick = (list: number[][], h: ExpressionSpecification): ExpressionSpecification =>
+  ["at", ["min", list.length - 1, ["floor", ["*", h, list.length]]], ["literal", list.map(rgbStr)]];
+
+/** wallColor as a MapLibre expression, so the zoomed-out plain buildings get the same colors as the facades up close. */
+export function wallColorExpression(): ExpressionSpecification {
+  const seed: ExpressionSpecification = ["%", ["to-number", ["id"], 0], 100_003];
+  // hash(n) above, and procBuildings' house hash (no offset)
+  const h1 = (k: number): ExpressionSpecification => {
+    const x: ExpressionSpecification = ["*", ["sin", ["+", ["*", ["+", seed, k], 12.9898], 78.233]], 43758.5453];
+    return ["-", x, ["floor", x]];
+  };
+  const h2 = (k: number): ExpressionSpecification => {
+    const x: ExpressionSpecification = ["*", ["sin", ["*", ["+", seed, k], 12.9898]], 43758.5453];
+    return ["-", x, ["floor", x]];
+  };
+  const height: ExpressionSpecification = ["coalesce", ["get", "render_height"], 6];
+  const own: ExpressionSpecification = ["case", ["==", ["typeof", ["get", "colour"]], "string"], ["get", "colour"], ""];
+  const made: ExpressionSpecification = [
+    "case",
+    [">", height, 45], ["case", [">", h1(0), 0.3], pick(GLASS, h1(1)), pick(STONE, h1(2))],
+    ["<=", height, 15], pick(HOUSE_COLORS, h2(1)),
+    ["case", [">", h1(0), 0.45], pick(BRICK, h1(3)), pick(STONE, h1(4))],
+  ];
+  return ["to-color", own, made] as ExpressionSpecification;
 }
 
 /** Basemap building features -> footprints for buildCityMesh (deduplicated, nearest to `center` first). */
@@ -119,6 +150,25 @@ export class OsmFacadesLayer implements CustomLayerInterface {
     map.on("moveend", this.soon);
     map.on("sourcedata", this.onData);
     this.soon();
+    void this.loadTrees();
+  }
+
+  private trees: THREE.InstancedMesh | null = null;
+  private async loadTrees() {
+    try {
+      const r = await fetch(new URL("/data/trees.json", document.baseURI).href);
+      if (!r.ok) return;
+      const pts: [number, number, number][] = await r.json();
+      const [lng0, lat0] = TREES_CENTER;
+      const kx = 111_320 * Math.cos((lat0 * Math.PI) / 180);
+      const mesh = makeTreeMesh(pts.map(([lng, lat, s]) => ({ x: (lng - lng0) * kx, z: -(lat - lat0) * 110_540, s })));
+      mesh.matrixAutoUpdate = false;
+      this.trees = mesh;
+      this.scene.add(mesh);
+      this.map.triggerRepaint();
+    } catch (e) {
+      console.warn("[trees]", e);
+    }
   }
 
   onRemove() {
@@ -234,7 +284,9 @@ export class OsmFacadesLayer implements CustomLayerInterface {
 
   render(_gl: WebGLRenderingContext | WebGL2RenderingContext, args: CustomRenderMethodInput) {
     const zoom = this.map.getZoom();
-    if (!this.visible || this.hidden || zoom < this.minZoom || !this.mesh) return;
+    const showCity = zoom >= this.minZoom && !!this.mesh;
+    const showTrees = zoom >= TREES_MIN_ZOOM && !!this.trees;
+    if (!this.visible || this.hidden || (!showCity && !showTrees)) return;
     const pd = args.defaultProjectionData;
     const globe = pd.fallbackMatrix !== pd.mainMatrix && pd.projectionTransition > 0.5;
     const center = this.map.getCenter();
@@ -243,11 +295,22 @@ export class OsmFacadesLayer implements CustomLayerInterface {
     const main = new THREE.Matrix4().fromArray((globe ? pd.mainMatrix : pd.fallbackMatrix) as unknown as number[]);
     this.camera.projectionMatrix = main.multiply(origin);
     this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
-    modelMatrix(this.tmp, this.meshCenter[0], this.meshCenter[1], globe).premultiply(this.originInv);
-    this.mesh.matrix.copy(this.tmp);
-    this.mesh.matrixWorld.copy(this.tmp);
+    if (this.mesh) {
+      this.mesh.visible = showCity;
+      modelMatrix(this.tmp, this.meshCenter[0], this.meshCenter[1], globe).premultiply(this.originInv);
+      this.mesh.matrix.copy(this.tmp);
+      this.mesh.matrixWorld.copy(this.tmp);
+    }
+    if (this.trees) {
+      this.trees.visible = showTrees;
+      modelMatrix(this.tmp, TREES_CENTER[0], TREES_CENTER[1], globe).premultiply(this.originInv);
+      this.trees.matrix.copy(this.tmp);
+      this.trees.matrixWorld.copy(this.tmp);
+      TREE_TIME.value = performance.now() / 1000;
+    }
     this.renderer.resetState();
     this.renderer.render(this.scene, this.camera);
+    if (showTrees) this.map.triggerRepaint(); // keep the leaves moving in the wind
   }
 }
 

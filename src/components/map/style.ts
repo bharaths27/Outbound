@@ -3,7 +3,7 @@
 import type { StyleSpecification, LayerSpecification, ExpressionSpecification, ImageSourceSpecification } from "maplibre-gl";
 import type { BpdaManifest } from "./buildings3d";
 import type { Map as MlMap } from "maplibre-gl";
-import { FACADE_MIN_ZOOM } from "./osmFacades";
+import { FACADE_MIN_ZOOM, wallColorExpression } from "./osmFacades";
 
 const LIBERTY = "https://tiles.openfreemap.org/styles/liberty"; // the Boston 3D base map
 
@@ -180,14 +180,12 @@ export function groundLayerIds(style: StyleSpecification) {
 
 export type MapLook = "map" | "light" | "satellite";
 
-/** Plain extruded OSM buildings, colored by height, for zoomed-out views (closer in, osmFacades.ts draws them with facades). */
-const BUILDING_PALETTES: Record<MapLook, string[]> = {
-  map: ["#e4ddd2", "#d9d1c5", "#c6d0da", "#aebdcc"],
-  light: ["#ece9e4", "#e4e2de", "#dfe3e8", "#d5dbe2"],
-  satellite: ["#efebe4", "#e7e3dc", "#dfe4ea", "#d3dce6"],
-};
+/** Plain extruded OSM buildings for zoomed-out views (closer in, osmFacades.ts draws them with facades).
+ *  Map and Satellite: each building keeps its facade color (brick, stone, glass, painted houses). Light: soft grays. */
+const LIGHT_PALETTE = ["#ece9e4", "#e4e2de", "#dfe3e8", "#d5dbe2"];
 export function buildingExtrusionColor(look: MapLook): ExpressionSpecification {
-  const pal = BUILDING_PALETTES[look];
+  if (look !== "light") return wallColorExpression();
+  const pal = LIGHT_PALETTE;
   return ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 0], 0, pal[0], 25, pal[1], 70, pal[2], 160, pal[3]];
 }
 
@@ -205,8 +203,9 @@ export function plainStyle(style: StyleSpecification): StyleSpecification {
       (layer as { filter?: unknown }).filter = ["!=", ["get", "hide_3d"], true];
       layer.paint = {
         "fill-extrusion-color": buildingExtrusionColor("map"),
-        "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 13, 0, 14.5, ["coalesce", ["get", "render_height"], 6]],
-        "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 13, 0, 14.5, ["coalesce", ["get", "render_min_height"], 0]],
+        // full height as soon as buildings appear, so zoomed out the city stays 3D
+        "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
         "fill-extrusion-opacity": 0.95,
         "fill-extrusion-vertical-gradient": true,
       };
