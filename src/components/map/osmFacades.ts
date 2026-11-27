@@ -9,13 +9,14 @@ import { modelMatrix } from "./trains3d";
 import { makeFacadeMaterial, FACADE_NIGHT } from "./facade";
 import { sunLight } from "./sun";
 import type { Weather } from "./weather";
+import { BuildingTiles, tilesForView, tileRadius, type BuildingFeature } from "./buildingTiles";
 import { buildCityMesh, makeTreeMesh, TREE_TIME, HOUSE_COLORS, type Footprint } from "./procBuildings";
 import type { ExpressionSpecification } from "maplibre-gl";
 
 /** From this zoom the buildings are drawn with facades; below it, the basemap's plain boxes. */
-export const FACADE_MIN_ZOOM = 14;
+export const FACADE_MIN_ZOOM = 13;
 /** How many buildings get facades (nearest first): more when zoomed out, so the whole view keeps its detail. */
-export const maxBuildings = (zoom: number) => (zoom >= 15.5 ? 9000 : zoom >= 14.7 ? 14000 : 20000);
+export const maxBuildings = (zoom: number) => (zoom >= 15.5 ? 9000 : zoom >= 14.7 ? 14000 : zoom >= 13.7 ? 20000 : 26000);
 /** Real trees (public/data/trees.json: canopy found in aerial photos, Cambridge park trees) show from this zoom. */
 export const TREES_MIN_ZOOM = 14;
 const TREES_CENTER: [number, number] = [-71.09, 42.363];
@@ -179,6 +180,7 @@ export class OsmFacadesLayer implements CustomLayerInterface {
   private originInv = new THREE.Matrix4();
   private builtAt: { lng: number; lat: number; zoom: number } | null = null;
   private building = false;
+  private tiles!: BuildingTiles;
   private again = false;
 
   constructor(private source = "openmaptiles", private sourceLayer = "building") {}
@@ -193,6 +195,7 @@ export class OsmFacadesLayer implements CustomLayerInterface {
     // (the map never goes "idle" while trains and buses animate, so: after moving, and as tiles arrive)
     map.on("moveend", this.soon);
     map.on("sourcedata", this.onData);
+    this.tiles = new BuildingTiles(map, this.source, this.sourceLayer);
     this.soon();
     void this.loadTrees();
   }
@@ -268,7 +271,10 @@ export class OsmFacadesLayer implements CustomLayerInterface {
     this.timer = setTimeout(this.onIdle, 350);
   };
   private onData = (e: { sourceId?: string; tile?: unknown }) => {
-    if (e.sourceId !== this.source || !e.tile) return;
+    if (e.sourceId !== this.source) return;
+    // with the zoom-14 tiles fetched directly (buildingTiles.ts), the map's own tiles arriving changes nothing
+    if (this.tiles.template() && this.builtAt) return;
+    if (!e.tile && !this.tiles.template()) return;
     // new buildings arrived: rebuild even if the view hasn't moved much (once the tiles stop streaming in)
     this.builtAt = null;
     clearTimeout(this.timer);
@@ -286,6 +292,14 @@ export class OsmFacadesLayer implements CustomLayerInterface {
     void this.rebuild();
   };
 
+  /** The buildings around the view: the zoom-14 tiles (same detail at every zoom), else whatever the map has loaded. */
+  private async features(center: [number, number], zoom: number): Promise<BuildingFeature[]> {
+    if (!this.tiles.template()) return this.map.querySourceFeatures(this.source, { sourceLayer: this.sourceLayer });
+    const b = this.map.getBounds();
+    const want = tilesForView(center, [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], tileRadius(zoom));
+    return (await Promise.all(want.map(([x, y]) => this.tiles.load(x, y)))).flat();
+  }
+
   /** Rebuild the mesh from the basemap tiles around the view, a few hundred buildings at a time. */
   private async rebuild() {
     if (this.building) return void (this.again = true);
@@ -294,7 +308,7 @@ export class OsmFacadesLayer implements CustomLayerInterface {
       const c = this.map.getCenter();
       const zoom = this.map.getZoom();
       const center: [number, number] = [c.lng, c.lat];
-      const feats = this.map.querySourceFeatures(this.source, { sourceLayer: this.sourceLayer });
+      const feats = await this.features(center, zoom);
       const fps = footprintsOf(feats, center, maxBuildings(zoom));
       const next: Group = { meshes: [], center };
       this.next = next;

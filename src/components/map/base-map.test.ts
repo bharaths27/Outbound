@@ -81,3 +81,20 @@ describe("the Boston 3D map file it came from", () => {
     expect(src).toContain("https://tiles.openfreemap.org/styles/liberty");
   });
 });
+
+describe("full-detail building tiles at every zoom", () => {
+  it("finds the zoom-14 tile under a point", async () => {
+    const { lngLatToTile } = await import("./buildingTiles");
+    // Harvard Square sits in zoom-14 tile 4955/6059 (OSM slippy-map numbering)
+    expect(lngLatToTile(-71.1189, 42.3734)).toEqual([4955, 6059]);
+  });
+  it("loads the tiles in view, nearest first, never more than the radius allows", async () => {
+    const { tilesForView, lngLatToTile } = await import("./buildingTiles");
+    const c: [number, number] = [-71.09, 42.36];
+    const t = tilesForView(c, [-71.2, 42.3, -70.98, 42.42], 3);
+    expect(t[0]).toEqual(lngLatToTile(c[0], c[1]));
+    expect(t.length).toBeLessThanOrEqual(49);
+    const [cx, cy] = t[0];
+    for (const [x, y] of t) expect(Math.max(Math.abs(x - cx), Math.abs(y - cy))).toBeLessThanOrEqual(3);
+  });
+});
