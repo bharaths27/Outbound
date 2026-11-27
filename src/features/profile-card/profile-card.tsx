@@ -62,20 +62,24 @@ export function ProfileCard({
     <section aria-label={`${name}'s profile`} className="overflow-hidden rounded-[24px] border border-border bg-surface shadow-card" data-testid="profile-card">
       <div className="relative h-28 desk:h-36" style={{ background: bannerCss(profile.banner) }}>
         {school && <SchoolLogo school={school} height={58} tilt={8} className="absolute top-3 right-3 opacity-95 desk:h-[72px]" />}
-        {isMe && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="absolute right-3 bottom-3 z-10 inline-flex h-8 items-center gap-1.5 rounded-full bg-black/35 px-3 text-[13px] font-semibold text-white backdrop-blur-sm transition-colors hover:bg-black/50"
-          >
-            <Pencil className="size-3.5" aria-hidden /> Edit profile
-          </button>
-        )}
       </div>
       <div className="relative px-4 pb-4 desk:px-6">
         <div className="pointer-events-none -mt-11 flex items-end justify-between gap-3 *:pointer-events-auto">
           <Avatar profile={profile} school={school} size={88} />
-          {aside && <div className="pb-1">{aside}</div>}
+          {(aside || isMe) && (
+            <div className="flex items-center gap-2 pb-1">
+              {aside}
+              {isMe && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="relative z-10 inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 text-[13px] font-semibold text-maroon shadow-sm transition-colors hover:bg-sand"
+                >
+                  <Pencil className="size-3.5" aria-hidden /> Edit profile
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <h1 className="mt-2 font-display text-[28px] leading-tight font-semibold">{name}</h1>
         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">

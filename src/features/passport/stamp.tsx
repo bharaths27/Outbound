@@ -94,8 +94,10 @@ export interface StampProps {
 }
 
 /** Stations with a hand-drawn stamp in public/stations. */
-const HAND_DRAWN = new Set(["place-pktrm", "place-gover", "place-haecl", "place-coecl", "place-kencl", "place-bucen", "place-harsq", "place-cntsq", "place-chncl"]);
-const TIER_DOT: Record<Tier, string> = { bronze: "#A8643A", silver: "#8C96A8", gold: "#D9A21B" };
+const HAND_DRAWN = new Set([
+  "place-pktrm", "place-gover", "place-haecl", "place-coecl", "place-kencl", "place-bucen", "place-harsq", "place-cntsq", "place-chncl",
+  "place-sstat", "place-harvd", "place-grnst", "place-knncl", "place-davis", "place-cool", "place-rbmnl", "place-qnctr",
+]);
 
 export function Stamp({
   questId,
@@ -143,13 +145,15 @@ export function Stamp({
             className={cn("max-h-full max-w-full object-contain select-none", locked ? "opacity-45 grayscale" : "drop-shadow-[0_2px_2px_rgb(43_26_31/0.25)]")}
           />
           {!locked && (
-            <span
-              aria-hidden
-              className="absolute -right-0.5 -bottom-0.5 grid place-items-center rounded-full border-2 border-white font-bold text-white shadow-sm"
-              style={{ width: size * 0.26, height: size * 0.26, fontSize: size * 0.11, background: TIER_DOT[tier], boxShadow: crossSchool ? `0 0 0 2px ${crossRing}` : undefined }}
-            >
-              {tier[0].toUpperCase()}
-            </span>
+            // Tier seal (bronze star, silver two stars, gold crown) and the cross-school seal.
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/stamps/tier-${tier}.webp`} alt="" aria-hidden className="absolute -right-1 -bottom-1 drop-shadow-sm" style={{ width: size * 0.32, height: size * 0.32 }} />
+              {crossSchool && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src="/stamps/cross-school.webp" alt="" aria-hidden className="absolute -bottom-1 -left-1 drop-shadow-sm" style={{ width: size * 0.32, height: size * 0.32 }} />
+              )}
+            </>
           )}
         </span>
       );

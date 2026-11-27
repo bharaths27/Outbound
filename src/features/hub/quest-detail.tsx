@@ -167,16 +167,17 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   const directions = (
     <Link
       href={directionsHref}
-      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-maroon px-4 text-sm font-semibold text-white outline-none hover:bg-maroon-600 focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2"
+      className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-full bg-maroon px-3 text-sm font-semibold text-white outline-none hover:bg-maroon-600 focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2"
     >
       <Navigation className="size-4" aria-hidden /> Directions
     </Link>
   );
   const actions = (
-    <div className="flex flex-wrap gap-2">
+    // One row: Directions, Share and (after a check-in this week) Vote, split evenly.
+    <div className="grid auto-cols-fr grid-flow-col gap-2 [&>*]:min-w-0 [&>*]:px-3">
       {directions}
-      <ShareQuestButton questId={quest.id} questTitle={quest.title} />
-      <RecommendButton questId={quest.id} visits={player.visits} />
+      <ShareQuestButton questId={quest.id} questTitle={quest.title} compact />
+      <RecommendButton questId={quest.id} visits={player.visits} compact />
     </div>
   );
 
@@ -258,11 +259,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
           {reward}
           <div className="w-full">{checkIn}</div>
           <p className="text-[13px] text-muted-foreground">You&apos;ll need to be within {quest.checkin_radius_m} m.</p>
-          <div className="flex w-full flex-col gap-2 [&>a]:w-full [&>button]:w-full">
-            {directions}
-            <ShareQuestButton questId={quest.id} questTitle={quest.title} />
-            <RecommendButton questId={quest.id} visits={player.visits} />
-          </div>
+          <div className="w-full">{actions}</div>
         </div>
         {dealsBox}
       </aside>

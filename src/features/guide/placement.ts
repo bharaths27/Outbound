@@ -8,7 +8,7 @@
 
 export type GuidePlacement = "explore-only" | "everywhere";
 
-export const GUIDE_PLACEMENT: GuidePlacement = "everywhere";
+export const GUIDE_PLACEMENT: GuidePlacement = "explore-only";
 
 /** Whether the floating Ask Guide button shows on this page. */
 export function guideFloatsOn(pathname: string, placement: GuidePlacement = GUIDE_PLACEMENT): boolean {

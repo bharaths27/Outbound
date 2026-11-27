@@ -123,7 +123,6 @@ export function PassportPage() {
   );
 }
 
-const STAR = "M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z";
 
 function levelProgress(profile: Profile) {
   const { into, pct } = sharedLevelProgress(profile);
@@ -247,27 +246,25 @@ function NextStamp({ view }: { view: PassportView }) {
   );
 }
 
+const LEGEND: [string, string, string][] = [
+  ["tier-bronze", "Bronze", "1 quest"],
+  ["tier-silver", "Silver", "3 quests"],
+  ["tier-gold", "Gold", "5 quests"],
+  ["cross-school", "Cross-school", "with a squad from another school"],
+];
+
 function Legend() {
   return (
-    <div className="grid grid-cols-2 gap-x-2.5 gap-y-1.5 border-t border-divider pt-2.5 text-xs text-muted-2 desk:grid-cols-4">
-      <span className="flex items-center gap-1.5">
-        <span aria-hidden className="size-3 rounded-full border-[2.5px] border-tier-bronze" />
-        <b className="text-ink">Bronze</b> 1 quest
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span aria-hidden className="size-3 rounded-full bg-tier-silver" />
-        <b className="text-ink">Silver</b> 3 quests
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span aria-hidden className="size-3 rounded-full bg-gold-500" />
-        <b className="text-ink">Gold</b> 5 quests
-      </span>
-      <span className="flex items-center gap-1.5">
-        <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" className="fill-gold-500">
-          <path d={STAR} />
-        </svg>
-        <b className="text-ink">Cross-school</b> gold ring
-      </span>
+    <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-divider pt-3 text-xs text-muted-2 desk:grid-cols-4">
+      {LEGEND.map(([img, name, how]) => (
+        <span key={img} className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/stamps/${img}.webp`} alt="" aria-hidden className="size-7 shrink-0" />
+          <span>
+            <b className="text-ink">{name}</b> {how}
+          </span>
+        </span>
+      ))}
     </div>
   );
 }

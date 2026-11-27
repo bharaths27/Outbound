@@ -286,21 +286,22 @@ function BoardBody({ ctx, hoodOf, name, reload }: { ctx: Ctx; hoodOf: (q: string
         <div role="tablist" className="flex gap-1 overflow-x-auto rounded-full bg-sand p-1 [scrollbar-width:none]">
           {(
             [
-              ["reviews", `Reviews ${reviews.length}`],
-              ["been", `Been ${new Set(board.visits.map((v) => v.quest_id)).size}`],
-              ["want", `Want to go ${board.saved.length}`],
-              ...(you ? [["friends", "Friends' picks"]] : []),
-            ] as [typeof tab, string][]
-          ).map(([id, label]) => (
+              ["reviews", "Reviews", reviews.length],
+              ["been", "Been", new Set(board.visits.map((v) => v.quest_id)).size],
+              ["want", "Want to go", board.saved.length],
+              ...(you ? [["friends", "Friends", null]] : []),
+            ] as [typeof tab, string, number | null][]
+          ).map(([id, label, count]) => (
             <button
               key={id}
               role="tab"
               type="button"
               aria-selected={tab === id}
               onClick={() => setTab(id)}
-              className={cn("h-8 shrink-0 flex-1 rounded-full px-3 text-[13px] font-semibold whitespace-nowrap transition-colors", tab === id ? "bg-maroon text-white shadow-sm" : "text-ink hover:bg-white/60")}
+              className={cn("inline-flex h-8 shrink-0 flex-1 items-center justify-center gap-1 rounded-full px-2 text-[13px] font-semibold whitespace-nowrap transition-colors", tab === id ? "bg-maroon text-white shadow-sm" : "text-ink hover:bg-white/60")}
             >
               {label}
+              {count !== null && <span className={cn("text-[12px] tabular-nums", tab === id ? "text-white/75" : "text-muted-foreground")}>{count}</span>}
             </button>
           ))}
         </div>
