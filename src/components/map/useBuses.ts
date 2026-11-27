@@ -4,9 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MlMap } from "maplibre-gl";
 import type { Bus } from "@/lib/bus";
 import { decodePolyline, makeRoadNet } from "./bus-track";
-import { BUS_3D_MIN_ZOOM, busFit, BusAnimator, Buses3DLayer, SampleBuses, loadSampleRoutes, bearingOf, topBusId, topBusImage, type BusNow } from "./buses3d";
+import { BUS_3D_MIN_ZOOM, BusAnimator, Buses3DLayer, SampleBuses, loadSampleRoutes, bearingOf, topBusId, topBusImage, type BusNow } from "./buses3d";
 
 const BUS_INTERVAL_MS = 15_000;
+/** Street width in meters by road rank in ground/major.json (5 motorway, 4 trunk, 3 primary, 2 secondary, 1 tertiary),
+ *  as the map draws them up close (style.ts realRoadMeters). */
+const ROAD_W: Record<number, number> = { 5: 22, 4: 15, 3: 15, 2: 12, 1: 12 };
 
 async function fetchBuses(): Promise<Bus[]> {
   const r = await fetch("/api/buses", { cache: "no-store" });
@@ -68,7 +71,8 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
         "icon-rotate": ["get", "rot"],
         "icon-rotation-alignment": "map",
         "icon-pitch-alignment": "map",
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.32, 13, 0.5, BUS_3D_MIN_ZOOM, 0.7],
+        // about as wide as the drawn street, so the bus stays on it
+        "icon-size": ["interpolate", ["exponential", 1.6], ["zoom"], 10, 0.18, 13, 0.24, 15, 0.36, BUS_3D_MIN_ZOOM, 0.5],
         "icon-allow-overlap": false, // overlapping buses hide, so far out doesn't turn into a yellow blur
         "icon-padding": 0,
         // route number stays upright and readable
@@ -104,12 +108,18 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
       .then((fc: GeoJSON.FeatureCollection) => {
         if (!alive) return;
         const lines: [number, number][][] = [];
+        const widths: number[] = [];
         for (const f of fc.features) {
           const g = f.geometry;
-          if (g.type === "LineString") lines.push(g.coordinates as [number, number][]);
-          else if (g.type === "MultiLineString") lines.push(...(g.coordinates as [number, number][][]));
+          // drawn width of the street (style.ts realRoadMeters): motorway, trunk/primary, secondary/tertiary
+          const w = ROAD_W[(f.properties?.r as number) ?? 1] ?? 12;
+          const parts = g.type === "LineString" ? [g.coordinates] : g.type === "MultiLineString" ? g.coordinates : [];
+          for (const l of parts) {
+            lines.push(l as [number, number][]);
+            widths.push(w);
+          }
         }
-        animRef.current.setRoads(makeRoadNet(lines));
+        animRef.current.setRoads(makeRoadNet(lines, 42.36, widths));
       })
       .catch(() => {});
     return () => {
@@ -180,7 +190,7 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
       if (map.getZoom() >= BUS_3D_MIN_ZOOM + 0.2) return;
       // (refreshed every 500 ms so the flat buses glide instead of hopping)
       const src = map.getSource("buses-2d") as GeoJSONSource | undefined;
-      src?.setData(toGeo(animRef.current.now(performance.now(), busFit(map.getZoom(), map.getCenter().lat).offset)));
+      src?.setData(toGeo(animRef.current.now(performance.now(), 0))); // on the street line: the flat icon is about one street wide
     }, 500);
     return () => clearInterval(t);
   }, [map, ready, on]);

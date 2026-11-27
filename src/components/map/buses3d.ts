@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CustomLayerInterface, CustomRenderMethodInput, Map as MlMap } from "maplibre-gl";
 import { BUS_YELLOW, SILVER_GRAY, meters, type Bus } from "@/lib/bus";
-import { bendPose, type BusAnimator, type BusNow } from "./bus-track";
+import { bendPose, DEFAULT_ROAD_M, laneOffset, type BusAnimator, type BusNow } from "./bus-track";
 import { modelMatrix } from "./trains3d";
 import { evalZoomInterp, metersPerPx, realRoadMeters } from "./style";
 
@@ -28,7 +28,7 @@ export function roadMeters(zoom: number, lat: number): number {
 
 /** Below this zoom buses are flat top-down icons pointing the way they drive; from here on, 3D models.
  *  Further out a 3D bus would have to be blown up past the street and into the buildings to be seen. */
-export const BUS_3D_MIN_ZOOM = 15;
+export const BUS_3D_MIN_ZOOM = 16;
 
 /** Half the width of a real main street, curb to curb (meters). A bus never reaches past this,
  *  so it never pokes into a building even when drawn bigger than life. */
@@ -37,12 +37,11 @@ export const HALF_STREET_M = 9;
 /** How big and where across the street a bus is drawn: width in meters and how far right of the centerline. */
 export function busFit(zoom: number, lat: number): { width: number; offset: number } {
   const road = roadMeters(zoom, lat);
-  // fits in its own half of the street: between the centerline and the curb
-  // bigger than life only when zoomed out (so it can still be seen); real size from zoom 17.5 in, next to real buildings
-  const width = Math.max(BUS_WIDTH, Math.min(0.5 * road, 0.9 * HALF_STREET_M, BUS_WIDTH * Math.pow(2, Math.max(0, 17.5 - zoom))));
-  // in the middle of the right-hand lane, never over the centerline or the curb
-  const offset = Math.max(width / 2 + 0.3, Math.min(road / 4, HALF_STREET_M - width / 2, road / 2 - width / 2));
-  return { width, offset };
+  // Real size from zoom 17.5 in; a little bigger (up to 1.5x) further out so it can still be seen, but never wider
+  // than a lane of the narrowest street a bus drives (DEFAULT_ROAD_M), so it always fits between centerline and curb.
+  const grow = Math.min(1.5, 1 + Math.max(0, 17.5 - zoom) / 3);
+  const width = Math.min(BUS_WIDTH * grow, Math.max(BUS_WIDTH, DEFAULT_ROAD_M / 2 - 0.5), 0.5 * road);
+  return { width: Math.max(BUS_WIDTH, width), offset: laneOffset(Math.min(road, 2 * HALF_STREET_M), Math.max(BUS_WIDTH, width)) };
 }
 
 export { BusAnimator, type BusNow } from "./bus-track";
@@ -433,7 +432,9 @@ export class Buses3DLayer implements CustomLayerInterface {
       // Bend at the joint: each section follows the street from its own axle (straight when off any street shape).
       let lng = x.lng, lat = x.lat, front = x.heading, rear = x.heading;
       if (x.shape && x.along != null) {
-        const pose = bendPose(x.shape, x.along, side, FRONT_AXLE * scale, REAR_AXLE * scale);
+        // in the right-hand lane of the street it is on (its drawn width), fully between centerline and curb
+        const busW = BUS_WIDTH * scale;
+        const pose = bendPose(x.shape, x.along, (roadW) => laneOffset(roadW, busW), FRONT_AXLE * scale, REAR_AXLE * scale);
         [lng, lat] = pose.p;
         front = pose.front;
         rear = pose.rear;

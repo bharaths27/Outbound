@@ -15,12 +15,37 @@ export interface Shape {
   /** Meters from the start to each point. */
   cum: number[];
   total: number;
+  /** Width in meters of the drawn street at each point (when snapped onto the streets). */
+  w?: number[];
 }
 
-export function makeShape(pts: LL[]): Shape {
+export function makeShape(pts: LL[], w?: number[]): Shape {
   const cum = [0];
   for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + meters(pts[i - 1], pts[i]));
-  return { pts, cum, total: cum.at(-1) ?? 0 };
+  return { pts, cum, total: cum.at(-1) ?? 0, w };
+}
+
+/** Width of a street nobody told us about (a side street): narrow, so a bus keeps close to the middle. */
+export const DEFAULT_ROAD_M = 9;
+
+/** Width of the street under a shape at a distance along it. */
+export function roadWidthAt(s: Shape, along: number): number {
+  if (!s.w) return DEFAULT_ROAD_M;
+  let lo = 0, hi = s.pts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (s.cum[mid] <= along) lo = mid;
+    else hi = mid - 1;
+  }
+  return Math.min(s.w[lo], s.w[Math.min(lo + 1, s.w.length - 1)]);
+}
+
+/** Meters right of the centerline for a bus `busW` wide on a street `roadW` wide: the middle of the right-hand lane,
+ *  but always fully between the centerline and the curb. */
+export function laneOffset(roadW: number, busW: number): number {
+  const half = roadW / 2;
+  const fit = Math.max(busW / 2 + 0.25, Math.min(roadW / 4, half - busW / 2 - 0.25));
+  return Math.min(fit, Math.max(busW / 2, half - busW / 2)); // a street narrower than two buses: hug the middle
 }
 
 /** Closest point on a shape: distance along it, how far off it the point is, and the direction there. */
@@ -66,16 +91,18 @@ export interface BusNow {
   along?: number;
 }
 
-/** A point `side` meters to the right of a shape at a distance along it, and the direction there. */
-export function lanePoint(s: Shape, along: number, side: number): { p: LL; heading: number } {
+/** A point `side` meters to the right of a shape at a distance along it, and the direction there.
+ *  `side` can depend on the width of the street there. */
+export function lanePoint(s: Shape, along: number, side: number | ((roadW: number) => number)): { p: LL; heading: number } {
   const { p, heading } = pointAt(s, along);
+  if (typeof side === "function") side = side(roadWidthAt(s, along));
   return { p: [p[0] + (Math.sin(heading) * side) / kx(p[1]), p[1] - (Math.cos(heading) * side) / KY], heading };
 }
 
 /** An articulated bus on a street: where the joint is and which way the front and rear sections point.
  *  Each section points along the chord from its axle to the joint, so on a corner the front turns first
  *  and the rear follows, bending at the joint. `ahead` / `behind` are the axle distances from the joint (m). */
-export function bendPose(s: Shape, along: number, side: number, ahead: number, behind: number): { p: LL; front: number; rear: number } {
+export function bendPose(s: Shape, along: number, side: number | ((roadW: number) => number), ahead: number, behind: number): { p: LL; front: number; rear: number } {
   const j = lanePoint(s, along, side);
   const f = lanePoint(s, Math.min(s.total, along + ahead), side);
   const r = lanePoint(s, Math.max(0, along - behind), side);
@@ -92,17 +119,21 @@ export function bendPose(s: Shape, along: number, side: number, ahead: number, b
 export interface RoadNet {
   lat0: number;
   segs: Float64Array; // x0, y0, x1, y1 in meters around (0, lat0)
+  /** Drawn width of each segment's street (m). */
+  w: Float32Array;
   grid: Map<string, number[]>;
 }
 const CELL_M = 60;
 const cellKey = (x: number, y: number) => `${Math.floor(x / CELL_M)},${Math.floor(y / CELL_M)}`;
 
-export function makeRoadNet(lines: LL[][], lat0 = 42.36): RoadNet {
+export function makeRoadNet(lines: LL[][], lat0 = 42.36, widths?: number[]): RoadNet {
   const k = kx(lat0);
   const out: number[] = [];
+  const ws: number[] = [];
   const grid = new Map<string, number[]>();
-  for (const l of lines)
+  lines.forEach((l, li) => {
     for (let i = 1; i < l.length; i++) {
+      ws.push(widths?.[li] ?? 12);
       const x0 = l[i - 1][0] * k, y0 = l[i - 1][1] * KY, x1 = l[i][0] * k, y1 = l[i][1] * KY;
       const id = out.length / 4;
       out.push(x0, y0, x1, y1);
@@ -116,13 +147,19 @@ export function makeRoadNet(lines: LL[][], lat0 = 42.36): RoadNet {
         a.push(id);
       }
     }
-  return { lat0, segs: new Float64Array(out), grid };
+  });
+  return { lat0, segs: new Float64Array(out), w: new Float32Array(ws), grid };
 }
 
 /** Moves a route line onto the nearest street running the same way (within `maxM`), point by point every ~8 m,
  *  so buses drive down the middle of the drawn road instead of beside it. Points with no street nearby stay. */
 export function snapToRoads(net: RoadNet, pts: LL[], maxM = 22): LL[] {
-  if (pts.length < 2) return pts;
+  return snapToRoadsW(net, pts, maxM).pts;
+}
+
+/** snapToRoads, plus the drawn width of the street at each point (DEFAULT_ROAD_M where no street was found). */
+export function snapToRoadsW(net: RoadNet, pts: LL[], maxM = 22): { pts: LL[]; w: number[] } {
+  if (pts.length < 2) return { pts, w: pts.map(() => DEFAULT_ROAD_M) };
   const k = kx(net.lat0);
   // densify
   const dense: [number, number, number, number][] = []; // x, y, dirx, diry
@@ -135,9 +172,10 @@ export function snapToRoads(net: RoadNet, pts: LL[], maxM = 22): LL[] {
     if (i === pts.length - 1) dense.push([x1, y1, (x1 - x0) / len, (y1 - y0) / len]);
   }
   const out: LL[] = [];
+  const ow: number[] = [];
   let last: [number, number] | null = null;
   for (const [x, y, ux, uy] of dense) {
-    let best: [number, number] | null = null, bestD = maxM;
+    let best: [number, number] | null = null, bestD = maxM, bestW = DEFAULT_ROAD_M;
     const cx = Math.floor(x / CELL_M), cy = Math.floor(y / CELL_M);
     for (let gx = cx - 1; gx <= cx + 1; gx++)
       for (let gy = cy - 1; gy <= cy + 1; gy++)
@@ -153,14 +191,16 @@ export function snapToRoads(net: RoadNet, pts: LL[], maxM = 22): LL[] {
           if (d < bestD) {
             bestD = d;
             best = [px, py];
+            bestW = net.w[id];
           }
         }
     const q = best ?? [x, y];
     if (last && Math.hypot(q[0] - last[0], q[1] - last[1]) < 1.5) continue;
     last = q;
     out.push([q[0] / k, q[1] / KY]);
+    ow.push(best ? bestW : DEFAULT_ROAD_M);
   }
-  return out.length > 1 ? out : pts;
+  return out.length > 1 ? { pts: out, w: ow } : { pts, w: pts.map(() => DEFAULT_ROAD_M) };
 }
 
 interface Track {
@@ -193,13 +233,19 @@ export class BusAnimator {
   setShapes(route: string, lines: LL[][]) {
     const ok = lines.filter((l) => l.length > 1);
     this.raw.set(route, ok);
-    this.shapes.set(route, ok.map((l) => makeShape(this.roads ? snapToRoads(this.roads, l) : l)));
+    this.shapes.set(route, ok.map((l) => this.shapeOf(l)));
+  }
+
+  private shapeOf(l: LL[]): Shape {
+    if (!this.roads) return makeShape(l);
+    const s = snapToRoadsW(this.roads, l);
+    return makeShape(s.pts, s.w);
   }
 
   /** The streets as drawn on the map: every route shape (now and later) is moved onto them. */
   setRoads(net: RoadNet, now = performance.now()) {
     this.roads = net;
-    for (const [route, lines] of this.raw) this.shapes.set(route, lines.map((l) => makeShape(snapToRoads(net, l))));
+    for (const [route, lines] of this.raw) this.shapes.set(route, lines.map((l) => this.shapeOf(l)));
     // buses on an old shape wait where they are until their next update snaps them to the new one
     for (const t of this.tracks.values()) {
       if (!t.shape) continue;
