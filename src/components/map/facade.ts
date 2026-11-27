@@ -115,7 +115,7 @@ const FRAG_COLOR = /* glsl */ `
     // far away: windows merge into soft floor stripes (still reads as a building, without shimmer)
     float sy = fwidth(cell.y);
     float stripes = (1.0 - smoothstep(0.45, 1.4, sy)) * obBox(f.y, glassy ? 0.12 : 0.3, glassy ? 0.86 : 0.8, max(sy * 0.7, 0.08));
-    vec3 winAvg = glassy ? vec3(0.26, 0.48, 0.78) : mix(base, vec3(0.3, 0.38, 0.5), 0.55);
+    vec3 winAvg = glassy ? mix(vec3(0.26, 0.48, 0.78), base, 0.3) : base * 0.62 + vec3(0.02, 0.03, 0.05); // keeps the wall's own color
     vec3 far = mix(base * (glassy ? 0.85 : 0.97), winAvg, stripes * (glassy ? 0.85 : 0.6));
     // texture: each bay of the facade is a slightly different shade, like real panels and brick
     float shade = 0.94 + 0.09 * obHash(vec2(id.x, 3.0)) + 0.03 * obHash(id + vec2(1.0, 2.0));

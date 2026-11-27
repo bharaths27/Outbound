@@ -21,6 +21,7 @@ base64-wrapped so the offline map can draw labels where only text/data files are
 | `commuter_rail.py` | `cr-lines.geojson`, `cr-stations.json` (MBTA GTFS copy at github.com/OkuraKenG/Trains `gtfs_data/mbta`) |
 | `bus_samples.py` | `bus-samples.json` every MBTA bus route on its real shape, for sample buses when the live feed is down (MBTA GTFS copy at github.com/transitmatters/mbta-gtfs-edgedb `feed/`) |
 | `trees_off_water.py` | removes trees on water from `trees.json` (run after `trees.py`) |
+| `trees_off_roads.py` | removes trees on streets, T/commuter rail tracks and Cambridge buildings (run after `trees_off_water.py`) |
 | `overture_ground.py` | `ground/` streets, paths, sidewalks, parks, water for the T area (Overture Maps; ODbL) |
 | `overture_crosswalks.py` | `ground/crosswalks.json` zebra crosswalks at main intersections (Overture Maps; ODbL) |
 | `overture_campuses.py` | `campuses.geojson`, one real outline per school (Overture Maps / OpenStreetMap; ODbL) |

@@ -199,12 +199,17 @@ export function plainStyle(style: StyleSpecification): StyleSpecification {
     if (layer.type === "line" && layer["source-layer"] === "transportation") widenToReal(layer);
     if (layer.type === "fill-extrusion" && layer["source-layer"] === "building") {
       layer.minzoom = 13;
-      layer.maxzoom = FACADE_MIN_ZOOM;
+      delete layer.maxzoom; // stays under the facade buildings (osmFacades.ts) so nothing disappears while they build
       (layer as { filter?: unknown }).filter = ["!=", ["get", "hide_3d"], true];
       layer.paint = {
         "fill-extrusion-color": buildingExtrusionColor("map"),
-        // full height as soon as buildings appear, so zoomed out the city stays 3D
-        "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+        // full height as soon as buildings appear, so zoomed out the city stays 3D. Where the facade buildings take over,
+        // these sit just under their roofs (houses under the eaves of their gable roofs).
+        "fill-extrusion-height": [
+          "interpolate", ["linear"], ["zoom"],
+          FACADE_MIN_ZOOM - 0.01, ["coalesce", ["get", "render_height"], 6],
+          FACADE_MIN_ZOOM, ["case", ["<=", ["coalesce", ["get", "render_height"], 6], 15], 2.7, ["-", ["coalesce", ["get", "render_height"], 6], 0.3]],
+        ],
         "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
         "fill-extrusion-opacity": 0.95,
         "fill-extrusion-vertical-gradient": true,

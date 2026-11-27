@@ -2,7 +2,7 @@
 // (OpenFreeMap "building" layer: real footprints, heights, and the wall color OSM mappers gave them).
 // Each building gets windows, floor bands, shop fronts and doors on the ground floor, and roof detail
 // from the facade shader (facade.ts). Small houses get gable roofs (procBuildings.ts).
-// Farther out the basemap's plain extruded buildings show instead (style.ts, FACADE_MIN_ZOOM).
+// Farther out the basemap's plain extruded buildings show instead (style.ts, FACADE_MIN_ZOOM), in the same color per building.
 import * as THREE from "three";
 import type { CustomLayerInterface, CustomRenderMethodInput, Map as MlMap, MapGeoJSONFeature } from "maplibre-gl";
 import { modelMatrix } from "./trains3d";
@@ -13,8 +13,9 @@ import { buildCityMesh, makeTreeMesh, TREE_TIME, HOUSE_COLORS, type Footprint } 
 import type { ExpressionSpecification } from "maplibre-gl";
 
 /** From this zoom the buildings are drawn with facades; below it, the basemap's plain boxes. */
-export const FACADE_MIN_ZOOM = 15;
-const MAX_BUILDINGS = 7000;
+export const FACADE_MIN_ZOOM = 14;
+/** How many buildings get facades (nearest first): more when zoomed out, so the whole view keeps its detail. */
+export const maxBuildings = (zoom: number) => (zoom >= 15.5 ? 9000 : zoom >= 14.7 ? 14000 : 20000);
 /** Real trees (public/data/trees.json: canopy found in aerial photos, Cambridge park trees) show from this zoom. */
 export const TREES_MIN_ZOOM = 14;
 const TREES_CENTER: [number, number] = [-71.09, 42.363];
@@ -29,6 +30,17 @@ function hash(n: number) {
   return x - Math.floor(x);
 }
 
+// procBuildings' hash (no offset), kept for the house colors
+function houseHash(n: number) {
+  const x = Math.sin(n * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** Per-building seed for colors: the OSM id when the tiles carry one, else from the height (zoomed-out tiles merge buildings and drop ids). */
+export function buildingSeed(id: unknown, height: number, minHeight: number) {
+  return typeof id === "number" ? id % 100_003 : Math.round(height * 10) * 7 + Math.round(minHeight) * 3;
+}
+
 function hexRgb(s: unknown): number[] | undefined {
   if (typeof s !== "string") return undefined;
   const m = /^#?([0-9a-f]{6})$/i.exec(s.trim());
@@ -38,12 +50,12 @@ function hexRgb(s: unknown): number[] | undefined {
 }
 
 /** Wall color: the OSM building color when mapped, otherwise a Boston material picked by height (stable per building). */
-export function wallColor(colour: unknown, height: number, seed: number): number[] | undefined {
+export function wallColor(colour: unknown, height: number, seed: number): number[] {
   const own = hexRgb(colour);
   if (own) return own;
   const r = hash(seed);
   if (height > 45) return r > 0.3 ? GLASS[Math.floor(hash(seed + 1) * GLASS.length)] : STONE[Math.floor(hash(seed + 2) * STONE.length)];
-  if (height <= 15) return undefined; // houses: painted clapboard / brick colors from procBuildings
+  if (height <= 15) return HOUSE_COLORS[Math.floor(houseHash(seed + 1) * HOUSE_COLORS.length)]; // painted clapboard, brick
   return r > 0.45 ? BRICK[Math.floor(hash(seed + 3) * BRICK.length)] : STONE[Math.floor(hash(seed + 4) * STONE.length)];
 }
 
@@ -53,7 +65,12 @@ const pick = (list: number[][], h: ExpressionSpecification): ExpressionSpecifica
 
 /** wallColor as a MapLibre expression, so the zoomed-out plain buildings get the same colors as the facades up close. */
 export function wallColorExpression(): ExpressionSpecification {
-  const seed: ExpressionSpecification = ["%", ["to-number", ["id"], 0], 100_003];
+  const height: ExpressionSpecification = ["coalesce", ["get", "render_height"], 6];
+  const seed: ExpressionSpecification = [
+    "case",
+    ["==", ["typeof", ["id"]], "number"], ["%", ["id"], 100_003],
+    ["+", ["*", ["round", ["*", height, 10]], 7], ["*", ["round", ["coalesce", ["get", "render_min_height"], 0]], 3]],
+  ];
   // hash(n) above, and procBuildings' house hash (no offset)
   const h1 = (k: number): ExpressionSpecification => {
     const x: ExpressionSpecification = ["*", ["sin", ["+", ["*", ["+", seed, k], 12.9898], 78.233]], 43758.5453];
@@ -63,7 +80,6 @@ export function wallColorExpression(): ExpressionSpecification {
     const x: ExpressionSpecification = ["*", ["sin", ["*", ["+", seed, k], 12.9898]], 43758.5453];
     return ["-", x, ["floor", x]];
   };
-  const height: ExpressionSpecification = ["coalesce", ["get", "render_height"], 6];
   const own: ExpressionSpecification = ["case", ["==", ["typeof", ["get", "colour"]], "string"], ["get", "colour"], ""];
   const made: ExpressionSpecification = [
     "case",
@@ -75,14 +91,14 @@ export function wallColorExpression(): ExpressionSpecification {
 }
 
 /** Basemap building features -> footprints for buildCityMesh (deduplicated, nearest to `center` first). */
-export function footprintsOf(feats: Pick<MapGeoJSONFeature, "id" | "properties" | "geometry">[], center: [number, number], limit = MAX_BUILDINGS): Footprint[] {
+export function footprintsOf(feats: Pick<MapGeoJSONFeature, "id" | "properties" | "geometry">[], center: [number, number], limit = maxBuildings(16)): Footprint[] {
   const seen = new Set<string>();
   const out: { f: Footprint; d: number }[] = [];
   const k = Math.cos((center[1] * Math.PI) / 180);
   for (const f of feats) {
     const p = f.properties ?? {};
     if (p.hide_3d === true || p.hide_3d === "true") continue;
-    const h = Number(p.render_height ?? 0) || 6;
+    const h = Number(p.render_height ?? 6);
     const b = Number(p.render_min_height ?? 0) || 0;
     if (h - b < 1) continue;
     const g = f.geometry;
@@ -102,7 +118,7 @@ export function footprintsOf(feats: Pick<MapGeoJSONFeature, "id" | "properties" 
       if (seen.has(key)) continue;
       seen.add(key);
       // stable per building, so a rebuild keeps every color and window pattern
-      const seed = typeof f.id === "number" ? f.id % 100_003 : Math.round(cx * 1e5) * 31 + Math.round(cy * 1e5);
+      const seed = buildingSeed(f.id, h, b); // same seed as the zoomed-out color expression
       out.push({ f: { rings, h, b: b || undefined, rgb: wallColor(p.colour, h, seed), seed }, d: ((cx - center[0]) * k) ** 2 + (cy - center[1]) ** 2 });
     }
   }
@@ -129,6 +145,10 @@ export class OsmFacadesLayer implements CustomLayerInterface {
   private material = (() => {
     const m = makeFacadeMaterial(1, 4.1);
     m.side = THREE.DoubleSide; // clipped tile pieces don't have a reliable winding
+    // the basemap's plain buildings stay underneath (so nothing pops out while facades build); facades win the depth test
+    m.polygonOffset = true;
+    m.polygonOffsetFactor = -2;
+    m.polygonOffsetUnits = -8;
     return m;
   })();
   private tmp = new THREE.Matrix4();
@@ -225,8 +245,10 @@ export class OsmFacadesLayer implements CustomLayerInterface {
   };
   private onData = (e: { sourceId?: string; tile?: unknown }) => {
     if (e.sourceId !== this.source || !e.tile) return;
-    this.builtAt = null; // new buildings arrived: rebuild even if the view hasn't moved much
-    this.soon();
+    // new buildings arrived: rebuild even if the view hasn't moved much (once the tiles stop streaming in)
+    this.builtAt = null;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(this.onIdle, 900);
   };
 
   private onIdle = () => {
@@ -249,7 +271,7 @@ export class OsmFacadesLayer implements CustomLayerInterface {
       const zoom = this.map.getZoom();
       const center: [number, number] = [c.lng, c.lat];
       const feats = this.map.querySourceFeatures(this.source, { sourceLayer: this.sourceLayer });
-      const fps = footprintsOf(feats, center);
+      const fps = footprintsOf(feats, center, maxBuildings(zoom));
       const parts: THREE.BufferGeometry[] = [];
       for (let i = 0; i < fps.length; i += 400) {
         while (this.map.isMoving()) await new Promise((r) => setTimeout(r, 120));

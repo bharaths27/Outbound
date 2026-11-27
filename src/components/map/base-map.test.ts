@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import type { StyleSpecification } from "maplibre-gl";
 import { evalZoomInterp, metersPerPx, plainStyle } from "./style";
-import { FACADE_MIN_ZOOM, footprintsOf, wallColor, wallColorExpression } from "./osmFacades";
+import { buildingSeed, footprintsOf, wallColor, wallColorExpression } from "./osmFacades";
 import { createExpression } from "@maplibre/maplibre-gl-style-spec";
 
 // A slice of OpenFreeMap Liberty: one road, the subway line, the 3D buildings.
@@ -26,8 +26,8 @@ describe("Boston 3D base map", () => {
     expect(layer("satellite").layout?.visibility).toBe("none");
   });
 
-  it("plain buildings hand over to the facade buildings up close", () => {
-    expect(layer("building-3d").maxzoom).toBe(FACADE_MIN_ZOOM);
+  it("plain buildings stay under the facade buildings at every zoom, so nothing pops out while facades build", () => {
+    expect(layer("building-3d").maxzoom).toBeUndefined();
   });
 
   it("main roads are at least 15 m wide from zoom 15, and Liberty's own width further out", () => {
@@ -45,20 +45,21 @@ describe("facade buildings from the map's OSM buildings", () => {
   it("uses the OSM color when mapped, glass for towers, and keeps each building's look stable", () => {
     expect(wallColor("#aa3311", 20, 1)).toEqual([0xaa, 0x33, 0x11]);
     expect(wallColor(undefined, 120, 7)).toEqual(wallColor(undefined, 120, 7));
-    expect(wallColor(undefined, 10, 3)).toBeUndefined(); // small houses: painted house colors
+    expect(wallColor(undefined, 10, 3)).toHaveLength(3); // small houses: painted house colors
   });
   it("zoomed out, the plain buildings get the same wall color as their facades", () => {
     const ex = createExpression(wallColorExpression(), { type: "color" } as never);
     expect(ex.result).toBe("success");
-    const ev = (id: number, props: Record<string, unknown>) => {
+    const ev = (id: number | undefined, props: Record<string, unknown>) => {
       const c = (ex as { value: { evaluate: (g: unknown, f: unknown) => { r: number; g: number; b: number } } }).value.evaluate({ zoom: 14 }, { id, properties: props, type: 3 });
       return [c.r, c.g, c.b].map((v) => Math.round(v * 255));
     };
     for (const id of [1, 77, 4242, 99_871, 123_456_789]) {
-      for (const h of [30, 80, 200]) expect(ev(id, { render_height: h })).toEqual(wallColor(undefined, h, id % 100_003));
+      for (const h of [4, 9, 15, 16, 30, 80, 200]) expect(ev(id, { render_height: h })).toEqual(wallColor(undefined, h, buildingSeed(id, h, 0)));
     }
+    // zoomed-out tiles merge buildings and drop their ids: still the same color both ways
+    for (const h of [7, 22.5, 64]) expect(ev(undefined, { render_height: h, render_min_height: 3 })).toEqual(wallColor(undefined, h, buildingSeed(undefined, h, 3)));
     expect(ev(5, { render_height: 20, colour: "#aa3311" })).toEqual([0xaa, 0x33, 0x11]);
-    expect(ev(5, { render_height: 8 })).toHaveLength(3); // a house color
   });
   it("drops duplicates (one per tile), hidden parts, and sorts nearest first", () => {
     const f = (id: number, x: number, h = 20, extra = {}) => ({ id, properties: { render_height: h, ...extra }, geometry: { type: "Polygon" as const, coordinates: sq(x, 42.35) } });
