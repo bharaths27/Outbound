@@ -135,44 +135,80 @@ function door(xc: number) {
   ];
 }
 
-/** MBTA "T" roundel on both sides: dark disc, white ring, white T. */
+/** The T on the front: white disc, black ring and T, facing forward. */
+function frontT(x: number, y: number) {
+  const ring = new THREE.CylinderGeometry(0.2, 0.2, 0.03, 20);
+  ring.rotateZ(Math.PI / 2);
+  ring.translate(x, y, 0);
+  const disc = new THREE.CylinderGeometry(0.17, 0.17, 0.035, 20);
+  disc.rotateZ(Math.PI / 2);
+  disc.translate(x + 0.005, y, 0);
+  return [colored(ring, "#1b1b1b"), colored(disc, "#ffffff"), box(0.04, 0.06, 0.22, x + 0.02, y + 0.07, 0, "#1b1b1b"), box(0.04, 0.2, 0.06, x + 0.02, y - 0.02, 0, "#1b1b1b")];
+}
+
+/** MBTA "T" roundel on both sides: white disc, black ring, black T. */
 function roundel(x: number, y: number) {
   const out: THREE.BufferGeometry[] = [];
   for (const side of [1, -1]) {
     const z = side * (BUS_WIDTH / 2 + 0.14);
-    const ring = new THREE.CylinderGeometry(0.36, 0.36, 0.03, 20);
+    const ring = new THREE.CylinderGeometry(0.27, 0.27, 0.03, 20);
     ring.rotateX(Math.PI / 2);
     ring.translate(x, y, z);
-    const disc = new THREE.CylinderGeometry(0.3, 0.3, 0.035, 20);
+    const disc = new THREE.CylinderGeometry(0.23, 0.23, 0.035, 20);
     disc.rotateX(Math.PI / 2);
     disc.translate(x, y, z + side * 0.005);
-    out.push(colored(ring, "#ffffff"), colored(disc, "#1b1b1b"));
-    out.push(box(0.36, 0.08, 0.04, x, y + 0.12, z + side * 0.02, "#ffffff"), box(0.08, 0.36, 0.04, x, y - 0.03, z + side * 0.02, "#ffffff"));
+    out.push(colored(ring, "#1b1b1b"), colored(disc, "#ffffff"));
+    out.push(box(0.28, 0.07, 0.04, x, y + 0.09, z + side * 0.02, "#1b1b1b"), box(0.07, 0.27, 0.04, x, y - 0.02, z + side * 0.02, "#1b1b1b"));
   }
   return out;
 }
 
+/** Paint: MBTA buses are white with a yellow band (thin blue line above it, black line below) and a black front;
+ *  Silver Line buses are silver with a lighter band. */
+interface Livery {
+  body: string;
+  band: string;
+  above: string;
+  below: string;
+}
+export const MBTA_LIVERY: Livery = { body: "#fbfbf9", band: "#ffd233", above: "#2f86cf", below: "#1d1d1d" };
+const SILVER_LIVERY: Livery = { body: SILVER_GRAY, band: "#c9cfd3", above: "#ffffff", below: "#3a3a3a" };
+
+/** The side paint between x0 and x1: black rocker, yellow band with a black line under it and a blue line over it. */
+function sidePaint(x0: number, x1: number, l: Livery) {
+  const L = x1 - x0, cx = (x0 + x1) / 2, W = BUS_WIDTH;
+  return [
+    box(L, 0.18, W + 0.27, cx, 0.6, 0, "#2b2b2b"), // rocker
+    box(L - 0.1, 0.1, W + 0.29, cx, 0.96, 0, l.below),
+    box(L - 0.1, 0.58, W + 0.28, cx, 1.3, 0, l.band),
+    box(L - 0.1, 0.07, W + 0.29, cx, 1.63, 0, l.above),
+  ];
+}
+
 /** The front section: cab, windshield, LED sign, two doors, front + middle axles, roof AC and battery pods. */
-function frontGeometry(body: string, stripe: string): THREE.BufferGeometry {
+function frontGeometry(l: Livery): THREE.BufferGeometry {
+  const body = l.body;
   const x0 = JOINT_GAP, x1 = JOINT_GAP + FRONT_LEN, W = BUS_WIDTH, H = BUS_HEIGHT;
   const fx = x1 + 0.12;
   const parts = [
     shell(x0, x1, body, true, false),
-    box(FRONT_LEN, 0.42, W + 0.3, (x0 + x1) / 2, 0.72, 0, "#3a3a3a"), // skirt
-    box(FRONT_LEN - 0.6, 0.16, W + 0.3, (x0 + x1) / 2, 1.5, 0, stripe), // side stripe
-    box(FRONT_LEN - 0.4, 0.06, W + 0.31, (x0 + x1) / 2, 1.36, 0, "#ffffff"), // pinstripe
+    ...sidePaint(x0, x1, l),
     ...windows(x0 + 0.4, x1 - 1.9, body, [[x1 - 2.6, x1], [x0 + 1.5, x0 + 3.1]]),
     ...door(x1 - 1.25), // front door, by the driver
     ...door(x0 + 2.3), // middle door, ahead of the joint
     box(0.05, 0.95, 0.05, x1 - 0.2, 2.27, -(W / 2 + 0.13), GLASS), // driver's side window
-    // front face
+    // front face: black mask around the windshield and sign, yellow below it with the T
+    box(0.12, 1.95, W - 0.02, fx - 0.03, 2.2, 0, "#151515"),
+    box(0.13, 0.52, W - 0.06, fx + 0.01, 1.08, 0, l.band),
+    box(0.13, 0.07, W - 0.06, fx + 0.02, 0.8, 0, l.below),
+    ...frontT(fx + 0.09, 1.1),
     box(0.14, 1.45, W - 0.18, fx, 1.98, 0, GLASS), // windshield
     box(0.15, 0.08, W - 0.3, fx + 0.01, 1.6, 0, "#7d8b97"), // wiper line
     box(0.16, 0.34, W - 0.4, fx, 2.92, 0, "#141414"), // destination sign housing
     box(0.17, 0.2, W - 0.7, fx + 0.01, 2.92, 0, "#ffb02e"), // amber LED text
-    box(0.14, 0.42, W - 0.1, fx - 0.02, 0.96, 0, "#2b2b2b"), // bumper
-    box(0.12, 0.2, 0.44, fx + 0.02, 1.25, 0.86, "#fff7d6"), box(0.12, 0.2, 0.44, fx + 0.02, 1.25, -0.86, "#fff7d6"), // headlights
-    box(0.12, 0.09, 0.3, fx + 0.03, 1.42, 0.92, "#ffb02e"), box(0.12, 0.09, 0.3, fx + 0.03, 1.42, -0.92, "#ffb02e"), // turn signals
+    box(0.22, 0.34, W - 0.02, fx, 0.66, 0, "#232323"), // bumper
+    box(0.12, 0.18, 0.44, fx + 0.02, 0.98, 0.86, "#fff7d6"), box(0.12, 0.18, 0.44, fx + 0.02, 0.98, -0.86, "#fff7d6"), // headlights
+    box(0.12, 0.09, 0.22, fx + 0.03, 0.98, 1.17, "#ff8a1e"), box(0.12, 0.09, 0.22, fx + 0.03, 0.98, -1.17, "#ff8a1e"), // turn signals
     box(0.45, 0.06, W - 0.6, fx + 0.25, 0.95, 0, "#6c7378"), box(0.06, 0.5, W - 0.6, fx + 0.47, 1.18, 0, "#6c7378"), // bike rack
     box(0.08, 0.36, 0.14, x1 - 0.1, 2.55, W / 2 + 0.42, RUBBER), box(0.08, 0.36, 0.14, x1 - 0.1, 2.55, -(W / 2 + 0.42), RUBBER), // mirrors
     box(0.6, 0.05, 0.05, x1 - 0.35, 2.75, W / 2 + 0.3, RUBBER), box(0.6, 0.05, 0.05, x1 - 0.35, 2.75, -(W / 2 + 0.3), RUBBER), // mirror arms
@@ -181,21 +217,20 @@ function frontGeometry(body: string, stripe: string): THREE.BufferGeometry {
     box(2.5, 0.42, 1.7, x0 + 2.0, H + 0.4, 0, "#dcd6cc"), // AC unit
     box(2.3, 0.08, 1.4, x0 + 2.0, H + 0.64, 0, "#bfb8ad"),
     box(1.6, 0.32, 0.55, x0 + 4.0, H + 0.34, 0.55, "#e4e0d8"), box(1.6, 0.32, 0.55, x0 + 4.0, H + 0.34, -0.55, "#e4e0d8"), // battery pods
-    ...roundel(x0 + 5.2, 1.0),
+    ...roundel(x1 - 2.6 - 1.25, 1.3), // T logo on the yellow band, behind the front door
     ...wheel(x1 - 2.6, 1), ...wheel(x1 - 2.6, -1), ...wheel(x0 + 1.0, 1), ...wheel(x0 + 1.0, -1),
   ];
   return mergeGeometries(parts)!;
 }
 
 /** The rear section: windows, a back door, the drive axle, engine grille, tail lights and the rear AC. */
-function rearGeometry(body: string, stripe: string): THREE.BufferGeometry {
+function rearGeometry(l: Livery): THREE.BufferGeometry {
+  const body = l.body;
   const x1 = -JOINT_GAP, x0 = -JOINT_GAP - REAR_LEN, W = BUS_WIDTH, H = BUS_HEIGHT;
   const bx = x0 - 0.12;
   const parts = [
     shell(x0, x1, body, false, true),
-    box(REAR_LEN, 0.42, W + 0.3, (x0 + x1) / 2, 0.72, 0, "#3a3a3a"),
-    box(REAR_LEN - 0.4, 0.16, W + 0.3, (x0 + x1) / 2, 1.5, 0, stripe),
-    box(REAR_LEN - 0.3, 0.06, W + 0.31, (x0 + x1) / 2, 1.36, 0, "#ffffff"),
+    ...sidePaint(x0, x1, l),
     ...windows(x0 + 0.5, x1 - 0.3, body, [[x1 - 2.4, x1 - 0.6]]),
     ...door(x1 - 1.5), // back door, just behind the joint
     // back face
@@ -223,7 +258,7 @@ function jointGeometry(): THREE.BufferGeometry {
 }
 
 /** For tests: the merged yellow bus sections. */
-export const busGeometryForTest = () => mergeGeometries([frontGeometry(BUS_YELLOW, "#6B1F33"), rearGeometry(BUS_YELLOW, "#6B1F33"), jointGeometry()]);
+export const busGeometryForTest = () => mergeGeometries([frontGeometry(MBTA_LIVERY), rearGeometry(MBTA_LIVERY), jointGeometry()]);
 
 /** The roof number: a dark rounded plate with the route number, drawn once per number. */
 function roofTexture(number: string, silver: boolean): THREE.CanvasTexture {
@@ -329,8 +364,8 @@ export class Buses3DLayer implements CustomLayerInterface {
       this.scene.add(m);
       return m;
     };
-    this.yellow = { front: make(frontGeometry(BUS_YELLOW, "#6B1F33"), MAX_BUSES), rear: make(rearGeometry(BUS_YELLOW, "#6B1F33"), MAX_BUSES) };
-    this.gray = { front: make(frontGeometry(SILVER_GRAY, "#c7cdd1"), 200), rear: make(rearGeometry(SILVER_GRAY, "#c7cdd1"), 200) };
+    this.yellow = { front: make(frontGeometry(MBTA_LIVERY), MAX_BUSES), rear: make(rearGeometry(MBTA_LIVERY), MAX_BUSES) };
+    this.gray = { front: make(frontGeometry(SILVER_LIVERY), 200), rear: make(rearGeometry(SILVER_LIVERY), 200) };
     this.joints = make(jointGeometry(), MAX_BUSES + 200);
     this.arrows = new THREE.InstancedMesh(this.arrowGeo, new THREE.MeshBasicMaterial({ color: "#ffffff", side: THREE.DoubleSide }), MAX_BUSES);
     this.arrows.count = 0;
@@ -475,17 +510,17 @@ export function topBusImage(id: string): { width: number; height: number; data: 
   g.roundRect(5, 10, 22, 52, 7);
   g.fill();
   // body
-  g.fillStyle = id === "bus-top-s" ? SILVER_GRAY : BUS_YELLOW;
+  g.fillStyle = id === "bus-top-s" ? SILVER_GRAY : BUS_YELLOW; // the yellow band shows along the sides
   g.strokeStyle = "#2B1A1F";
   g.lineWidth = 2;
   g.beginPath();
   g.roundRect(4, 8, 22, 52, 7);
   g.fill();
   g.stroke();
-  // white roof panel
+  // white roof (the whole top of a real MBTA bus is white)
   g.fillStyle = "#f7f4ee";
   g.beginPath();
-  g.roundRect(8, 22, 14, 34, 3);
+  g.roundRect(7, 18, 16, 40, 3);
   g.fill();
   // the accordion joint, about two thirds of the way back
   g.fillStyle = "#2a2b2d";
