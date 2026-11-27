@@ -105,6 +105,9 @@ function progressOn(r: Route, pos: LL) {
 const pathKm = (p: LL[]) => p.slice(1).reduce((n, pt, i) => n + kmBetween(p[i], pt), 0);
 const TRAIN_SVG =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.1V7a4 4 0 0 0 8 0V3.1"/><path d="m9 15-1-1"/><path d="m15 15 1-1"/><path d="M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5Z"/><path d="m8 19-2 3"/><path d="m16 19 2 3"/></svg>';
+/** Dark text on the yellow bus color, white on the T line colors. */
+const pillInk = (bg?: string) => (bg?.toUpperCase() === "#FFC72C" ? "#3b2a00" : "#ffffff");
+const isBusLine = (line?: string) => !!line && (line.startsWith("Bus ") || line.startsWith("SL"));
 const fareLabel = (fare?: number) => (fare === undefined ? "" : fare > 0 ? ` · ${"$"}${fare.toFixed(2)} fare` : " · free (walk)");
 
 export interface ExplorerHandle {
@@ -370,11 +373,17 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
     setError(null);
     resetRoute();
     try {
-      const r = await fetch(`/api/route?alts=1&from=${from[1]},${from[0]}&to=${p.lat},${p.lng}&name=${encodeURIComponent(p.name)}`);
+      const q = `from=${from[1]},${from[0]}&to=${p.lat},${p.lng}&name=${encodeURIComponent(p.name)}`;
+      // T options and one-bus options side by side; the bus lookup failing never blocks the T ones.
+      const [r, bus] = await Promise.all([
+        fetch(`/api/route?alts=1&${q}`),
+        fetch(`/api/bus-route?${q}`).then((x) => (x.ok ? x.json() : null)).catch(() => null) as Promise<{ options?: Route[] } | null>,
+      ]);
       const j = await r.json();
-      if (!r.ok || !j.options?.length) throw new Error(j.error ?? "No route found");
-      setOptions(j.options);
-      fit(j.options.map(pathOf), true);
+      const all: Route[] = [...(r.ok && j.options ? j.options : []), ...(bus?.options ?? [])].sort((a, b) => a.minutes - b.minutes).slice(0, 5);
+      if (!all.length) throw new Error(j.error ?? "No route found");
+      setOptions(all);
+      fit(all.map(pathOf), true);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -515,7 +524,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                         <span className="mt-1 flex flex-wrap items-center gap-1">
                           {rides.length === 0 && <span className="flex items-center gap-0.5 text-[var(--ob-muted)]"><Footprints size={12} aria-hidden /> Walk the whole way</span>}
                           {rides.map((x, k) => (
-                            <span key={k} className="rounded px-1.5 py-0.5 text-[11.5px] font-semibold text-white" style={{ background: x.color }}>{x.line}</span>
+                            <span key={k} className="rounded px-1.5 py-0.5 text-[11.5px] font-semibold" style={{ background: x.color, color: pillInk(x.color) }}>{x.line}</span>
                           ))}
                         </span>
                         <span className="mt-1 block text-[12.5px] text-[var(--ob-muted)]">
@@ -568,7 +577,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                         <span className="font-semibold">Now: </span>
                         {(() => {
                           const x = route.steps[prog.step];
-                          return x.mode === "walk" ? x.text : `Ride the ${x.line} Line ${x.from} → ${x.to} (${x.stops} stops)`;
+                          return x.mode === "walk" ? x.text : `Ride the ${isBusLine(x.line) ? x.line : `${x.line} Line`} ${x.from} → ${x.to} (${x.stops} stops)`;
                         })()}
                         {prog.offRoute && follow === "gps" && <span className="mt-0.5 block text-[12.5px] text-white/80">You’re off this route. Head back to it, or pick another option.</span>}
                       </>
@@ -589,7 +598,7 @@ const Explorer = forwardRef<ExplorerHandle, { map: MlMap | null; userLoc: [numbe
                       </>
                     ) : (
                       <>
-                        <span className="w-12 shrink-0 rounded px-1 text-center font-semibold text-white" style={{ background: x.color }}>
+                        <span className="w-12 shrink-0 rounded px-1 text-center font-semibold" style={{ background: x.color, color: pillInk(x.color) }}>
                           {x.line}
                         </span>
                         <span>

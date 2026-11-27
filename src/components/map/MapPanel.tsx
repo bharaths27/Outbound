@@ -18,6 +18,7 @@ import {
   Satellite,
   Palette,
   TrainFront,
+  BusFront,
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -26,6 +27,7 @@ import { destinationOf } from "./feed";
 
 export interface MapShow {
   trains: boolean;
+  buses: boolean;
   campuses: boolean;
   friends: boolean;
   delays: boolean;
@@ -129,6 +131,7 @@ export default function MapPanel(props: {
             <p className="mb-1.5 text-[11px] font-bold tracking-[0.08em] text-[var(--ob-muted)] uppercase">On the map</p>
             <div className="flex flex-wrap gap-1.5">
               <Tile icon={<TrainFront size={18} />} label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
+              <Tile icon={<BusFront size={18} />} label="Buses" on={show.buses} set={(v) => setShow({ ...show, buses: v })} />
               <Tile icon={<GraduationCap size={18} />} label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />
               <Tile icon={<PartyPopper size={18} />} label="Events" on={show.events} set={(v) => setShow({ ...show, events: v })} />
               <Tile icon={<Users size={18} />} label="Quests" on={show.friends} set={(v) => setShow({ ...show, friends: v })} />

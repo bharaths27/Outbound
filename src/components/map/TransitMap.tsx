@@ -21,6 +21,8 @@ import type { LineLateness, Station, Train } from "@/lib/types";
 import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
 import { TRACK_HALF_GAP, TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
+import { useBuses } from "./useBuses";
+import { busStatus } from "@/lib/bus";
 import { loadBaseStyle, groundLayerIds, registerFontProtocol } from "./style";
 import { CityBuildingsLayer, fetchBpdaManifest, fetchRegionManifest, inBpda, inRegion } from "./buildings3d";
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
@@ -157,7 +159,10 @@ export default function TransitMap() {
   const userLocRef = useRef<[number, number] | null>(null);
   const meMarker = useRef<maplibregl.Marker | null>(null);
   const explorer = useRef<ExplorerHandle>(null);
-  const [show, setShow] = useState<MapShow>({ trains: true, campuses: true, friends: true, delays: true, events: true });
+  const [show, setShow] = useState<MapShow>({ trains: true, buses: true, campuses: true, friends: true, delays: true, events: true });
+  const buses = useBuses(ready ? mapRef.current : null, ready, show.buses);
+  const busesRef = useRef(buses);
+  busesRef.current = buses;
   const [delayColors, setDelayColors] = useState(false);
   const [feedMode, setFeedMode] = useState<FeedMode>("live");
   const [autoFallback, setAutoFallback] = useState(false);
@@ -561,6 +566,7 @@ export default function TransitMap() {
           const id = e.features?.[0]?.properties?.id as string;
           const t = animRef.current?.snapshot().find((x) => x.id === id);
           if (t) {
+            busesRef.current.setBus(null);
             setTrain(t);
           }
         });
@@ -771,6 +777,12 @@ export default function TransitMap() {
     const map = mapRef.current;
     if (!ready || !map) return;
     const onMapClick = (e: maplibregl.MapMouseEvent) => {
+      const tapped = busesRef.current.busAt(e.point);
+      if (tapped) {
+        setTrain(null);
+        busesRef.current.setBus(tapped);
+        return;
+      }
       const hits = map.queryRenderedFeatures(e.point);
       if (hits.some((f) => ["poi-xp", "stations", "cr-stations", "trains-2d"].includes(f.layer.id))) return; // they have their own
       const poi = hits.find((f) => f.sourceLayer === "poi" && (f.properties?.name || f.properties?.["name:latin"]));
@@ -1675,6 +1687,29 @@ export default function TransitMap() {
             className="mt-3 w-full rounded-lg bg-[var(--ob-maroon)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
           >
             Directions
+          </button>
+        </Card>
+      )}
+
+      {/* bus card */}
+      {buses.bus && (
+        <Card onClose={() => buses.setBus(null)}>
+          <span
+            className="rounded px-1.5 py-0.5 text-[11px] font-extrabold"
+            style={{ background: buses.bus.bus.silver ? "#8E979D" : "#FFC72C", color: buses.bus.bus.silver ? "#fff" : "#3b2a00" }}
+          >
+            {buses.bus.bus.silver ? `Silver Line ${buses.bus.bus.number.slice(2)}` : `Bus ${buses.bus.bus.number}`}
+          </span>
+          <h2 className="mt-1 text-lg font-semibold text-[var(--ob-ink)]">{buses.bus.bus.headsign ? `To ${buses.bus.bus.headsign}` : "MBTA bus"}</h2>
+          <p className="text-[var(--ob-ink-2)]">
+            {buses.bus.bus.stopName ? `${busStatus(buses.bus.bus.status)} ${buses.bus.bus.stopName}` : "On its route"}
+          </p>
+          {buses.sample && <p className="mt-1 text-xs text-[var(--ob-muted)]">Sample bus: the live MBTA bus feed isn’t reachable right now.</p>}
+          <button
+            className="mt-3 w-full rounded-lg border border-[var(--ob-line)] px-3 py-1.5 text-sm font-medium text-[var(--ob-ink)] hover:bg-[var(--ob-cream)]"
+            onClick={() => mapRef.current?.flyTo({ center: [buses.bus!.lng, buses.bus!.lat], zoom: 17, pitch: 62, duration: 1800 })}
+          >
+            Follow closer
           </button>
         </Card>
       )}
