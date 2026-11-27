@@ -105,7 +105,8 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
       // ---- house: walls to the eaves, gable roof along the long side, chimney ----
       const rgb = f.rgb ?? HOUSE_COLORS[Math.floor(r * HOUSE_COLORS.length)];
       const eave = Math.max(2.8, H - Math.min(box.hu, box.hv) * 0.75);
-      const roofCol = [[164, 85, 63], [138, 74, 58], [111, 106, 106], [95, 102, 112]][Math.floor(hash(i + 7) * 4)];
+      // shingles: a darker, grayer shade of the house's own color, so the roof always goes with the walls
+      const roofCol = rgb.map((c) => Math.round(c * 0.55 + 70 * 0.25));
       const long = box.hu >= box.hv;
       const c = Math.cos(box.ang), s = Math.sin(box.ang);
       const P = (u: number, v: number, y: number) => [box.cx + u * c - v * s, y, box.cz + u * s + v * c];
@@ -148,9 +149,8 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
       holes.filter((h) => h.length >= 3).map((h) => h.map(([x, z]) => new THREE.Vector2(x, z))),
     );
     const all = [...outer, ...holes.flat()];
-    // colored roofs like a game map: a lighter tone of the walls, and some green or teal roofs
-    const k = hash(i + 17);
-    const roofRgb = k < 0.14 ? [118, 168, 104] : k < 0.26 ? [92, 152, 164] : rgb.map((c) => Math.round(c * 0.78 + 255 * 0.22));
+    // roof: a lighter tone of the building's own walls, so it always goes with them
+    const roofRgb = rgb.map((c) => Math.round(c * 0.8 + 255 * 0.2));
     for (const [p, q, t] of shape) {
       const A = [all[p][0], H, all[p][1]], B = [all[q][0], H, all[q][1]], C = [all[t][0], H, all[t][1]];
       // face up: choose winding so the normal points +y

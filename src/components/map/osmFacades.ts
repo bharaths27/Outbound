@@ -16,7 +16,7 @@ import type { ExpressionSpecification } from "maplibre-gl";
 /** From this zoom the buildings are drawn with facades; below it, the basemap's plain boxes. */
 export const FACADE_MIN_ZOOM = 13;
 /** How many buildings get facades (nearest first): more when zoomed out, so the whole view keeps its detail. */
-export const maxBuildings = (zoom: number) => (zoom >= 15.5 ? 9000 : zoom >= 14.7 ? 14000 : zoom >= 13.7 ? 20000 : 26000);
+export const maxBuildings = (zoom: number) => (zoom >= 15.5 ? 7000 : zoom >= 14.5 ? 10000 : zoom >= 13.5 ? 14000 : 18000);
 /** Real trees (public/data/trees.json: canopy found in aerial photos, Cambridge park trees) show from this zoom. */
 export const TREES_MIN_ZOOM = 14;
 const TREES_CENTER: [number, number] = [-71.09, 42.363];
@@ -268,7 +268,7 @@ export class OsmFacadesLayer implements CustomLayerInterface {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private soon = () => {
     clearTimeout(this.timer);
-    this.timer = setTimeout(this.onIdle, 350);
+    this.timer = setTimeout(this.onIdle, 200);
   };
   private onData = (e: { sourceId?: string; tile?: unknown }) => {
     if (e.sourceId !== this.source) return;
@@ -312,9 +312,10 @@ export class OsmFacadesLayer implements CustomLayerInterface {
       const fps = footprintsOf(feats, center, maxBuildings(zoom));
       const next: Group = { meshes: [], center };
       this.next = next;
-      for (let i = 0; i < fps.length; i += 400) {
+      // nearest first: small batches up front so the buildings around you appear right away, bigger ones after
+      for (let i = 0, n = 300; i < fps.length; i += n, n = Math.min(1500, n * 2)) {
         while (this.map.isMoving()) await new Promise((r) => setTimeout(r, 120));
-        const mesh = new THREE.Mesh(buildCityMesh(fps.slice(i, i + 400), center), this.material);
+        const mesh = new THREE.Mesh(buildCityMesh(fps.slice(i, i + n), center), this.material);
         mesh.matrixAutoUpdate = false;
         mesh.frustumCulled = false;
         next.meshes.push(mesh);

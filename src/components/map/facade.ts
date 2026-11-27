@@ -124,9 +124,8 @@ const FRAG_COLOR = /* glsl */ `
     obWin *= max(detail, uNight * 0.7 * (1.0 - smoothstep(0.3, 1.2, px)));   // at night lit windows read from further away, like city lights
     obWin += vec3(1.0, 0.8, 0.45) * uNight * 0.35 * stripes * (1.0 - detail) * step(0.6, obHash(vec2(id.y, floor(u / 12.0))));
   } else if (up < 0.97) {
-    // ---- sloped roof: colored shingles in rows ----
-    float pick = fract(dot(base, vec3(13.1, 7.7, 3.3)) * 9.0);
-    vec3 roof = pick < 0.34 ? vec3(0.44, 0.38, 0.52) : pick < 0.67 ? vec3(0.32, 0.52, 0.56) : vec3(0.74, 0.44, 0.38);
+    // ---- sloped roof: shingles in rows, in the roof color the building gave (a shade of its walls) ----
+    vec3 roof = base;
     float row = fract(h / 0.45);
     float px = fwidth(h / 0.45);
     float lines = mix(1.0, 0.82 + 0.18 * smoothstep(0.0, 0.25, row), 1.0 - smoothstep(0.3, 0.7, px));
