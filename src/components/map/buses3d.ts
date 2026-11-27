@@ -8,7 +8,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { CustomLayerInterface, CustomRenderMethodInput, Map as MlMap } from "maplibre-gl";
 import { BUS_YELLOW, SILVER_GRAY, meters, type Bus } from "@/lib/bus";
 import { bendPose, laneOffset, type BusAnimator, type BusNow } from "./bus-track";
-import { modelMatrix } from "./trains3d";
+import { modelMatrix, trainScale } from "./trains3d";
 import { evalZoomInterp, metersPerPx, realRoadMeters } from "./style";
 
 /** Which road widths the map draws: the Boston 3D base map (OpenFreeMap Liberty, real width up close; style.ts
@@ -37,12 +37,13 @@ export const HALF_STREET_M = 9;
 /** How big and where across the street a bus is drawn: width in meters and how far right of the centerline. */
 export function busFit(zoom: number, lat: number): { width: number; offset: number } {
   const road = roadMeters(zoom, lat);
-  // Real size from zoom 18 in; bigger (up to 1.9x) further out so it's easy to see, but never wider than 5 m
-  // (about a main street's half) or half the drawn road, so it stays between centerline and curb.
-  const grow = Math.min(1.9, 1 + Math.max(0, 18 - zoom) / 2.2);
-  const width = Math.min(BUS_WIDTH * grow, 5, 0.5 * road);
-  return { width: Math.max(BUS_WIDTH, width), offset: laneOffset(Math.min(road, 2 * HALF_STREET_M), Math.max(BUS_WIDTH, width)) };
+  // A bit smaller than the trains (85% of their enlargement) so buses are as easy to spot; they keep to the
+  // right of the centerline, but at this size they can reach past a narrow street's curb.
+  const width = BUS_WIDTH * Math.max(1, BUS_TO_TRAIN * trainScale(zoom));
+  return { width, offset: laneOffset(Math.min(road, 2 * HALF_STREET_M), width) };
 }
+
+export const BUS_TO_TRAIN = 0.85;
 
 export { BusAnimator, type BusNow } from "./bus-track";
 

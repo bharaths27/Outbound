@@ -52,24 +52,24 @@ describe("bus tracks", () => {
   });
 });
 
-import { BUS_3D_MIN_ZOOM, busFit, HALF_STREET_M, roadMeters } from "./buses3d";
+import { BUS_3D_MIN_ZOOM, busFit, roadMeters } from "./buses3d";
+import { trainScale } from "./trains3d";
 
 describe("buses stay on the street", () => {
-  it("a bus never reaches past the curb or the drawn road, at any 3D zoom", () => {
+  it("a bus keeps to its own side of the centerline, at any 3D zoom", () => {
     for (let z = BUS_3D_MIN_ZOOM; z <= 21; z += 0.25) {
       const { width, offset } = busFit(z, 42.35);
-      const road = roadMeters(z, 42.35);
-      expect(offset + width / 2).toBeLessThanOrEqual(HALF_STREET_M + 1e-9);
-      expect(offset + width / 2).toBeLessThanOrEqual(road / 2 + 1.3); // real bus width allowed on very close zoom
       expect(offset - width / 2).toBeGreaterThanOrEqual(-1e-9); // stays in its own half, not across the centerline
     }
   });
 
-  it("main roads are drawn at least real width up close, and buses are real size there", () => {
+  it("main roads are drawn at least real width up close, and buses are a bit smaller than trains", () => {
     for (let z = 15; z <= 21; z += 0.5) expect(roadMeters(z, 42.35)).toBeGreaterThanOrEqual(15);
-    expect(busFit(18, 42.35).width).toBeCloseTo(2.6, 6);
-    expect(busFit(16, 42.35).width).toBeGreaterThan(2.6 * 1.6); // easy to see further out
-    expect(busFit(16, 42.35).width).toBeLessThanOrEqual(5 + 1e-9); // never huge
+    for (let z = BUS_3D_MIN_ZOOM; z <= 21; z += 0.5) {
+      const busScale = busFit(z, 42.35).width / 2.6;
+      expect(busScale).toBeLessThan(trainScale(z)); // a bit smaller than the trains
+      expect(busScale).toBeGreaterThan(0.8 * trainScale(z));
+    }
   });
 
   it("over a long random drive the bus is always on the street line", () => {
