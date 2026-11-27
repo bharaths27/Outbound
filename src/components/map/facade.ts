@@ -132,9 +132,9 @@ const FRAG_COLOR = /* glsl */ `
     float lines = mix(1.0, 0.82 + 0.18 * smoothstep(0.0, 0.25, row), 1.0 - smoothstep(0.3, 0.7, px));
     diffuseColor.rgb = roof * lines;
   } else {
-    // ---- flat roof: light gravel with a darker parapet look near edges is left to the walls ----
+    // ---- flat roof: the building's own roof color with a little gravel texture ----
     float n = obHash(floor(vLocal.xz * 1.5));
-    diffuseColor.rgb = mix(vec3(0.8, 0.78, 0.84), base, 0.35) * (0.95 + 0.05 * n);
+    diffuseColor.rgb = base * (0.93 + 0.07 * n);
   }
 }
 `;

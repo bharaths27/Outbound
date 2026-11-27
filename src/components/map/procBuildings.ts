@@ -148,7 +148,9 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
       holes.filter((h) => h.length >= 3).map((h) => h.map(([x, z]) => new THREE.Vector2(x, z))),
     );
     const all = [...outer, ...holes.flat()];
-    const roofRgb = [141, 144, 150];
+    // colored roofs like a game map: a lighter tone of the walls, and some green or teal roofs
+    const k = hash(i + 17);
+    const roofRgb = k < 0.14 ? [118, 168, 104] : k < 0.26 ? [92, 152, 164] : rgb.map((c) => Math.round(c * 0.78 + 255 * 0.22));
     for (const [p, q, t] of shape) {
       const A = [all[p][0], H, all[p][1]], B = [all[q][0], H, all[q][1]], C = [all[t][0], H, all[t][1]];
       // face up: choose winding so the normal points +y
