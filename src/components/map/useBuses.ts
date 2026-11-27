@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MlMap } from "maplibre-gl";
 import type { Bus } from "@/lib/bus";
-import { decodePolyline } from "./bus-track";
+import { decodePolyline, makeRoadNet } from "./bus-track";
 import { BUS_3D_MIN_ZOOM, busFit, BusAnimator, Buses3DLayer, SampleBuses, loadSampleRoutes, bearingOf, topBusId, topBusImage, type BusNow } from "./buses3d";
 
 const BUS_INTERVAL_MS = 15_000;
@@ -51,6 +51,7 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
   useEffect(() => {
     if (!ready || !map || map.getLayer("buses-3d")) return;
     const layer = new Buses3DLayer(animRef.current);
+    if (process.env.NODE_ENV !== "production") (window as unknown as { __obBuses: BusAnimator }).__obBuses = animRef.current; // for tests
     layerRef.current = layer;
     // Under the place labels, like the trains.
     const before = beforeId && map.getLayer(beforeId) ? beforeId : map.getStyle().layers.find((l) => l.type === "symbol")?.id;
@@ -93,6 +94,28 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
       map.off("styleimagemissing", onMissing);
     };
   }, [map, ready, beforeId]);
+
+  // The streets as drawn on the map, so every route shape is moved onto the road (bus-track.ts snapToRoads).
+  useEffect(() => {
+    if (!ready || !on) return;
+    let alive = true;
+    fetch("/data/ground/major.json")
+      .then((r) => r.json())
+      .then((fc: GeoJSON.FeatureCollection) => {
+        if (!alive) return;
+        const lines: [number, number][][] = [];
+        for (const f of fc.features) {
+          const g = f.geometry;
+          if (g.type === "LineString") lines.push(g.coordinates as [number, number][]);
+          else if (g.type === "MultiLineString") lines.push(...(g.coordinates as [number, number][][]));
+        }
+        animRef.current.setRoads(makeRoadNet(lines));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [ready, on]);
 
   // Show or hide.
   useEffect(() => {

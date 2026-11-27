@@ -87,6 +87,16 @@ const FRAG_COLOR = /* glsl */ `
       float lit = step(mix(0.94, 0.55, uNight), obHash(id));
       glass = mix(glass, vec3(1.0, 0.86, 0.55), lit * 0.85);
       c = mix(base, base * 0.82, band);
+      // brick walls up close: running-bond courses with light mortar joints
+      if (base.r > base.g * 1.3 && base.r > base.b * 1.3) {
+        float bv = h / 0.2;
+        float bu = u / 0.42 + 0.5 * mod(floor(bv), 2.0);
+        float bw = fwidth(bv);
+        float joint = max(1.0 - smoothstep(0.0, 0.1 + bw, fract(bv)), 1.0 - smoothstep(0.0, 0.05 + fwidth(bu), fract(bu)));
+        float near = 1.0 - smoothstep(0.12, 0.4, bw);
+        float tone = 0.92 + 0.16 * obHash(vec2(floor(bu), floor(bv)));
+        c = mix(c * mix(1.0, tone, near), mix(c, vec3(0.78, 0.74, 0.68), 0.6), joint * near * 0.7);
+      }
       c = mix(c, trimCol, trim);
       c = mix(c, trimCol * 1.05, sill);
       c = mix(c, glass, win);

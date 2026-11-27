@@ -1,30 +1,29 @@
 // Live MBTA buses on the map.
-//   Close and middle zoom: a 3D bus model (MBTA yellow, Silver Line gray) with its route number on the roof.
+//   Close and middle zoom: a 3D articulated bus (MBTA yellow, Silver Line gray) with its route number on the roof.
+//   It bends at the joint on turns: the front and rear sections each follow the street (bendPose in bus-track.ts).
 //   Zoomed really far out: a flat "mini bus" icon with the number (symbol layer, images drawn here).
 // Positions glide between MBTA snapshots, like the trains (trains3d.ts).
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CustomLayerInterface, CustomRenderMethodInput, Map as MlMap } from "maplibre-gl";
 import { BUS_YELLOW, SILVER_GRAY, meters, type Bus } from "@/lib/bus";
-import type { BusAnimator, BusNow } from "./bus-track";
+import { bendPose, type BusAnimator, type BusNow } from "./bus-track";
 import { modelMatrix } from "./trains3d";
+import { evalZoomInterp, metersPerPx, realRoadMeters } from "./style";
 
-/** Width in meters of a main road as drawn at this zoom (matches majorW in style.ts for a mid-size road, r = 2). */
+/** Which road widths the map draws: the Boston 3D base map (OpenFreeMap Liberty, real width up close; style.ts
+ *  widenToReal) or the offline basemap (style.ts majorW). */
+let roadStyle: "liberty" | "offline" = "liberty";
+export const setRoadStyle = (s: "liberty" | "offline") => void (roadStyle = s);
+
+const LIBERTY_PRIMARY: [number, number][] = [[5, 0], [7, 1], [20, 18]]; // "road_trunk_primary"
+const OFFLINE_MAJOR: [number, number][] = [[10, 3.1], [13, 10], [16, 34], [19, 152]]; // majorW, r = 2
+
+/** Width in meters of a main road as drawn at this zoom. */
 export function roadMeters(zoom: number, lat: number): number {
-  const stops: [number, number][] = [[10, 3.1], [13, 10], [16, 34], [19, 152]];
-  let px = stops[0][1];
-  for (let i = 1; i < stops.length; i++) {
-    const [z0, w0] = stops[i - 1], [z1, w1] = stops[i];
-    if (zoom <= z1) {
-      // exponential base 2, like the map's line-width interpolation
-      const t = (Math.pow(2, Math.max(0, zoom - z0)) - 1) / (Math.pow(2, z1 - z0) - 1);
-      px = w0 + (w1 - w0) * Math.min(1, Math.max(0, t));
-      break;
-    }
-    px = w1;
-  }
-  const metersPerPx = (40_075_016 * Math.cos((lat * Math.PI) / 180)) / (512 * Math.pow(2, zoom));
-  return px * metersPerPx;
+  if (roadStyle === "offline") return evalZoomInterp(2, OFFLINE_MAJOR, zoom) * metersPerPx(zoom, lat);
+  const m = evalZoomInterp(1.2, LIBERTY_PRIMARY, zoom) * metersPerPx(zoom, lat);
+  return zoom >= 15 ? Math.max(m, realRoadMeters("road_trunk_primary")!) : m;
 }
 
 /** Below this zoom buses are flat top-down icons pointing the way they drive; from here on, 3D models.
@@ -39,8 +38,10 @@ export const HALF_STREET_M = 9;
 export function busFit(zoom: number, lat: number): { width: number; offset: number } {
   const road = roadMeters(zoom, lat);
   // fits in its own half of the street: between the centerline and the curb
-  const width = Math.max(BUS_WIDTH, Math.min(0.5 * road, 0.9 * HALF_STREET_M));
-  const offset = Math.min(HALF_STREET_M - width / 2, width / 2 + 0.3);
+  // bigger than life only when zoomed out (so it can still be seen); real size from zoom 17.5 in, next to real buildings
+  const width = Math.max(BUS_WIDTH, Math.min(0.5 * road, 0.9 * HALF_STREET_M, BUS_WIDTH * Math.pow(2, Math.max(0, 17.5 - zoom))));
+  // in the middle of the right-hand lane, never over the centerline or the curb
+  const offset = Math.max(width / 2 + 0.3, Math.min(road / 4, HALF_STREET_M - width / 2, road / 2 - width / 2));
   return { width, offset };
 }
 
@@ -64,43 +65,165 @@ const box = (w: number, h: number, d: number, x: number, y: number, z: number, h
   return colored(g, hex);
 };
 
-/** A 12 m MBTA bus in meters. Axes like the train cars: +x forward, +y up, z across. */
-export const BUS_LENGTH = 12;
+/** An 18 m articulated MBTA bus (New Flyer XDE60 size) in meters. Axes like the train cars: +x forward, +y up,
+ *  z across (+z = right / curb side). Origin = the joint; the front section is ahead of it, the rear behind. */
+export const BUS_LENGTH = 18.4;
 const BUS_WIDTH = 2.6;
-const BUS_HEIGHT = 3.1;
-function busGeometry(body: string, stripe: string): THREE.BufferGeometry {
-  const L = BUS_LENGTH, W = BUS_WIDTH, H = BUS_HEIGHT, r = 0.7;
+const BUS_HEIGHT = 3.15;
+const JOINT_GAP = 0.45;
+const FRONT_LEN = 11.4;
+const REAR_LEN = 6.55;
+/** Joint to the front axle and to the rear (drive) axle: the points that steer each section (bendPose). */
+export const FRONT_AXLE = JOINT_GAP + FRONT_LEN - 2.6;
+export const REAR_AXLE = JOINT_GAP + REAR_LEN - 1.9;
+const ROOF_PLATE_X = 7.5;
+
+const GLASS = "#1c2a38";
+const CHROME = "#c9ced3";
+const RUBBER = "#1d1d1d";
+
+/** Rounded shell between x0 and x1 (front end rounder than the joint end). */
+function shell(x0: number, x1: number, body: string, roundFront: boolean, roundRear: boolean) {
+  const H = BUS_HEIGHT, W = BUS_WIDTH, rf = roundFront ? 0.7 : 0.18, rr = roundRear ? 0.55 : 0.18;
   const s = new THREE.Shape();
-  s.moveTo(-L / 2 + r, 0.5); s.lineTo(L / 2 - r, 0.5); s.quadraticCurveTo(L / 2, 0.5, L / 2, 0.5 + r);
-  s.lineTo(L / 2, H - r); s.quadraticCurveTo(L / 2, H, L / 2 - r, H); s.lineTo(-L / 2 + r, H);
-  s.quadraticCurveTo(-L / 2, H, -L / 2, H - r); s.lineTo(-L / 2, 0.5 + r); s.quadraticCurveTo(-L / 2, 0.5, -L / 2 + r, 0.5);
-  const shell = new THREE.ExtrudeGeometry(s, { depth: W, bevelEnabled: true, bevelSize: 0.15, bevelThickness: 0.15, bevelSegments: 2, curveSegments: 4 });
-  shell.translate(0, 0, -W / 2);
-  const glass = "#24384a";
-  const wheel = (x: number, z: number) => {
-    const g = new THREE.CylinderGeometry(0.55, 0.55, 0.42, 14);
-    g.rotateX(Math.PI / 2);
-    g.translate(x, 0.55, z);
-    return colored(g, "#1d1d1d");
-  };
+  s.moveTo(x0 + rr, 0.5); s.lineTo(x1 - rf, 0.5); s.quadraticCurveTo(x1, 0.5, x1, 0.5 + rf);
+  s.lineTo(x1, H - rf); s.quadraticCurveTo(x1, H, x1 - rf, H); s.lineTo(x0 + rr, H);
+  s.quadraticCurveTo(x0, H, x0, H - rr); s.lineTo(x0, 0.5 + rr); s.quadraticCurveTo(x0, 0.5, x0 + rr, 0.5);
+  const g = new THREE.ExtrudeGeometry(s, { depth: W, bevelEnabled: true, bevelSize: 0.12, bevelThickness: 0.12, bevelSegments: 2, curveSegments: 4 });
+  g.translate(0, 0, -W / 2);
+  return colored(g, body);
+}
+
+function wheel(x: number, side: number) {
+  const z = side * (BUS_WIDTH / 2 + 0.04);
+  const tire = new THREE.CylinderGeometry(0.52, 0.52, 0.36, 16);
+  tire.rotateX(Math.PI / 2);
+  tire.translate(x, 0.52, z);
+  const hub = new THREE.CylinderGeometry(0.3, 0.3, 0.04, 12);
+  hub.rotateX(Math.PI / 2);
+  hub.translate(x, 0.52, z + side * 0.2);
+  // dark wheel well above the tire
+  return [colored(tire, RUBBER), colored(hub, CHROME), box(1.35, 0.22, 0.05, x, 1.08, side * (BUS_WIDTH / 2 + 0.13), "#2a2a2a")];
+}
+
+/** Side windows from x0 to x1 on both sides: dark glass panes between thin pillars, skipping door spans. */
+function windows(x0: number, x1: number, pillar: string, skip: [number, number][]) {
+  const out: THREE.BufferGeometry[] = [];
+  const z = BUS_WIDTH / 2 + 0.13;
+  const n = Math.max(1, Math.round((x1 - x0) / 1.45));
+  const w = (x1 - x0) / n;
+  for (let i = 0; i < n; i++) {
+    const a = x0 + i * w, c = a + w / 2;
+    for (const side of [1, -1]) {
+      if (side === 1 && skip.some(([s0, s1]) => c > s0 && c < s1)) continue; // doors are on the curb side only
+      out.push(box(w - 0.14, 0.98, 0.05, c, 2.27, side * z, GLASS));
+      out.push(box(w - 0.5, 0.2, 0.06, c, 2.62, side * (z + 0.005), "#33475a")); // sky reflection on the top of the pane
+    }
+  }
+  out.push(box(x1 - x0 + 0.1, 0.08, BUS_WIDTH + 0.3, (x0 + x1) / 2, 1.74, 0, pillar)); // sill line
+  return out;
+}
+
+/** A double door on the curb side: two glass leaves in a chrome frame, with a step light. */
+function door(xc: number) {
+  const z = BUS_WIDTH / 2 + 0.14;
+  return [
+    box(1.3, 2.25, 0.04, xc, 1.72, z, CHROME),
+    box(0.56, 2.05, 0.05, xc - 0.3, 1.72, z + 0.01, GLASS),
+    box(0.56, 2.05, 0.05, xc + 0.3, 1.72, z + 0.01, GLASS),
+    box(1.1, 0.05, 0.06, xc, 0.7, z + 0.02, "#fff2b8"),
+  ];
+}
+
+/** MBTA "T" roundel on both sides: dark disc, white ring, white T. */
+function roundel(x: number, y: number) {
+  const out: THREE.BufferGeometry[] = [];
+  for (const side of [1, -1]) {
+    const z = side * (BUS_WIDTH / 2 + 0.14);
+    const ring = new THREE.CylinderGeometry(0.36, 0.36, 0.03, 20);
+    ring.rotateX(Math.PI / 2);
+    ring.translate(x, y, z);
+    const disc = new THREE.CylinderGeometry(0.3, 0.3, 0.035, 20);
+    disc.rotateX(Math.PI / 2);
+    disc.translate(x, y, z + side * 0.005);
+    out.push(colored(ring, "#ffffff"), colored(disc, "#1b1b1b"));
+    out.push(box(0.36, 0.08, 0.04, x, y + 0.12, z + side * 0.02, "#ffffff"), box(0.08, 0.36, 0.04, x, y - 0.03, z + side * 0.02, "#ffffff"));
+  }
+  return out;
+}
+
+/** The front section: cab, windshield, LED sign, two doors, front + middle axles, roof AC and battery pods. */
+function frontGeometry(body: string, stripe: string): THREE.BufferGeometry {
+  const x0 = JOINT_GAP, x1 = JOINT_GAP + FRONT_LEN, W = BUS_WIDTH, H = BUS_HEIGHT;
+  const fx = x1 + 0.12;
   const parts = [
-    colored(shell, body),
-    box(L + 0.1, 0.45, W + 0.34, 0, 0.72, 0, "#3a3a3a"), // skirt
-    box(L - 2.6, 0.95, W + 0.36, -0.6, 2.15, 0, glass), // side windows
-    box(0.2, 1.4, W - 0.2, L / 2 + 0.12, 2.0, 0, glass), // windshield
-    box(L - 1, 0.18, W + 0.34, 0, 1.62, 0, stripe), // side stripe
-    box(L - 1.2, 0.25, W - 0.2, 0, H + 0.2, 0, "#f7f4ee"), // white roof
-    box(2.4, 0.4, 1.6, -3.8, H + 0.45, 0, "#dcd6cc"), // roof AC unit
-    box(0.12, 0.42, W - 0.5, L / 2 + 0.22, 2.85, 0, "#1b1410"), // destination sign
-    box(0.1, 0.18, 0.5, L / 2 + 0.2, 0.95, 0.85, "#fff6c8"), box(0.1, 0.18, 0.5, L / 2 + 0.2, 0.95, -0.85, "#fff6c8"), // headlights
-    box(0.1, 0.2, 0.4, -L / 2 - 0.2, 1.0, 0.85, "#e0412f"), box(0.1, 0.2, 0.4, -L / 2 - 0.2, 1.0, -0.85, "#e0412f"), // tail lights
-    wheel(3.6, W / 2 + 0.05), wheel(3.6, -W / 2 - 0.05), wheel(-3.4, W / 2 + 0.05), wheel(-3.4, -W / 2 - 0.05),
+    shell(x0, x1, body, true, false),
+    box(FRONT_LEN, 0.42, W + 0.3, (x0 + x1) / 2, 0.72, 0, "#3a3a3a"), // skirt
+    box(FRONT_LEN - 0.6, 0.16, W + 0.3, (x0 + x1) / 2, 1.5, 0, stripe), // side stripe
+    box(FRONT_LEN - 0.4, 0.06, W + 0.31, (x0 + x1) / 2, 1.36, 0, "#ffffff"), // pinstripe
+    ...windows(x0 + 0.4, x1 - 1.9, body, [[x1 - 2.6, x1], [x0 + 1.5, x0 + 3.1]]),
+    ...door(x1 - 1.25), // front door, by the driver
+    ...door(x0 + 2.3), // middle door, ahead of the joint
+    box(0.05, 0.95, 0.05, x1 - 0.2, 2.27, -(W / 2 + 0.13), GLASS), // driver's side window
+    // front face
+    box(0.14, 1.45, W - 0.18, fx, 1.98, 0, GLASS), // windshield
+    box(0.15, 0.08, W - 0.3, fx + 0.01, 1.6, 0, "#7d8b97"), // wiper line
+    box(0.16, 0.34, W - 0.4, fx, 2.92, 0, "#141414"), // destination sign housing
+    box(0.17, 0.2, W - 0.7, fx + 0.01, 2.92, 0, "#ffb02e"), // amber LED text
+    box(0.14, 0.42, W - 0.1, fx - 0.02, 0.96, 0, "#2b2b2b"), // bumper
+    box(0.12, 0.2, 0.44, fx + 0.02, 1.25, 0.86, "#fff7d6"), box(0.12, 0.2, 0.44, fx + 0.02, 1.25, -0.86, "#fff7d6"), // headlights
+    box(0.12, 0.09, 0.3, fx + 0.03, 1.42, 0.92, "#ffb02e"), box(0.12, 0.09, 0.3, fx + 0.03, 1.42, -0.92, "#ffb02e"), // turn signals
+    box(0.45, 0.06, W - 0.6, fx + 0.25, 0.95, 0, "#6c7378"), box(0.06, 0.5, W - 0.6, fx + 0.47, 1.18, 0, "#6c7378"), // bike rack
+    box(0.08, 0.36, 0.14, x1 - 0.1, 2.55, W / 2 + 0.42, RUBBER), box(0.08, 0.36, 0.14, x1 - 0.1, 2.55, -(W / 2 + 0.42), RUBBER), // mirrors
+    box(0.6, 0.05, 0.05, x1 - 0.35, 2.75, W / 2 + 0.3, RUBBER), box(0.6, 0.05, 0.05, x1 - 0.35, 2.75, -(W / 2 + 0.3), RUBBER), // mirror arms
+    // roof
+    box(FRONT_LEN - 0.9, 0.12, W - 0.25, (x0 + x1) / 2, H + 0.12, 0, "#f7f4ee"),
+    box(2.5, 0.42, 1.7, x0 + 2.0, H + 0.4, 0, "#dcd6cc"), // AC unit
+    box(2.3, 0.08, 1.4, x0 + 2.0, H + 0.64, 0, "#bfb8ad"),
+    box(1.6, 0.32, 0.55, x0 + 4.0, H + 0.34, 0.55, "#e4e0d8"), box(1.6, 0.32, 0.55, x0 + 4.0, H + 0.34, -0.55, "#e4e0d8"), // battery pods
+    ...roundel(x0 + 5.2, 1.0),
+    ...wheel(x1 - 2.6, 1), ...wheel(x1 - 2.6, -1), ...wheel(x0 + 1.0, 1), ...wheel(x0 + 1.0, -1),
   ];
   return mergeGeometries(parts)!;
 }
 
-/** For tests: the merged yellow bus geometry. */
-export const busGeometryForTest = () => busGeometry(BUS_YELLOW, "#6B1F33");
+/** The rear section: windows, a back door, the drive axle, engine grille, tail lights and the rear AC. */
+function rearGeometry(body: string, stripe: string): THREE.BufferGeometry {
+  const x1 = -JOINT_GAP, x0 = -JOINT_GAP - REAR_LEN, W = BUS_WIDTH, H = BUS_HEIGHT;
+  const bx = x0 - 0.12;
+  const parts = [
+    shell(x0, x1, body, false, true),
+    box(REAR_LEN, 0.42, W + 0.3, (x0 + x1) / 2, 0.72, 0, "#3a3a3a"),
+    box(REAR_LEN - 0.4, 0.16, W + 0.3, (x0 + x1) / 2, 1.5, 0, stripe),
+    box(REAR_LEN - 0.3, 0.06, W + 0.31, (x0 + x1) / 2, 1.36, 0, "#ffffff"),
+    ...windows(x0 + 0.5, x1 - 0.3, body, [[x1 - 2.4, x1 - 0.6]]),
+    ...door(x1 - 1.5), // back door, just behind the joint
+    // back face
+    box(0.12, 0.65, W - 0.6, bx, 2.45, 0, GLASS), // rear window
+    box(0.13, 0.7, W - 0.5, bx, 1.15, 0, "#2f3133"), // engine grille
+    ...[0.95, 1.1, 1.25, 1.4].map((y) => box(0.14, 0.04, W - 0.6, bx - 0.01, y, 0, "#55595d")),
+    box(0.12, 0.42, 0.3, bx, 1.6, 0.98, "#d8352a"), box(0.12, 0.42, 0.3, bx, 1.6, -0.98, "#d8352a"), // tail lights
+    box(0.12, 0.12, 0.3, bx - 0.01, 1.32, 0.98, "#ffb02e"), box(0.12, 0.12, 0.3, bx - 0.01, 1.32, -0.98, "#ffb02e"),
+    box(0.14, 0.32, W - 0.1, bx + 0.02, 0.86, 0, "#2b2b2b"), // bumper
+    box(REAR_LEN - 0.6, 0.12, W - 0.25, (x0 + x1) / 2, H + 0.12, 0, "#f7f4ee"),
+    box(2.2, 0.5, 1.8, x0 + 1.6, H + 0.42, 0, "#d3cdc2"), // rear AC / engine cooling
+    ...[-0.55, 0, 0.55].map((z) => box(1.8, 0.04, 0.32, x0 + 1.6, H + 0.68, z, "#8e8a84")),
+    ...wheel(x0 + 1.9, 1), ...wheel(x0 + 1.9, -1),
+  ];
+  return mergeGeometries(parts)!;
+}
+
+/** The accordion joint: dark rubber bellows with ribs, on a turntable. */
+function jointGeometry(): THREE.BufferGeometry {
+  const W = BUS_WIDTH, H = BUS_HEIGHT, L = 2 * JOINT_GAP + 0.3;
+  const parts = [box(L, H - 0.75, W - 0.12, 0, (H + 0.75) / 2 + 0.12, 0, "#2a2b2d")];
+  for (let i = 0; i < 4; i++) parts.push(box(0.07, H - 0.7, W - 0.02, -L / 2 + 0.18 + i * ((L - 0.36) / 3), (H + 0.75) / 2 + 0.12, 0, "#45474a"));
+  parts.push(box(L + 0.2, 0.25, W - 0.4, 0, 0.62, 0, "#202020"));
+  return mergeGeometries(parts)!;
+}
+
+/** For tests: the merged yellow bus sections. */
+export const busGeometryForTest = () => mergeGeometries([frontGeometry(BUS_YELLOW, "#6B1F33"), rearGeometry(BUS_YELLOW, "#6B1F33"), jointGeometry()]);
 
 /** The roof number: a dark rounded plate with the route number, drawn once per number. */
 function roofTexture(number: string, silver: boolean): THREE.CanvasTexture {
@@ -142,7 +265,9 @@ function shadowTexture() {
 const MAX_BUSES = 1200;
 const MAX_ROOF_LABELS = 160; // nearest to the middle of the screen
 
-/** MapLibre custom layer: every bus as a 3D model, one InstancedMesh per color, roof numbers as small planes. */
+type Sections = { front: THREE.InstancedMesh; rear: THREE.InstancedMesh };
+
+/** MapLibre custom layer: every bus as a 3D articulated model (front, joint, rear instanced per color), roof numbers as small planes. */
 export class Buses3DLayer implements CustomLayerInterface {
   id = "buses-3d";
   type = "custom" as const;
@@ -154,8 +279,9 @@ export class Buses3DLayer implements CustomLayerInterface {
   private renderer!: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.Camera();
-  private yellow!: THREE.InstancedMesh;
-  private gray!: THREE.InstancedMesh;
+  private yellow!: Sections;
+  private gray!: Sections;
+  private joints!: THREE.InstancedMesh;
   private shadows!: THREE.InstancedMesh;
   private roofGeo = new THREE.PlaneGeometry(4.6, 2.2);
   private roofGeoFlip!: THREE.BufferGeometry;
@@ -165,7 +291,7 @@ export class Buses3DLayer implements CustomLayerInterface {
     sh.moveTo(1.6, 0); sh.lineTo(-0.6, 1.05); sh.lineTo(-0.15, 0); sh.lineTo(-0.6, -1.05); sh.lineTo(1.6, 0);
     const g = new THREE.ShapeGeometry(sh);
     g.rotateX(-Math.PI / 2);
-    g.translate(3.6, BUS_HEIGHT + 0.37, 0);
+    g.translate(JOINT_GAP + FRONT_LEN - 1.55, BUS_HEIGHT + 0.2, 0);
     return g;
   })();
   private arrows!: THREE.InstancedMesh;
@@ -174,15 +300,16 @@ export class Buses3DLayer implements CustomLayerInterface {
   private tmp = new THREE.Matrix4();
   private rot = new THREE.Matrix4();
   private scl = new THREE.Matrix4();
+  private off = new THREE.Matrix4();
   private originInv = new THREE.Matrix4();
   /** Where each bus was drawn last frame, for tapping. */
   drawn: BusNow[] = [];
 
   constructor(private animator: BusAnimator) {
     this.roofGeo.rotateX(-Math.PI / 2);
-    this.roofGeo.translate(-1.2, BUS_HEIGHT + 0.36, 0);
+    this.roofGeo.translate(ROOF_PLATE_X, BUS_HEIGHT + 0.2, 0);
     // same plate turned around, for buses heading left on screen
-    this.roofGeoFlip = this.roofGeo.clone().translate(1.2, 0, 0).rotateY(Math.PI).translate(-1.2, 0, 0);
+    this.roofGeoFlip = this.roofGeo.clone().translate(-ROOF_PLATE_X, 0, 0).rotateY(Math.PI).translate(ROOF_PLATE_X, 0, 0);
   }
 
   onAdd(map: MlMap, gl: WebGLRenderingContext | WebGL2RenderingContext) {
@@ -194,21 +321,24 @@ export class Buses3DLayer implements CustomLayerInterface {
     const sun = new THREE.DirectionalLight(0xfff3e0, 2.0);
     sun.position.set(-60, 120, 80);
     this.scene.add(sun);
-    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 });
-    this.yellow = new THREE.InstancedMesh(busGeometry(BUS_YELLOW, "#6B1F33"), mat, MAX_BUSES);
-    this.gray = new THREE.InstancedMesh(busGeometry(SILVER_GRAY, "#c7cdd1"), mat, 200);
-    for (const m of [this.yellow, this.gray]) {
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.12 });
+    const make = (g: THREE.BufferGeometry, n: number) => {
+      const m = new THREE.InstancedMesh(g, mat, n);
       m.count = 0;
       m.frustumCulled = false;
       this.scene.add(m);
-    }
+      return m;
+    };
+    this.yellow = { front: make(frontGeometry(BUS_YELLOW, "#6B1F33"), MAX_BUSES), rear: make(rearGeometry(BUS_YELLOW, "#6B1F33"), MAX_BUSES) };
+    this.gray = { front: make(frontGeometry(SILVER_GRAY, "#c7cdd1"), 200), rear: make(rearGeometry(SILVER_GRAY, "#c7cdd1"), 200) };
+    this.joints = make(jointGeometry(), MAX_BUSES + 200);
     this.arrows = new THREE.InstancedMesh(this.arrowGeo, new THREE.MeshBasicMaterial({ color: "#ffffff", side: THREE.DoubleSide }), MAX_BUSES);
     this.arrows.count = 0;
     this.arrows.frustumCulled = false;
     this.scene.add(this.arrows);
     const sg = new THREE.PlaneGeometry(1, 1);
     sg.rotateX(-Math.PI / 2);
-    this.shadows = new THREE.InstancedMesh(sg, new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false }), MAX_BUSES);
+    this.shadows = new THREE.InstancedMesh(sg, new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false }), 2 * MAX_BUSES);
     this.shadows.count = 0;
     this.shadows.frustumCulled = false;
     this.shadows.renderOrder = -1;
@@ -236,9 +366,8 @@ export class Buses3DLayer implements CustomLayerInterface {
       this.drawn = [];
       return;
     }
-    const center0 = this.map.getCenter();
-    const scale = this.scaleFor(zoom, center0.lat);
     const center = this.map.getCenter();
+    const scale = this.scaleFor(zoom, center.lat);
     const pd = args.defaultProjectionData;
     const globe = pd.fallbackMatrix !== pd.mainMatrix && pd.projectionTransition > 0.5;
     const origin = modelMatrix(new THREE.Matrix4(), center.lng, center.lat, globe);
@@ -251,36 +380,55 @@ export class Buses3DLayer implements CustomLayerInterface {
     const b = this.map.getBounds();
     const padLng = (b.getEast() - b.getWest()) * 0.15, padLat = (b.getNorth() - b.getSouth()) * 0.15;
     // Right-hand half of the drawn road: a bus is half the road wide, centered a quarter in from the middle.
-    const all = this.animator.now(performance.now(), busFit(zoom, center0.lat).offset);
+    const side = busFit(zoom, center.lat).offset;
+    const all = this.animator.now(performance.now(), side);
     const onScreen = all.filter((x) => x.lng > b.getWest() - padLng && x.lng < b.getEast() + padLng && x.lat > b.getSouth() - padLat && x.lat < b.getNorth() + padLat);
     this.drawn = onScreen;
 
-    let ny = 0, ng = 0, ns = 0;
+    let ny = 0, ng = 0, nj = 0, ns = 0, na = 0;
     const placed: { m: THREE.Matrix4; bus: Bus; d: number; flip: boolean }[] = [];
     const mapBearing = (this.map.getBearing() * Math.PI) / 180;
+    this.scl.makeScale(scale, scale, scale);
+    const shadow = (base: THREE.Matrix4, cx: number, len: number) => {
+      if (ns >= this.shadows.instanceMatrix.count) return;
+      const m = base.clone().multiply(this.off.makeTranslation(cx, 0.03, 0)).multiply(new THREE.Matrix4().makeScale(len * 1.08, 1, BUS_WIDTH * 1.5));
+      this.shadows.setMatrixAt(ns++, m);
+    };
     for (const x of onScreen) {
-      modelMatrix(this.tmp, x.lng, x.lat, globe);
+      // Bend at the joint: each section follows the street from its own axle (straight when off any street shape).
+      let lng = x.lng, lat = x.lat, front = x.heading, rear = x.heading;
+      if (x.shape && x.along != null) {
+        const pose = bendPose(x.shape, x.along, side, FRONT_AXLE * scale, REAR_AXLE * scale);
+        [lng, lat] = pose.p;
+        front = pose.front;
+        rear = pose.rear;
+      }
+      modelMatrix(this.tmp, lng, lat, globe);
       this.tmp.premultiply(this.originInv);
-      this.rot.makeRotationY(x.heading);
-      this.scl.makeScale(scale, scale, scale);
-      const m = this.tmp.clone().multiply(this.rot).multiply(this.scl);
-      if (x.bus.silver) {
-        if (ng < this.gray.instanceMatrix.count) this.gray.setMatrixAt(ng++, m);
-      } else if (ny < this.yellow.instanceMatrix.count) this.yellow.setMatrixAt(ny++, m);
-      if (ns < MAX_BUSES) this.arrows.setMatrixAt(ns, m);
-      this.scl.makeScale(BUS_LENGTH * scale * 1.1, 1, BUS_WIDTH * scale * 1.5);
-      const sm = this.tmp.clone().multiply(this.rot).multiply(this.scl);
-      sm.elements[13] += 0.05 * scale;
-      if (ns < MAX_BUSES) this.shadows.setMatrixAt(ns++, sm);
+      const mf = this.tmp.clone().multiply(this.rot.makeRotationY(front)).multiply(this.scl);
+      const mr = this.tmp.clone().multiply(this.rot.makeRotationY(rear)).multiply(this.scl);
+      const mid = Math.atan2(Math.sin(front) + Math.sin(rear), Math.cos(front) + Math.cos(rear));
+      const mj = this.tmp.clone().multiply(this.rot.makeRotationY(mid)).multiply(this.scl);
+      const set = x.bus.silver ? this.gray : this.yellow;
+      const i = x.bus.silver ? ng++ : ny++;
+      if (i < set.front.instanceMatrix.count) {
+        set.front.setMatrixAt(i, mf);
+        set.rear.setMatrixAt(i, mr);
+      }
+      if (nj < this.joints.instanceMatrix.count) this.joints.setMatrixAt(nj++, mj);
+      if (na < MAX_BUSES) this.arrows.setMatrixAt(na++, mf);
+      shadow(mf, JOINT_GAP + FRONT_LEN / 2, FRONT_LEN);
+      shadow(mr, -JOINT_GAP - REAR_LEN / 2, REAR_LEN);
       // roof number reads left to right on screen whichever way the bus drives
-      const flip = Math.cos(x.heading + mapBearing) < 0;
-      placed.push({ m, bus: x.bus, d: (x.lng - center.lng) ** 2 + (x.lat - center.lat) ** 2, flip });
+      const flip = Math.cos(front + mapBearing) < 0;
+      placed.push({ m: mf, bus: x.bus, d: (x.lng - center.lng) ** 2 + (x.lat - center.lat) ** 2, flip });
     }
-    this.yellow.count = ny;
-    this.gray.count = ng;
+    this.yellow.front.count = this.yellow.rear.count = Math.min(ny, this.yellow.front.instanceMatrix.count);
+    this.gray.front.count = this.gray.rear.count = Math.min(ng, this.gray.front.instanceMatrix.count);
+    this.joints.count = nj;
     this.shadows.count = ns;
-    this.arrows.count = ns;
-    for (const mesh of [this.yellow, this.gray, this.shadows, this.arrows]) mesh.instanceMatrix.needsUpdate = true;
+    this.arrows.count = na;
+    for (const mesh of [this.yellow.front, this.yellow.rear, this.gray.front, this.gray.rear, this.joints, this.shadows, this.arrows]) mesh.instanceMatrix.needsUpdate = true;
 
     // Roof numbers on the buses closest to the middle of the screen.
     placed.sort((p, q) => p.d - q.d);
@@ -339,6 +487,9 @@ export function topBusImage(id: string): { width: number; height: number; data: 
   g.beginPath();
   g.roundRect(8, 22, 14, 34, 3);
   g.fill();
+  // the accordion joint, about two thirds of the way back
+  g.fillStyle = "#2a2b2d";
+  g.fillRect(4, 41, 22, 3);
   // windshield at the front
   g.fillStyle = "#24384a";
   g.beginPath();

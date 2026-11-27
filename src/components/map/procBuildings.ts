@@ -8,6 +8,7 @@ export interface Footprint {
   h: number; // meters, top of building
   b?: number; // meters, bottom (for stacked building parts)
   rgb?: number[]; // fixed wall color
+  seed?: number; // stable per building (colors, roof, chimney); defaults to its index
 }
 
 const M_LAT = 110_540;
@@ -89,7 +90,8 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
   const kx = mLng(lat0);
   const toXZ = ([lng, lat]: [number, number]): [number, number] => [(lng - lng0) * kx, -(lat - lat0) * M_LAT];
   const b = new Buf();
-  feats.forEach((f, i) => {
+  feats.forEach((f, idx) => {
+    const i = f.seed ?? idx;
     const outer = f.rings[0].slice(0, -1).map(toXZ);
     if (outer.length < 3) return;
     const holes = f.rings.slice(1).map((r) => r.slice(0, -1).map(toXZ));
@@ -99,9 +101,9 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
     const rect = area / (4 * box.hu * box.hv);
     const r = hash(i + 1);
 
-    if (!f.b && !f.rgb && H <= 15 && area < 420 && area > 25 && rect > 0.78) {
+    if (!f.b && H <= 15 && area < 420 && area > 25 && rect > 0.78) {
       // ---- house: walls to the eaves, gable roof along the long side, chimney ----
-      const rgb = HOUSE_COLORS[Math.floor(r * HOUSE_COLORS.length)];
+      const rgb = f.rgb ?? HOUSE_COLORS[Math.floor(r * HOUSE_COLORS.length)];
       const eave = Math.max(2.8, H - Math.min(box.hu, box.hv) * 0.75);
       const roofCol = [[164, 85, 63], [138, 74, 58], [111, 106, 106], [95, 102, 112]][Math.floor(hash(i + 7) * 4)];
       const long = box.hu >= box.hv;

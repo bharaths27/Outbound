@@ -24,13 +24,14 @@ import { TRACK_HALF_GAP, TrainAnimator, Trains3DLayer, TrainNow } from "./trains
 import { useBuses } from "./useBuses";
 import { loadSignals, SignalsLayer } from "./signals";
 import { busStatus } from "@/lib/bus";
-import { loadBaseStyle, groundLayerIds, registerFontProtocol } from "./style";
-import { CityBuildingsLayer, fetchBpdaManifest, fetchRegionManifest, inBpda, inRegion } from "./buildings3d";
+import { setRoadStyle } from "./buses3d";
+import { loadBaseStyle, groundLayerIds, registerFontProtocol, setMapLook, type MapLook } from "./style";
+import { fetchBpdaManifest } from "./buildings3d";
+import { OsmFacadesLayer } from "./osmFacades";
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
-import SearchBox, { pointInRing } from "./SearchBox";
+import SearchBox from "./SearchBox";
 import Explorer, { type ExplorerHandle } from "./Explorer";
 import MapPanel, { LinesPanel, type MapShow } from "./MapPanel";
-import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
 import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, LocateFixed, Moon, Star, Sun } from "lucide-react";
@@ -99,7 +100,7 @@ export default function TransitMap() {
   const mapRef = useRef<MlMap | null>(null);
   const animRef = useRef<TrainAnimator | null>(null);
   const layerRef = useRef<Trains3DLayer | null>(null);
-  const cityRef = useRef<CityBuildingsLayer | null>(null);
+  const cityRef = useRef<OsmFacadesLayer | null>(null);
   const [friend, setFriend] = useState<FriendVisit | null>(null);
   const [crStation, setCrStation] = useState<CrStation | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
@@ -117,7 +118,7 @@ export default function TransitMap() {
   // right-click (without dragging): a small menu for directions to / from that point
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; lng: number; lat: number } | null>(null);
   const [routeStart, setRouteStart] = useState<{ lng: number; lat: number } | null>(null);
-  const [satellite, setSatellite] = useState(false);
+  const [look, setLook] = useState<MapLook>("map");
   const [realistic, setRealistic] = useState(false);
   const [googleCredits, setGoogleCredits] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -212,19 +213,18 @@ export default function TransitMap() {
   // ---------- map setup ----------
   useEffect(() => {
     let disposed = false;
-    let stopWaves = () => {};
     let map: MlMap | null = null;
     (async () => {
-      const [manifest, region] = await Promise.all([fetchBpdaManifest(), fetchRegionManifest()]);
-      const [{ style, offline }, linesGeo, stations, cambridgeOutline, crStations] = await Promise.all([
+      const manifest = await fetchBpdaManifest(); // only for the offline fallback basemap
+      const [{ style, offline }, linesGeo, stations, crStations] = await Promise.all([
         loadBaseStyle(manifest),
         fetch("/data/mbta-lines.geojson").then((r) => r.json()),
         fetch("/data/mbta-stations.json").then((r) => r.json()) as Promise<StationData[]>,
-        fetch("/data/cambridge/outline.geojson").then((r) => r.json()).catch(() => null),
         fetch("/data/cr-stations.json").then((r) => r.json()).catch(() => []) as Promise<CrStation[]>,
       ]);
       if (disposed || !box.current) return;
       setOfflineBasemap(offline);
+      setRoadStyle(offline ? "offline" : "liberty"); // buses and signals are sized to the roads this basemap draws
       stationsRef.current = stations;
       groundRef.current = groundLayerIds(style as StyleSpecification);
       const net = new TrackNetwork(linesGeo);
@@ -288,16 +288,17 @@ export default function TransitMap() {
       map.on("style.load", () => {
         const m = map!;
         m.setProjection({ type: "mercator" }); // flat map: the view is locked to the T network, so no globe
+        // sky and light of the Boston 3D map
         m.setSky({
-          "sky-color": "#8ec5ff",
-          "horizon-color": "#e3f1ff",
-          "fog-color": "#eef4fb",
+          "sky-color": "#8ec3f2",
+          "horizon-color": "#e4eef8",
+          "fog-color": "#eef2f6",
           "sky-horizon-blend": 0.6,
           "horizon-fog-blend": 0.6,
-          "fog-ground-blend": 0.4,
-          "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 6, 0.8, 9, 0],
+          "fog-ground-blend": 0.5,
+          "atmosphere-blend": 0.8,
         });
-        m.setLight({ anchor: "map", position: [1.3, 210, 35], intensity: 0.35, color: "#ffffff" });
+        m.setLight({ anchor: "viewport", position: [1.4, 210, 35], intensity: 0.32, color: "#ffffff" });
 
         const firstSymbol = m.getStyle().layers.find((l) => l.type === "symbol")?.id;
         const firstBuilding = m.getStyle().layers.find((l) => l.type === "fill-extrusion")?.id;
@@ -361,8 +362,9 @@ export default function TransitMap() {
         m.addLayer({ id: "campus-halo", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.5, 16, 5], "line-opacity": 0.85 } }, beforeLines);
         m.addLayer({ id: "campus-line", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2, 16, 3.6], "line-dasharray": [3, 2] } }, beforeLines);
 
-        // game-style 3D city: Boston's own building models (BPDA), Cambridge footprints + heights, trees
-        const city = new CityBuildingsLayer(manifest, region);
+        // close up: the map's real OpenStreetMap buildings with facades (windows, doors, shop fronts, roofs)
+        const city = new OsmFacadesLayer();
+        if (process.env.NODE_ENV !== "production") (window as unknown as { __obFacades: typeof OsmFacadesLayer }).__obFacades = OsmFacadesLayer; // for tests
         cityRef.current = city;
         m.addLayer(city, labelsStart);
         // night: a blue wash over the ground (under the T lines, campuses and buildings), matching the 3D city's light
@@ -398,9 +400,7 @@ export default function TransitMap() {
           m.on("moveend", loadXwalk);
           loadXwalk();
         }
-        // moving water on the river, harbor and ponds
         const styleIds = m.getStyle().layers.map((l) => l.id);
-        stopWaves = addWaves(m, styleIds.filter((id) => id === "water" || id === "cam-water"));
         // near street level, flat street names would float over the buildings in front: hide them there
         const streetLabels = styleIds.filter((id) => id.startsWith("street-names") || /^highway[-_]name/.test(id));
         const syncLabels = () => {
@@ -431,17 +431,12 @@ export default function TransitMap() {
           pickBuildings();
           m.triggerRepaint();
         };
-        // OpenStreetMap's boxy buildings only where the real city models don't cover the view
-        const cambRing = cambridgeOutline?.geometry?.coordinates?.[0] as [number, number][] | undefined;
+        // the plain extruded buildings (zoomed out) hide while Google's 3D draws the city
         const osmBuildings = m.getStyle().layers.filter((l) => l.type === "fill-extrusion" && (l as { source?: string }).source === "openmaptiles").map((l) => l.id);
         const pickBuildings = () => {
-          const c = m.getCenter();
-          const real = (manifest && inBpda(c.lng, c.lat)) || (region && inRegion(c.lng, c.lat)) || (cambRing && pointInRing([c.lng, c.lat], cambRing));
-          // (the 3D city layer draws the whole T area itself; Google's 3D draws everything)
-          for (const id of osmBuildings) m.setFilter(id, real || google ? ["==", ["get", "render_height"], -1] : null);
+          for (const id of osmBuildings) m.setLayoutProperty(id, "visibility", google ? "none" : "visible");
         };
         pickBuildings();
-        m.on("moveend", pickBuildings);
 
         // 3D trains (depth-tested against buildings)
         const layer = new Trains3DLayer(animator);
@@ -594,7 +589,6 @@ export default function TransitMap() {
     })();
     return () => {
       disposed = true;
-      stopWaves();
       map?.remove();
       mapRef.current = null;
     };
@@ -1319,20 +1313,22 @@ export default function TransitMap() {
     return () => clearInterval(t);
   }, [realistic]);
 
-  // ---------- illustrated / realistic ----------
+  // ---------- Google photo 3D (optional) ----------
   useEffect(() => {
-    if (!ready) return;
-    if (GOOGLE_KEY) setRealisticRef.current(realistic);
-    else if (!offlineBasemap) setSatellite(realistic); // no Google key: real satellite photos under the 3D city
-  }, [ready, realistic, offlineBasemap]);
+    if (!ready || !GOOGLE_KEY) return;
+    setRealisticRef.current(realistic);
+  }, [ready, realistic]);
 
-  // ---------- satellite ----------
+  // ---------- look: Map / Light / Satellite (the Boston 3D map's three styles) ----------
   useEffect(() => {
     const map = mapRef.current;
-    if (!ready || !map || !map.getLayer("satellite")) return;
-    map.setLayoutProperty("satellite", "visibility", satellite ? "visible" : "none");
-    for (const id of groundRef.current) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", satellite ? "none" : "visible");
-  }, [ready, satellite]);
+    if (!ready || !map || offlineBasemap) return;
+    setMapLook(map, look);
+    if (!map.getLayer("satellite")) return;
+    const sat = look === "satellite";
+    map.setLayoutProperty("satellite", "visibility", sat ? "visible" : "none");
+    for (const id of groundRef.current) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", sat ? "none" : "visible");
+  }, [ready, look, offlineBasemap]);
 
   // ---------- lateness (Tiger Data) ----------
   useEffect(() => {
@@ -1515,7 +1511,9 @@ export default function TransitMap() {
             is3D={is3D}
             setIs3D={setIs3D}
             realistic={realistic}
-            setRealistic={GOOGLE_KEY || !offlineBasemap ? setRealistic : null}
+            setRealistic={GOOGLE_KEY ? setRealistic : null}
+            look={look}
+            setLook={offlineBasemap ? null : setLook}
             show={show}
             setShow={setShow}
             delayColors={delayColors}
