@@ -11,7 +11,7 @@ import { modelMatrix } from "./trains3d";
 
 /** Width in meters of a main road as drawn at this zoom (matches majorW in style.ts for a mid-size road, r = 2). */
 export function roadMeters(zoom: number, lat: number): number {
-  const stops: [number, number][] = [[10, 2], [13, 5.4], [16, 19], [19, 104]];
+  const stops: [number, number][] = [[10, 3.1], [13, 10], [16, 34], [19, 152]];
   let px = stops[0][1];
   for (let i = 1; i < stops.length; i++) {
     const [z0, w0] = stops[i - 1], [z1, w1] = stops[i];
@@ -27,8 +27,22 @@ export function roadMeters(zoom: number, lat: number): number {
   return px * metersPerPx;
 }
 
-/** Below this zoom the flat mini bus shows instead of the 3D model. Same as the trains. */
-export const BUS_3D_MIN_ZOOM = 12.3;
+/** Below this zoom buses are flat top-down icons pointing the way they drive; from here on, 3D models.
+ *  Further out a 3D bus would have to be blown up past the street and into the buildings to be seen. */
+export const BUS_3D_MIN_ZOOM = 15;
+
+/** Half the width of a real main street, curb to curb (meters). A bus never reaches past this,
+ *  so it never pokes into a building even when drawn bigger than life. */
+export const HALF_STREET_M = 9;
+
+/** How big and where across the street a bus is drawn: width in meters and how far right of the centerline. */
+export function busFit(zoom: number, lat: number): { width: number; offset: number } {
+  const road = roadMeters(zoom, lat);
+  // fits in its own half of the street: between the centerline and the curb
+  const width = Math.max(BUS_WIDTH, Math.min(0.5 * road, 0.9 * HALF_STREET_M));
+  const offset = Math.min(HALF_STREET_M - width / 2, width / 2 + 0.3);
+  return { width, offset };
+}
 
 export { BusAnimator, type BusNow } from "./bus-track";
 
@@ -143,7 +157,18 @@ export class Buses3DLayer implements CustomLayerInterface {
   private yellow!: THREE.InstancedMesh;
   private gray!: THREE.InstancedMesh;
   private shadows!: THREE.InstancedMesh;
-  private roofGeo = new THREE.PlaneGeometry(5.6, 2.45);
+  private roofGeo = new THREE.PlaneGeometry(4.6, 2.2);
+  private roofGeoFlip!: THREE.BufferGeometry;
+  private arrowGeo = (() => {
+    // a white chevron on the front of the roof, pointing the way the bus drives
+    const sh = new THREE.Shape();
+    sh.moveTo(1.6, 0); sh.lineTo(-0.6, 1.05); sh.lineTo(-0.15, 0); sh.lineTo(-0.6, -1.05); sh.lineTo(1.6, 0);
+    const g = new THREE.ShapeGeometry(sh);
+    g.rotateX(-Math.PI / 2);
+    g.translate(3.6, BUS_HEIGHT + 0.37, 0);
+    return g;
+  })();
+  private arrows!: THREE.InstancedMesh;
   private roofMats = new Map<string, THREE.MeshBasicMaterial>();
   private roofPool: THREE.Mesh[] = [];
   private tmp = new THREE.Matrix4();
@@ -155,7 +180,9 @@ export class Buses3DLayer implements CustomLayerInterface {
 
   constructor(private animator: BusAnimator) {
     this.roofGeo.rotateX(-Math.PI / 2);
-    this.roofGeo.translate(1.0, BUS_HEIGHT + 0.36, 0);
+    this.roofGeo.translate(-1.2, BUS_HEIGHT + 0.36, 0);
+    // same plate turned around, for buses heading left on screen
+    this.roofGeoFlip = this.roofGeo.clone().translate(1.2, 0, 0).rotateY(Math.PI).translate(-1.2, 0, 0);
   }
 
   onAdd(map: MlMap, gl: WebGLRenderingContext | WebGL2RenderingContext) {
@@ -175,6 +202,10 @@ export class Buses3DLayer implements CustomLayerInterface {
       m.frustumCulled = false;
       this.scene.add(m);
     }
+    this.arrows = new THREE.InstancedMesh(this.arrowGeo, new THREE.MeshBasicMaterial({ color: "#ffffff", side: THREE.DoubleSide }), MAX_BUSES);
+    this.arrows.count = 0;
+    this.arrows.frustumCulled = false;
+    this.scene.add(this.arrows);
     const sg = new THREE.PlaneGeometry(1, 1);
     sg.rotateX(-Math.PI / 2);
     this.shadows = new THREE.InstancedMesh(sg, new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false }), MAX_BUSES);
@@ -184,12 +215,9 @@ export class Buses3DLayer implements CustomLayerInterface {
     this.scene.add(this.shadows);
   }
 
-  /** Enlarged when zoomed out so buses stay visible: about half as wide as the drawn road (its right-hand side),
-   *  with a floor so they don't shrink to specks far out. */
+  /** As big as fits in the right-hand half of the street (see busFit), never smaller than real size. */
   scaleFor(zoom: number, lat: number) {
-    const fitRoad = (0.5 * roadMeters(zoom, lat)) / BUS_WIDTH;
-    const visible = 0.75 * Math.pow(2, (18 - zoom) * 0.78);
-    return Math.min(12, Math.max(1.2, fitRoad, visible));
+    return busFit(zoom, lat).width / BUS_WIDTH;
   }
 
   private roofMat(number: string, silver: boolean) {
@@ -223,12 +251,13 @@ export class Buses3DLayer implements CustomLayerInterface {
     const b = this.map.getBounds();
     const padLng = (b.getEast() - b.getWest()) * 0.15, padLat = (b.getNorth() - b.getSouth()) * 0.15;
     // Right-hand half of the drawn road: a bus is half the road wide, centered a quarter in from the middle.
-    const all = this.animator.now(performance.now(), 0.25 * roadMeters(zoom, center0.lat));
+    const all = this.animator.now(performance.now(), busFit(zoom, center0.lat).offset);
     const onScreen = all.filter((x) => x.lng > b.getWest() - padLng && x.lng < b.getEast() + padLng && x.lat > b.getSouth() - padLat && x.lat < b.getNorth() + padLat);
     this.drawn = onScreen;
 
     let ny = 0, ng = 0, ns = 0;
-    const placed: { m: THREE.Matrix4; bus: Bus; d: number }[] = [];
+    const placed: { m: THREE.Matrix4; bus: Bus; d: number; flip: boolean }[] = [];
+    const mapBearing = (this.map.getBearing() * Math.PI) / 180;
     for (const x of onScreen) {
       modelMatrix(this.tmp, x.lng, x.lat, globe);
       this.tmp.premultiply(this.originInv);
@@ -238,16 +267,20 @@ export class Buses3DLayer implements CustomLayerInterface {
       if (x.bus.silver) {
         if (ng < this.gray.instanceMatrix.count) this.gray.setMatrixAt(ng++, m);
       } else if (ny < this.yellow.instanceMatrix.count) this.yellow.setMatrixAt(ny++, m);
+      if (ns < MAX_BUSES) this.arrows.setMatrixAt(ns, m);
       this.scl.makeScale(BUS_LENGTH * scale * 1.1, 1, BUS_WIDTH * scale * 1.5);
       const sm = this.tmp.clone().multiply(this.rot).multiply(this.scl);
       sm.elements[13] += 0.05 * scale;
       if (ns < MAX_BUSES) this.shadows.setMatrixAt(ns++, sm);
-      placed.push({ m, bus: x.bus, d: (x.lng - center.lng) ** 2 + (x.lat - center.lat) ** 2 });
+      // roof number reads left to right on screen whichever way the bus drives
+      const flip = Math.cos(x.heading + mapBearing) < 0;
+      placed.push({ m, bus: x.bus, d: (x.lng - center.lng) ** 2 + (x.lat - center.lat) ** 2, flip });
     }
     this.yellow.count = ny;
     this.gray.count = ng;
     this.shadows.count = ns;
-    for (const mesh of [this.yellow, this.gray, this.shadows]) mesh.instanceMatrix.needsUpdate = true;
+    this.arrows.count = ns;
+    for (const mesh of [this.yellow, this.gray, this.shadows, this.arrows]) mesh.instanceMatrix.needsUpdate = true;
 
     // Roof numbers on the buses closest to the middle of the screen.
     placed.sort((p, q) => p.d - q.d);
@@ -263,6 +296,7 @@ export class Buses3DLayer implements CustomLayerInterface {
       mesh.visible = !!p;
       if (!p) return;
       mesh.material = this.roofMat(p.bus.number, p.bus.silver);
+      mesh.geometry = p.flip ? this.roofGeoFlip : this.roofGeo;
       mesh.matrix.copy(p.m);
     });
 
@@ -272,69 +306,79 @@ export class Buses3DLayer implements CustomLayerInterface {
   }
 }
 
-// ---------- the flat mini bus (zoomed far out) ----------
+// ---------- the flat top-down bus (zoomed out) ----------
 
-/** Image id for a mini bus: "bus-<number>-<s|y>-<l|r>". */
-export const miniBusId = (number: string, silver: boolean, left: boolean) => `bus-${number}-${silver ? "s" : "y"}-${left ? "l" : "r"}`;
+/** Image id for the flat bus seen from above: yellow or Silver Line gray. Its front points up (north); the layer
+ *  rotates it to the way the bus drives, so you can see its direction at a glance. */
+export const topBusId = (silver: boolean) => (silver ? "bus-top-s" : "bus-top-y");
 
-/** Draws the mini bus (number on a white plate) for map.addImage, at 2x for sharp edges. */
-export function miniBusImage(id: string): { width: number; height: number; data: Uint8ClampedArray } | null {
-  const m = /^bus-(.+)-([sy])-([lr])$/.exec(id);
-  if (!m) return null;
-  const [, number, kind, dir] = m;
-  const px = 2, W = 66 * px, H = 40 * px;
+/** Draws the top-down bus for map.addImage, at 2x for sharp edges. */
+export function topBusImage(id: string): { width: number; height: number; data: Uint8ClampedArray } | null {
+  if (id !== "bus-top-y" && id !== "bus-top-s") return null;
+  const px = 2, W = 30 * px, H = 64 * px;
   const c = document.createElement("canvas");
   c.width = W;
   c.height = H;
   const g = c.getContext("2d")!;
   g.scale(px, px);
-  g.fillStyle = "rgba(0,0,0,.18)";
+  // soft shadow
+  g.fillStyle = "rgba(0,0,0,.22)";
   g.beginPath();
-  g.ellipse(32, 35, 24, 3, 0, 0, Math.PI * 2);
+  g.roundRect(5, 10, 22, 52, 7);
   g.fill();
-  g.save();
-  if (dir === "l") {
-    g.translate(64, 0);
-    g.scale(-1, 1);
-  }
-  g.fillStyle = kind === "s" ? SILVER_GRAY : BUS_YELLOW;
+  // body
+  g.fillStyle = id === "bus-top-s" ? SILVER_GRAY : BUS_YELLOW;
   g.strokeStyle = "#2B1A1F";
   g.lineWidth = 2;
   g.beginPath();
-  g.roundRect(4, 8, 54, 22, 7);
+  g.roundRect(4, 8, 22, 52, 7);
   g.fill();
   g.stroke();
-  g.fillStyle = "#cfe6f3";
-  g.lineWidth = 1.5;
+  // white roof panel
+  g.fillStyle = "#f7f4ee";
   g.beginPath();
-  g.roundRect(44, 12, 11, 9, 2.5);
+  g.roundRect(8, 22, 14, 34, 3);
   g.fill();
-  g.stroke();
-  g.fillStyle = "#2B1A1F";
-  for (const x of [16, 47]) {
-    g.beginPath();
-    g.arc(x, 30, 4.5, 0, Math.PI * 2);
-    g.fill();
-  }
-  g.restore();
-  g.fillStyle = "#ffffff";
-  g.strokeStyle = "#2B1A1F";
-  g.lineWidth = 1.2;
+  // windshield at the front
+  g.fillStyle = "#24384a";
   g.beginPath();
-  g.roundRect(17, 11.5, 25, 13, 3);
+  g.roundRect(7, 11, 16, 7, 3);
   g.fill();
-  g.stroke();
+  // direction arrow ahead of the bus
   g.fillStyle = "#2B1A1F";
-  g.font = `800 ${number.length > 3 ? 7.5 : number.length > 2 ? 9 : 10.5}px "DM Sans", system-ui, sans-serif`;
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  g.fillText(number, 29.5, 18.5);
+  g.beginPath();
+  g.moveTo(15, 0);
+  g.lineTo(23, 7);
+  g.lineTo(7, 7);
+  g.closePath();
+  g.fill();
   return { width: W, height: H, data: g.getImageData(0, 0, W, H).data };
 }
 
+/** Compass bearing (degrees, clockwise from north) for a heading in radians (0 = east, counter-clockwise). */
+export const bearingOf = (heading: number) => ((90 - (heading * 180) / Math.PI) % 360 + 360) % 360;
+
 // ---------- sample buses (no MBTA key, or the feed is down) ----------
 
-const SAMPLE_ROUTES: { route: string; number: string; silver?: boolean; ends: [string, string]; path: [number, number][] }[] = [
+export interface SampleRoute {
+  route: string;
+  number: string;
+  silver?: boolean;
+  ends: [string, string];
+  path: [number, number][];
+}
+
+/** Street-following sample routes (scripts/data-build/bus_samples.py); the rough ones below if that file can't load. */
+export async function loadSampleRoutes(): Promise<SampleRoute[]> {
+  try {
+    const r = await fetch("/data/bus-samples.json");
+    const j = (await r.json()) as { routes: SampleRoute[] };
+    if (j.routes?.length) return j.routes;
+  } catch {}
+  return SAMPLE_ROUTES;
+}
+
+const SAMPLE_ROUTES: SampleRoute[] = [
   { route: "57", number: "57", ends: ["Watertown Yard", "Kenmore"], path: [[-71.095, 42.3489], [-71.1054, 42.3504], [-71.1167, 42.3524], [-71.1253, 42.3518], [-71.1337, 42.353], [-71.1514, 42.3486]] },
   { route: "1", number: "1", ends: ["Harvard", "Nubian"], path: [[-71.0838, 42.3294], [-71.0835, 42.3415], [-71.0852, 42.3426], [-71.0877, 42.3478], [-71.0942, 42.3601], [-71.1037, 42.3655], [-71.1189, 42.3734]] },
   { route: "47", number: "47", ends: ["Central", "Broadway"], path: [[-71.1, 42.336], [-71.0935, 42.3411], [-71.095, 42.3489], [-71.1, 42.3496], [-71.1065, 42.3536], [-71.1037, 42.3655]] },
@@ -346,14 +390,15 @@ const SAMPLE_ROUTES: { route: string; number: string; silver?: boolean; ends: [s
 /** Simulated buses moving along a few real routes, both ways. Labeled as samples in the UI. */
 export class SampleBuses {
   private t = 0;
+  constructor(private routes: SampleRoute[] = SAMPLE_ROUTES) {}
   /** Each sample route's path, so sample buses stay on it like real ones on their shapes. */
   shapes(): [string, [number, number][]][] {
-    return SAMPLE_ROUTES.map((r) => [r.route, r.path]);
+    return this.routes.map((r) => [r.route, r.path]);
   }
   step(seconds: number): Bus[] {
     this.t += seconds;
     const out: Bus[] = [];
-    SAMPLE_ROUTES.forEach((r, ri) => {
+    this.routes.forEach((r, ri) => {
       const segs: { a: [number, number]; b: [number, number]; len: number; start: number }[] = [];
       let total = 0;
       for (let k = 1; k < r.path.length; k++) {

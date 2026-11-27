@@ -51,3 +51,46 @@ describe("bus tracks", () => {
     expect(decodePolyline("_p~iF~ps|U_ulLnnqC_mqNvxq`@")).toEqual([[-120.2, 38.5], [-120.95, 40.7], [-126.453, 43.252]]);
   });
 });
+
+import { BUS_3D_MIN_ZOOM, busFit, HALF_STREET_M, roadMeters } from "./buses3d";
+
+describe("buses stay on the street", () => {
+  it("a bus never reaches past the curb or the drawn road, at any 3D zoom", () => {
+    for (let z = BUS_3D_MIN_ZOOM; z <= 21; z += 0.25) {
+      const { width, offset } = busFit(z, 42.35);
+      const road = roadMeters(z, 42.35);
+      expect(offset + width / 2).toBeLessThanOrEqual(HALF_STREET_M + 1e-9);
+      expect(offset + width / 2).toBeLessThanOrEqual(road / 2 + 1.3); // real bus width allowed on very close zoom
+      expect(offset - width / 2).toBeGreaterThanOrEqual(-1e-9); // stays in its own half, not across the centerline
+    }
+  });
+
+  it("drawn roads are much wider than before when zoomed out", () => {
+    expect(roadMeters(15, 42.35)).toBeGreaterThan(30);
+  });
+
+  it("over a long random drive the bus is always on the street line", () => {
+    // a zig-zag street with 6 corners, ~3 km
+    const pts: [number, number][] = [];
+    let x = -71.1, y = 42.35;
+    for (let k = 0; k < 7; k++) {
+      pts.push([x, y]);
+      if (k % 2) y += 0.004; else x += 0.005;
+    }
+    const a = new BusAnimator();
+    a.setShapes("57", [pts]);
+    const s = makeShape(pts);
+    let t = 0;
+    for (let along = 0; along < s.total; along += 137 + (along % 90)) {
+      const p = pointAt(s, along).p;
+      // GPS noise up to ~10 m
+      const noisy: [number, number] = [p[0] + 0.0001 * Math.sin(along), p[1] + 0.00008 * Math.cos(along)];
+      a.ingest([{ ...bus(noisy[0], noisy[1]), bearing: 0 }], 1000, t);
+      for (let f = 0; f <= 1000; f += 100) {
+        const now = a.now(t + f)[0];
+        expect(project(s, [now.lng, now.lat]).off).toBeLessThan(0.5); // on the line (lane offset is added at draw time)
+      }
+      t += 1000;
+    }
+  });
+});

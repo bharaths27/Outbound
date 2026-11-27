@@ -22,6 +22,7 @@ import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
 import { TRACK_HALF_GAP, TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
 import { useBuses } from "./useBuses";
+import { loadSignals, SignalsLayer } from "./signals";
 import { busStatus } from "@/lib/bus";
 import { loadBaseStyle, groundLayerIds, registerFontProtocol } from "./style";
 import { CityBuildingsLayer, fetchBpdaManifest, fetchRegionManifest, inBpda, inRegion } from "./buildings3d";
@@ -160,8 +161,9 @@ export default function TransitMap() {
   const userLocRef = useRef<[number, number] | null>(null);
   const meMarker = useRef<maplibregl.Marker | null>(null);
   const explorer = useRef<ExplorerHandle>(null);
-  const [show, setShow] = useState<MapShow>({ trains: true, buses: true, campuses: true, friends: true, delays: true, events: true });
+  const [show, setShow] = useState<MapShow>({ trains: true, buses: true, signals: true, campuses: true, friends: true, delays: true, events: true });
   const buses = useBuses(ready ? mapRef.current : null, ready, show.buses);
+  const signalsRef = useRef<SignalsLayer | null>(null);
   const busesRef = useRef(buses);
   busesRef.current = buses;
   const [delayColors, setDelayColors] = useState(false);
@@ -1295,6 +1297,20 @@ export default function TransitMap() {
     window.addEventListener("outbound:go", onGo);
     return () => window.removeEventListener("outbound:go", onGo);
   }, [ready]);
+
+  // Traffic lights at main intersections (3D, from zoom 15)
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!ready || !m || m.getLayer("signals-3d")) return;
+    const layer = new SignalsLayer();
+    signalsRef.current = layer;
+    m.addLayer(layer, m.getStyle().layers.find((l) => l.type === "symbol")?.id);
+    loadSignals().then((list) => ((layer.signals = list), m.triggerRepaint())).catch(() => {});
+  }, [ready]);
+  useEffect(() => {
+    if (signalsRef.current) signalsRef.current.visible = show.signals;
+    mapRef.current?.triggerRepaint();
+  }, [show.signals, ready]);
 
   // Google requires its logo and the tiles' data credits on screen whenever its 3D tiles show.
   useEffect(() => {

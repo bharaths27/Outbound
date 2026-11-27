@@ -28,6 +28,7 @@ import { destinationOf } from "./feed";
 export interface MapShow {
   trains: boolean;
   buses: boolean;
+  signals: boolean;
   campuses: boolean;
   friends: boolean;
   delays: boolean;
@@ -132,6 +133,7 @@ export default function MapPanel(props: {
             <div className="flex flex-wrap gap-1.5">
               <Tile icon={<TrainFront size={18} />} label="Trains" on={show.trains} set={(v) => setShow({ ...show, trains: v })} />
               <Tile icon={<BusFront size={18} />} label="Buses" on={show.buses} set={(v) => setShow({ ...show, buses: v })} />
+              <Tile icon={<TrafficLightIcon />} label="Traffic lights" on={show.signals} set={(v) => setShow({ ...show, signals: v })} />
               <Tile icon={<GraduationCap size={18} />} label="Campuses" on={show.campuses} set={(v) => setShow({ ...show, campuses: v })} />
               <Tile icon={<PartyPopper size={18} />} label="Events" on={show.events} set={(v) => setShow({ ...show, events: v })} />
               <Tile icon={<Users size={18} />} label="Quests" on={show.friends} set={(v) => setShow({ ...show, friends: v })} />
@@ -363,5 +365,17 @@ function Lines({
       </ul>
       {lastError && <p className="mt-2 text-[12px] text-[var(--ob-muted)]">Last-train times need the MBTA schedule feed (not reachable right now).</p>}
     </div>
+  );
+}
+
+/** lucide has no traffic light, so a small one in the same line style. */
+function TrafficLightIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="7" y="2" width="10" height="20" rx="3" />
+      <circle cx="12" cy="7" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="12" cy="17" r="1.6" />
+    </svg>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MlMap } from "maplibre-gl";
 import type { Bus } from "@/lib/bus";
 import { decodePolyline } from "./bus-track";
-import { BUS_3D_MIN_ZOOM, BusAnimator, Buses3DLayer, SampleBuses, miniBusId, miniBusImage, type BusNow } from "./buses3d";
+import { BUS_3D_MIN_ZOOM, busFit, BusAnimator, Buses3DLayer, SampleBuses, loadSampleRoutes, bearingOf, topBusId, topBusImage, type BusNow } from "./buses3d";
 
 const BUS_INTERVAL_MS = 15_000;
 
@@ -15,17 +15,13 @@ async function fetchBuses(): Promise<Bus[]> {
   return j.buses;
 }
 
-const toGeo = (list: BusNow[], mapBearing: number): GeoJSON.FeatureCollection => ({
+const toGeo = (list: BusNow[]): GeoJSON.FeatureCollection => ({
   type: "FeatureCollection",
-  features: list.map((x) => {
-    // Which way the bus points on screen (map rotation included), so the mini bus faces that way.
-    const screenX = Math.cos(x.heading + (mapBearing * Math.PI) / 180);
-    return {
-      type: "Feature",
-      properties: { id: x.bus.id, icon: miniBusId(x.bus.number, x.bus.silver, screenX < 0) },
-      geometry: { type: "Point", coordinates: [x.lng, x.lat] },
-    };
-  }),
+  features: list.map((x) => ({
+    type: "Feature",
+    properties: { id: x.bus.id, icon: topBusId(x.bus.silver), rot: bearingOf(x.heading), number: x.bus.number },
+    geometry: { type: "Point", coordinates: [x.lng, x.lat] },
+  })),
 });
 
 export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeId?: string) {
@@ -66,18 +62,31 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
       source: "buses-2d",
       maxzoom: BUS_3D_MIN_ZOOM,
       layout: {
+        // flat bus lying on the street, turned the way it drives
         "icon-image": ["get", "icon"],
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.42, 11, 0.56, BUS_3D_MIN_ZOOM, 0.66],
+        "icon-rotate": ["get", "rot"],
+        "icon-rotation-alignment": "map",
+        "icon-pitch-alignment": "map",
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.32, 13, 0.5, BUS_3D_MIN_ZOOM, 0.7],
         "icon-allow-overlap": false, // overlapping buses hide, so far out doesn't turn into a yellow blur
-        "icon-padding": 1,
-        "symbol-sort-key": 1,
+        "icon-padding": 0,
+        // route number stays upright and readable
+        "text-field": ["get", "number"],
+        "text-font": ["Noto Sans Bold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 9, BUS_3D_MIN_ZOOM, 12],
+        "text-offset": [0, 1.5],
+        "text-optional": true,
+        "text-allow-overlap": false,
       },
+      paint: { "text-color": "#2B1A1F", "text-halo-color": "#FFC72C", "text-halo-width": 2 },
     });
     const onMissing = (e: { id: string }) => {
-      const img = miniBusImage(e.id);
+      const img = topBusImage(e.id);
       if (img && !map.hasImage(e.id)) map.addImage(e.id, img, { pixelRatio: 2 });
     };
     map.on("styleimagemissing", onMissing);
+    // add the two flat bus images up front so the map never asks for them before they exist
+    for (const id of ["bus-top-y", "bus-top-s"]) onMissing({ id });
     map.on("mouseenter", "buses-2d", () => (map.getCanvas().style.cursor = "pointer"));
     map.on("mouseleave", "buses-2d", () => (map.getCanvas().style.cursor = ""));
     return () => {
@@ -119,7 +128,7 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
           setCount(list.length);
         } catch {
           if (!fake && ++fails >= 2) {
-            fake = new SampleBuses();
+            fake = new SampleBuses(await loadSampleRoutes());
             fake.shapes().forEach(([route, line]) => animRef.current.setShapes(route, [line]));
             setSample(true);
             animRef.current.clear();
@@ -146,9 +155,10 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
     if (!ready || !map || !on) return;
     const t = setInterval(() => {
       if (map.getZoom() >= BUS_3D_MIN_ZOOM + 0.2) return;
+      // (refreshed every 500 ms so the flat buses glide instead of hopping)
       const src = map.getSource("buses-2d") as GeoJSONSource | undefined;
-      src?.setData(toGeo(animRef.current.now(), map.getBearing()));
-    }, 1000);
+      src?.setData(toGeo(animRef.current.now(performance.now(), busFit(map.getZoom(), map.getCenter().lat).offset)));
+    }, 500);
     return () => clearInterval(t);
   }, [map, ready, on]);
 
