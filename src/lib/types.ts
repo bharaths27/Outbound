@@ -215,7 +215,25 @@ export interface QuestOfTheWeek {
   base_xp_multiplier: number; // 2
 }
 
-export type BadgeId = "line_collector" | "night_owl" | "squad_goals" | "cross_town";
+export type BadgeId =
+  | "first_stop"
+  | "line_collector"
+  | "night_owl"
+  | "early_bird"
+  | "cross_town"
+  | "squad_goals"
+  | "critic"
+  | "free_food_finder"
+  | "week_on_the_t"
+  | "green_line_veteran"
+  | "bridge_builder"
+  | "weekly_regular"
+  | "taste_maker"
+  | "snow_day"
+  | "passport_complete"
+  | "host_with_the_most"
+  | "boston_local"
+  | "month_on_the_t";
 
 /** my_game_progress(): earned badges and the check-in streak, in Boston days. */
 export interface GameProgress {

@@ -30,6 +30,7 @@ import { matchesFilters } from "@/lib/search/matchFilters";
 import { parseQuery } from "@/lib/search/fallbackParser";
 import * as seed from "./seed";
 import { SAVED_SEED, buildSocial } from "./social-seed";
+import { earnedBadges } from "@/features/badges/rules";
 
 const DELAY_MS = 250;
 const CHECK_IN_DELAY_MS = 600;
@@ -219,20 +220,7 @@ function questOfTheWeek(now = new Date()): QuestOfTheWeek | null {
  * station, 3+ squad-mates (me included) checked in within 60 minutes of a squad visit that
  * started at most 60 minutes before mine.
  */
-function hasSquadGoals(mine: Visit[]): boolean {
-  const HOUR = 60 * 60_000;
-  const t = (v: Visit) => Date.parse(v.checked_in_at);
-  const stationIdOf = (v: Visit) => questById(v.quest_id)!.station_id;
-  return mine.some((m) => {
-    if (!m.squad_id) return false;
-    const squad = state.visits.filter((v) => v.squad_id === m.squad_id && stationIdOf(v) === stationIdOf(m));
-    return squad.some((start) => {
-      if (t(start) < t(m) - HOUR || t(start) > t(m)) return false;
-      const users = new Set(squad.filter((v) => t(v) >= t(start) && t(v) <= t(start) + HOUR).map((v) => v.user_id));
-      return users.size >= 3;
-    });
-  });
-}
+
 
 /** my_game_progress(): badges and streaks from the player's visits, in Boston days. */
 function gameProgress(user: Profile, now = new Date()): GameProgress {
@@ -251,23 +239,31 @@ function gameProgress(user: Profile, now = new Date()): GameProgress {
   }
   const yesterday = seed.nyDate(new Date(now.getTime() - 86_400_000));
   const latest = runs.at(-1);
-  const colors = new Set(visits.flatMap((v) => stationOf(v).lines.map((l) => l.split("-")[0])));
-  const hour = (v: Visit) =>
-    Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }).format(new Date(v.checked_in_at)));
-  const weekHoods = new Map<string, Set<string>>();
-  for (const v of visits) {
-    const wk = seed.nyDate(nyWeekStart(new Date(v.checked_in_at)));
-    weekHoods.set(wk, (weekHoods.get(wk) ?? new Set()).add(stationOf(v).neighborhood));
+  const longest = Math.max(0, ...runs.map((r) => r.days));
+  const perHood: Record<string, number> = {};
+  for (const q of seed.quests) {
+    const h = neighborhoodOf(q);
+    perHood[h] = (perHood[h] ?? 0) + 1;
   }
-  const badges: BadgeId[] = [];
-  if (["Red", "Orange", "Green"].every((c) => colors.has(c))) badges.push("line_collector");
-  if (visits.some((v) => hour(v) >= 22)) badges.push("night_owl");
-  if (hasSquadGoals(visits)) badges.push("squad_goals");
-  if ([...weekHoods.values()].some((h) => h.size >= 4)) badges.push("cross_town");
+  const qotwWeeks = visits
+    .filter((v) => questOfTheWeek(new Date(v.checked_in_at))?.quest_id === v.quest_id)
+    .map((v) => seed.nyDate(nyWeekStart(new Date(v.checked_in_at))));
+  const badges: BadgeId[] = earnedBadges({
+    visits: visits.map((v) => {
+      const st = stationOf(v);
+      return { quest_id: v.quest_id, station_lines: st.lines, neighborhood: st.neighborhood, checked_in_at: v.checked_in_at, visit_date: v.visit_date, squad_id: v.squad_id, cross_school: v.cross_school };
+    }),
+    questsPerNeighborhood: perHood,
+    reviews: state.reviews
+      .filter((r) => r.user_id === user.id)
+      .map((r) => ({ note: r.note, likes: state.likes.filter((l) => l.review_id === r.id).length })),
+    longestStreak: longest,
+    questOfWeekWeeks: qotwWeeks,
+  });
   return {
     badges,
     current_streak: latest && (latest.last === today || latest.last === yesterday) ? latest.days : 0,
-    longest_streak: Math.max(0, ...runs.map((r) => r.days)),
+    longest_streak: longest,
   };
 }
 

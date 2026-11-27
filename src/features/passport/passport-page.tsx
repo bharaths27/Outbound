@@ -18,6 +18,7 @@ import type { Profile, School, Tier } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { TIER_LABEL, buildPassport, progressLine, type NeighborhoodView, type PassportView } from "./build-passport";
 import { BadgesAndStreak } from "./badges";
+import { SeasonalStamps } from "./seasonal-stamps";
 import { Stamp } from "./stamp";
 import { DateStamp } from "./date-stamp";
 import { useFreshStamps } from "./fresh-stamps";
@@ -291,6 +292,7 @@ function Passport({ profile, view }: { profile: Profile; view: PassportView }) {
       </div>
 
       <BadgesAndStreak userId={profile.id} />
+      <SeasonalStamps userId={profile.id} />
 
       <Tabs defaultValue={empty ? "explore" : "stamps"} className="gap-4">
         <TabsList className="w-full desk:w-fit">

@@ -1,7 +1,6 @@
 "use client";
 
 import { BadgeUnlockHost } from "@/features/badges/badge-unlock";
-import { Blossoms } from "./blossoms";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -15,7 +14,6 @@ import {
   PHONE_NAV,
   NotificationsBell,
   ProfileLink,
-  ThemeToggle,
   XpPill,
   isActive,
 } from "./shell-parts";
@@ -45,7 +43,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop top bar */}
       <header className="hidden bg-maroon text-on-maroon desk:block">
         <div className="relative mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-7 gap-y-3 px-8 py-2.5">
-          <Blossoms className="absolute top-0 right-[330px] hidden h-12 w-[110px] opacity-75 xl:block" />
           <Link
             href="/"
             className="flex items-center py-2"
@@ -81,7 +78,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3">
             {!guideFloats && <AskGuideButton />}
             <XpPill player={player} />
-            <ThemeToggle tint />
             <NotificationsBell tint />
             <ProfileLink player={player} />
           </div>
@@ -100,7 +96,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
           </div>
           <XpPill player={player} size="sm" />
-          <ThemeToggle />
           <NotificationsBell />
           <ProfileLink player={player} size={30} />
         </header>

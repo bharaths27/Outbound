@@ -24,12 +24,14 @@ export interface PageHeaderProps {
   children?: ReactNode;
   /** Right side of the desktop title row (e.g. a segmented control). */
   desktopAside?: ReactNode;
+  /** A small action beside the title on phones and desktop (e.g. the Events page's + Host). */
+  action?: ReactNode;
   /** Desktop shows only the back link (the page has its own big title). */
   desktopBackOnly?: boolean;
   className?: string;
 }
 
-export function PageHeader({ title, back, icon, children, desktopAside, desktopBackOnly, className }: PageHeaderProps) {
+export function PageHeader({ title, back, icon, children, desktopAside, action, desktopBackOnly, className }: PageHeaderProps) {
   const player = useShellPlayer();
   const guideInHeader = guideInHeaderOn(usePathname());
   return (
@@ -54,6 +56,7 @@ export function PageHeader({ title, back, icon, children, desktopAside, desktopB
             icon
           )}
           <h1 className="min-w-0 flex-1 truncate font-display text-[26px] leading-8 font-semibold">{title}</h1>
+          {action}
           {guideInHeader && <AskGuideButton compact />}
           <ProfileLink player={player} size={34} />
         </div>
@@ -74,7 +77,12 @@ export function PageHeader({ title, back, icon, children, desktopAside, desktopB
         {!desktopBackOnly && (
           <div className="flex flex-wrap items-end justify-between gap-4">
             <h1 className="type-display text-ink">{title}</h1>
-            {desktopAside}
+            {(desktopAside || action) && (
+              <div className="flex items-center gap-3">
+                {desktopAside}
+                {action}
+              </div>
+            )}
           </div>
         )}
       </div>

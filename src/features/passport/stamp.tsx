@@ -93,6 +93,10 @@ export interface StampProps {
   className?: string;
 }
 
+/** Stations with a hand-drawn stamp in public/stations. */
+const HAND_DRAWN = new Set(["place-pktrm", "place-gover", "place-haecl", "place-coecl", "place-kencl", "place-bucen", "place-harsq", "place-cntsq", "place-chncl"]);
+const TIER_DOT: Record<Tier, string> = { bronze: "#A8643A", silver: "#8C96A8", gold: "#D9A21B" };
+
 export function Stamp({
   questId,
   title,
@@ -122,6 +126,34 @@ export function Stamp({
       (locked
         ? `${title}, not collected yet`
         : `${titleCase(art.ribbon)} stamp, ${TIER_NAME[tier]}${crossSchool ? ", cross-school" : ""}`);
+    // Hand-drawn station stamps (public/stations/<station id>.webp) replace the code-drawn art.
+    if (stationId && HAND_DRAWN.has(stationId)) {
+      return (
+        <span
+          role="img"
+          aria-label={stationName}
+          className={cn("relative inline-grid shrink-0 place-items-center", className)}
+          style={{ width: size, height: size, transform: tilt ? `rotate(${tilt}deg)` : undefined }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- static stamp art */}
+          <img
+            src={`/stations/${stationId}.webp`}
+            alt=""
+            draggable={false}
+            className={cn("max-h-full max-w-full object-contain select-none", locked ? "opacity-45 grayscale" : "drop-shadow-[0_2px_2px_rgb(43_26_31/0.25)]")}
+          />
+          {!locked && (
+            <span
+              aria-hidden
+              className="absolute -right-0.5 -bottom-0.5 grid place-items-center rounded-full border-2 border-white font-bold text-white shadow-sm"
+              style={{ width: size * 0.26, height: size * 0.26, fontSize: size * 0.11, background: TIER_DOT[tier], boxShadow: crossSchool ? `0 0 0 2px ${crossRing}` : undefined }}
+            >
+              {tier[0].toUpperCase()}
+            </span>
+          )}
+        </span>
+      );
+    }
     return (
       <svg
         width={size}

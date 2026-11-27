@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import { PipelinePage } from "@/features/pipeline/pipeline-page";
 
-export const metadata: Metadata = { title: "Pipeline" };
+export const metadata: Metadata = { title: "How it works" };
 
 export default function Page() {
   return <PipelinePage />;

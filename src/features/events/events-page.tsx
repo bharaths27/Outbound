@@ -4,15 +4,16 @@
 // open-now first, with its station, hours, and a link to the quest or a route on the map. The
 // times are each spot's regular opening hours from the quest content, not a live calendar.
 
-import { MapPin } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { data } from "@/lib/data";
 import type { Quest, Station } from "@/lib/data/types";
 import { QuestThumb } from "@/features/hub/category";
 import { openState } from "@/features/hub/hours";
 import { QuestMeta, XpChip } from "@/features/hub/quest-card";
 import { PageHeader } from "@/features/shell/page-header";
+import { HostPage } from "@/features/host/host-page";
 
 interface Loaded {
   events: Quest[];
@@ -54,11 +55,28 @@ export function EventsPage() {
 
   return (
     <>
-      <PageHeader title="Events" />
+      <PageHeader
+        title="Events"
+        action={
+          <Link
+            href="/events?host=1"
+            scroll={false}
+            aria-label="Host an event"
+            title="Host an event"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-gold pr-3.5 pl-2.5 text-sm font-bold text-gold-foreground shadow-glow transition-transform hover:scale-105 active:scale-95"
+          >
+            <Plus className="size-[18px]" strokeWidth={2.6} aria-hidden />
+            Host
+          </Link>
+        }
+      />
       <div className="mx-auto w-full max-w-[720px] px-4 pt-3 pb-8 desk:max-w-[1360px] desk:px-8 desk:pt-6 desk:pb-12">
-        <p className="mb-4 text-base text-muted-foreground">
-          Museums, markets, and historic spots near the T. Each one is a quest: go during its hours and check in for XP and
-          a stamp. Times are regular opening hours.
+        <Suspense fallback={null}>
+          <HostPage embedded />
+        </Suspense>
+        <h2 className="mt-8 mb-1 text-xl font-semibold text-ink">Around the T</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Museums, markets, and historic spots. Each one is a quest: go during its hours and check in for XP and a stamp.
         </p>
         {loaded === null && <p className="rounded-xl border border-border bg-surface p-6 text-center text-muted-foreground">Loading events…</p>}
         {loaded === "error" && (

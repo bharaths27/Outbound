@@ -61,7 +61,7 @@ export function PipelinePage() {
 
   return (
     <>
-      <PageHeader title="Pipeline" />
+      <PageHeader title="How it works" />
       <div className="mx-auto w-full max-w-[720px] px-4 pt-3 pb-28 desk:max-w-[1400px] desk:px-8 desk:pt-6">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1">

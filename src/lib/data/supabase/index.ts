@@ -14,9 +14,11 @@ import { createClient as createPlainClient, type SupabaseClient } from "@supabas
 import { matchesFilters } from "@/lib/search/matchFilters";
 import { parseQuery } from "@/lib/search/fallbackParser";
 import { parseCheckInError } from "../checkInErrors";
+import { earnedBadges } from "@/features/badges/rules";
 import type { DataService } from "../service";
 import type {
   AuthError,
+  BadgeId,
   AuthResult,
   CheckInResult,
   HostedEvent,
@@ -109,6 +111,45 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
     return id;
   }
 
+
+  /**
+   * The SQL my_game_progress() only knows the original 4 badges. The rest are worked out here
+   * from the player's own visits and reviews with the same rules the mock uses. Quest of the
+   * Week history isn't stored on the server yet, so weekly_regular can't unlock on live data.
+   */
+  async function allBadges(userId: string, base: GameProgress): Promise<BadgeId[]> {
+    try {
+      const [visits, stations, quests, reviews] = await Promise.all([
+        db().from("visits").select("quest_id, squad_id, checked_in_at, visit_date, cross_school").eq("user_id", userId),
+        db().from("stations").select("id, lines, neighborhood"),
+        db().from("quests").select("id, station_id"),
+        db().from("reviews").select("id, note").eq("user_id", userId),
+      ]);
+      const st = new Map(((stations.data ?? []) as Pick<Station, "id" | "lines" | "neighborhood">[]).map((x) => [x.id, x]));
+      const qs = (quests.data ?? []) as { id: string; station_id: string }[];
+      const stationOfQuest = new Map(qs.map((q) => [q.id, st.get(q.station_id)]));
+      const perHood: Record<string, number> = {};
+      for (const q of qs) {
+        const h = st.get(q.station_id)?.neighborhood;
+        if (h) perHood[h] = (perHood[h] ?? 0) + 1;
+      }
+      const R = (reviews.data ?? []) as { id: string; note: string | null }[];
+      const likes = R.length ? ((await db().from("review_likes").select("review_id").in("review_id", R.map((r) => r.id))).data ?? []) as { review_id: string }[] : [];
+      const V = ((visits.data ?? []) as Pick<Visit, "quest_id" | "squad_id" | "checked_in_at" | "visit_date" | "cross_school">[]).flatMap((v) => {
+        const s = stationOfQuest.get(v.quest_id);
+        return s ? [{ ...v, station_lines: s.lines, neighborhood: s.neighborhood }] : [];
+      });
+      const extra = earnedBadges({
+        visits: V,
+        questsPerNeighborhood: perHood,
+        reviews: R.map((r) => ({ note: r.note ?? "", likes: likes.filter((l) => l.review_id === r.id).length })),
+        longestStreak: base.longest_streak,
+      });
+      return [...new Set([...base.badges, ...extra])];
+    } catch {
+      return base.badges;
+    }
+  }
 
   async function isFriend(a: string, b: string): Promise<boolean> {
     const { data } = await db().from("friends").select("status").eq("status", "accepted").or(`and(user_id.eq.${a},friend_id.eq.${b}),and(user_id.eq.${b},friend_id.eq.${a})`).limit(1);
@@ -335,8 +376,10 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
     },
 
     async getGameProgress() {
-      if (!(await myId())) return null;
-      return must(await db().rpc("my_game_progress"), "game progress") as GameProgress;
+      const me = await myId();
+      if (!me) return null;
+      const base = must(await db().rpc("my_game_progress"), "game progress") as GameProgress;
+      return { ...base, badges: await allBadges(me, base) };
     },
 
     // ---------- squads ----------
@@ -446,7 +489,8 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
         db().from("reviews").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
         db().from("saved_places").select("*").eq("user_id", userId),
       ]);
-      const badges = isMe ? ((await db().rpc("my_game_progress")).data?.badges ?? []) : [];
+      const progress = isMe ? ((await db().rpc("my_game_progress")).data as GameProgress | null) : null;
+      const badges = progress ? await allBadges(userId, progress) : [];
       return {
         profile,
         visible: true,

@@ -16,38 +16,28 @@ describe("badges from check-ins (mock backend)", () => {
     expect(p?.badges).toEqual([]);
   });
 
-  it("Line Collector after Red, Orange and Green; reported once", async () => {
-    let seen: string[] = (await d.getGameProgress())!.badges;
-    for (const q of ["harvard-yard-gate", "chinatown-gate-details"]) {
-      const r = await d.checkIn(q, null, {});
-      expect(r.ok).toBe(true);
-    }
-    let p = (await d.getGameProgress())!;
-    expect(p.badges).not.toContain("line_collector");
-    expect(newlyEarned(seen, p.badges)).toEqual([]);
-    seen = p.badges;
-
-    expect((await d.checkIn("marsh-plaza-details", null, {})).ok).toBe(true);
-    p = (await d.getGameProgress())!;
-    expect(p.badges).toContain("line_collector");
-    expect(newlyEarned(seen, p.badges)).toEqual(["line_collector"]);
+  it("First Stop after the first check-in; reported once", async () => {
+    const seen = (await d.getGameProgress())!.badges;
+    expect((await d.checkIn("harvard-yard-gate", null, {})).ok).toBe(true);
+    const p = (await d.getGameProgress())!;
+    expect(newlyEarned(seen, p.badges)).toEqual(["first_stop"]);
     expect(newlyEarned(p.badges, p.badges)).toEqual([]); // not again
   }, 30000);
 
-  it("Cross-Town after a 4th neighborhood in the same week", async () => {
+  it("Line Collector needs Red, Orange, Green and Blue; Cross-Town lands with the 4th neighborhood", async () => {
+    for (const q of ["chinatown-gate-details", "marsh-plaza-details"]) expect((await d.checkIn(q, null, {})).ok).toBe(true);
     const before = (await d.getGameProgress())!.badges;
-    expect(before).not.toContain("cross_town");
-    expect((await d.checkIn("quincy-market-snack", null, {})).ok).toBe(true);
+    expect(before).not.toContain("line_collector"); // no Blue yet
+    expect(before).not.toContain("cross_town"); // 3 neighborhoods this week
+
+    expect((await d.checkIn("quincy-market-snack", null, {})).ok).toBe(true); // Blue, Downtown
     const after = (await d.getGameProgress())!.badges;
-    expect(after).toContain("cross_town");
-    expect(newlyEarned(before, after)).toEqual(["cross_town"]);
+    expect(newlyEarned(before, after).sort()).toEqual(["cross_town", "line_collector"]);
   }, 30000);
 
-  it("Night Owl only after 10 PM", async () => {
+  it("Night Owl takes 3 different late nights, so one is not enough", async () => {
     vi.setSystemTime(new Date("2026-11-24T22:30:00-05:00"));
-    const before = (await d.getGameProgress())!.badges;
-    expect(before).not.toContain("night_owl");
     expect((await d.checkIn("harvard-art-courtyard", null, {})).ok).toBe(true);
-    expect((await d.getGameProgress())!.badges).toContain("night_owl");
+    expect((await d.getGameProgress())!.badges).not.toContain("night_owl");
   }, 30000);
 });
