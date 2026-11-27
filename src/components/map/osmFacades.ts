@@ -16,7 +16,7 @@ import type { ExpressionSpecification } from "maplibre-gl";
 /** From this zoom the buildings are drawn with facades; below it, the basemap's plain boxes. */
 export const FACADE_MIN_ZOOM = 13;
 /** How many buildings get facades (nearest first): more when zoomed out, so the whole view keeps its detail. */
-export const maxBuildings = (zoom: number) => (zoom >= 15.5 ? 7000 : zoom >= 14.5 ? 10000 : zoom >= 13.5 ? 14000 : 18000);
+export const maxBuildings = (zoom: number) => (zoom >= 15.5 ? 12000 : zoom >= 14.5 ? 17000 : zoom >= 13.5 ? 22000 : 28000);
 /** Real trees (public/data/trees.json: canopy found in aerial photos, Cambridge park trees) show from this zoom. */
 export const TREES_MIN_ZOOM = 14;
 const TREES_CENTER: [number, number] = [-71.09, 42.363];

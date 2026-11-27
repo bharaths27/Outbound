@@ -30,7 +30,7 @@ export function tilesForView(center: [number, number], bounds: [number, number, 
 }
 
 /** How far out (in zoom-14 tiles) to load buildings: wider when zoomed out, capped so it stays quick. */
-export const tileRadius = (zoom: number) => (zoom >= 13.5 ? 2 : 3);
+export const tileRadius = (zoom: number) => (zoom >= 15 ? 3 : 4);
 
 const MAX_CACHED = 160;
 

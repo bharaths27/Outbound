@@ -78,7 +78,6 @@ type Part = { geo: THREE.BufferGeometry; mat: THREE.Material; lit?: "lamp" | "ha
 function cornerParts(): Part[] {
   const pole = new THREE.MeshStandardMaterial({ color: "#2f3338", roughness: 0.55, metalness: 0.45 });
   const black = new THREE.MeshStandardMaterial({ color: "#16181b", roughness: 0.6 });
-  const yellow = new THREE.MeshStandardMaterial({ color: "#f2c230", roughness: 0.5 });
   const green = new THREE.MeshStandardMaterial({ color: "#1f6b3a", roughness: 0.5 });
   const white = new THREE.MeshStandardMaterial({ color: "#f2f2ee", roughness: 0.6 });
   const concrete = new THREE.MeshStandardMaterial({ color: "#b9b6ae", roughness: 0.9 });
@@ -98,10 +97,9 @@ function cornerParts(): Part[] {
   add(new THREE.BoxGeometry(0.035, 0.24, 1.38).translate(0, 5.78, 1.2), green);
   add(new THREE.BoxGeometry(0.036, 0.03, 1.38).translate(0, 5.9, 1.2), white);
 
-  // signal head hanging from the arm's end: yellow-bordered backplate, black housing, a visor over each lamp
+  // signal head hanging from the arm's end: black backplate, black housing, a visor over each lamp
   const hz = 3.1;
   add(new THREE.CylinderGeometry(0.03, 0.03, 0.35, 6).translate(0, 5.32, hz), pole);
-  add(new THREE.BoxGeometry(0.05, 1.85, 0.86).translate(-0.27, 4.75, hz), yellow);
   add(new THREE.BoxGeometry(0.055, 1.7, 0.72).translate(-0.265, 4.75, hz), black);
   add(new THREE.BoxGeometry(0.46, 1.42, 0.46).translate(0, 4.75, hz), black);
   for (const [k, y] of [["red", 5.2], ["yellow", 4.75], ["green", 4.3]] as [Light, number][]) {
@@ -121,7 +119,7 @@ function cornerParts(): Part[] {
   add(new THREE.BoxGeometry(0.22, 0.3, 0.02).translate(-0.15, 2.74, pz + 0.125), new THREE.MeshBasicMaterial(), { lit: "hand" });
   add(new THREE.BoxGeometry(0.22, 0.3, 0.02).translate(0.15, 2.74, pz + 0.125), new THREE.MeshBasicMaterial(), { lit: "walk" });
   // push button for the crosswalk, with its little sign
-  add(new THREE.BoxGeometry(0.14, 0.24, 0.12).translate(0, 1.1, 0.2), yellow);
+  add(new THREE.BoxGeometry(0.14, 0.24, 0.12).translate(0, 1.1, 0.2), pole); // dark push-button housing
   add(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 10).rotateX(Math.PI / 2).translate(0, 1.06, 0.27), black);
   add(new THREE.BoxGeometry(0.2, 0.28, 0.015).translate(0, 1.42, 0.2), white);
   return parts;

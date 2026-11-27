@@ -68,7 +68,8 @@ describe("buses stay on the street", () => {
   it("main roads are drawn at least real width up close, and buses are real size there", () => {
     for (let z = 15; z <= 21; z += 0.5) expect(roadMeters(z, 42.35)).toBeGreaterThanOrEqual(15);
     expect(busFit(18, 42.35).width).toBeCloseTo(2.6, 6);
-    expect(busFit(16, 42.35).width).toBeLessThanOrEqual(2.6 * 1.5 + 1e-9); // a little bigger further out, never huge
+    expect(busFit(16, 42.35).width).toBeGreaterThan(2.6 * 1.6); // easy to see further out
+    expect(busFit(16, 42.35).width).toBeLessThanOrEqual(5 + 1e-9); // never huge
   });
 
   it("over a long random drive the bus is always on the street line", () => {

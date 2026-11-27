@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CustomLayerInterface, CustomRenderMethodInput, Map as MlMap } from "maplibre-gl";
 import { BUS_YELLOW, SILVER_GRAY, meters, type Bus } from "@/lib/bus";
-import { bendPose, DEFAULT_ROAD_M, laneOffset, type BusAnimator, type BusNow } from "./bus-track";
+import { bendPose, laneOffset, type BusAnimator, type BusNow } from "./bus-track";
 import { modelMatrix } from "./trains3d";
 import { evalZoomInterp, metersPerPx, realRoadMeters } from "./style";
 
@@ -37,10 +37,10 @@ export const HALF_STREET_M = 9;
 /** How big and where across the street a bus is drawn: width in meters and how far right of the centerline. */
 export function busFit(zoom: number, lat: number): { width: number; offset: number } {
   const road = roadMeters(zoom, lat);
-  // Real size from zoom 17.5 in; a little bigger (up to 1.5x) further out so it can still be seen, but never wider
-  // than a lane of the narrowest street a bus drives (DEFAULT_ROAD_M), so it always fits between centerline and curb.
-  const grow = Math.min(1.5, 1 + Math.max(0, 17.5 - zoom) / 3);
-  const width = Math.min(BUS_WIDTH * grow, Math.max(BUS_WIDTH, DEFAULT_ROAD_M / 2 - 0.5), 0.5 * road);
+  // Real size from zoom 18 in; bigger (up to 1.9x) further out so it's easy to see, but never wider than 5 m
+  // (about a main street's half) or half the drawn road, so it stays between centerline and curb.
+  const grow = Math.min(1.9, 1 + Math.max(0, 18 - zoom) / 2.2);
+  const width = Math.min(BUS_WIDTH * grow, 5, 0.5 * road);
   return { width: Math.max(BUS_WIDTH, width), offset: laneOffset(Math.min(road, 2 * HALF_STREET_M), Math.max(BUS_WIDTH, width)) };
 }
 

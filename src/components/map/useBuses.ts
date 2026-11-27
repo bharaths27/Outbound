@@ -67,7 +67,7 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
       source: "buses-2d",
       maxzoom: BUS_3D_MIN_ZOOM,
       paint: {
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 6, 13, 8, BUS_3D_MIN_ZOOM, 11],
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 7, 13, 9.5, BUS_3D_MIN_ZOOM, 13],
         "circle-color": ["case", ["get", "silver"], "#7C878E", "#FFC72C"],
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 1.2, BUS_3D_MIN_ZOOM, 2],
@@ -82,7 +82,7 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
       layout: {
         "text-field": ["get", "number"],
         "text-font": ["Noto Sans Bold"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 7.5, 13, 9, BUS_3D_MIN_ZOOM, 11],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 8.5, 13, 10.5, BUS_3D_MIN_ZOOM, 13],
         "text-allow-overlap": true,
         "text-ignore-placement": true,
       },
