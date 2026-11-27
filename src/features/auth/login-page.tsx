@@ -239,7 +239,7 @@ function LoginForms() {
           className="h-11 gap-2.5 rounded-2xl bg-surface text-[15px] font-semibold"
         >
           <GoogleG />
-          Continue with your school Google account
+          Continue with school Google
         </Button>
       </form>
 

@@ -186,12 +186,12 @@ function BoardBody({ ctx, hoodOf, name, reload }: { ctx: Ctx; hoodOf: (q: string
               ? `${you ? "You" : name} visited ${monthPlaces.size} ${monthPlaces.size === 1 ? "place" : "places"} in ${monthHoods.size} ${monthHoods.size === 1 ? "neighborhood" : "neighborhoods"}.`
               : `No check-ins in ${monthLabel(month, "long")}.`}
           </p>
-          <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-muted-foreground" aria-hidden>
+          <div className="mx-auto mt-3 grid max-w-[340px] grid-cols-7 gap-1 text-center text-[11px] font-semibold text-muted-foreground" aria-hidden>
             {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
               <span key={i}>{d}</span>
             ))}
           </div>
-          <div className="mt-1 grid grid-cols-7 gap-1" role="grid" aria-label={`${monthLabel(month, "long")} visits`}>
+          <div className="mx-auto mt-1 grid max-w-[340px] grid-cols-7 gap-1" role="grid" aria-label={`${monthLabel(month, "long")} visits`}>
             {cells.map((c, i) =>
               c ? (
                 <button
