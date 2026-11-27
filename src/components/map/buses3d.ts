@@ -516,10 +516,12 @@ export interface SampleRoute {
   number: string;
   silver?: boolean;
   ends: [string, string];
+  /** How many sample buses run on it (default 4). */
+  buses?: number;
   path: [number, number][];
 }
 
-/** Street-following sample routes (scripts/data-build/bus_samples.py); the rough ones below if that file can't load. */
+/** Every MBTA bus route on its real street shape (scripts/data-build/bus_samples.py); the rough ones below if that file can't load. */
 export async function loadSampleRoutes(): Promise<SampleRoute[]> {
   try {
     const r = await fetch("/data/bus-samples.json");
@@ -557,9 +559,10 @@ export class SampleBuses {
         segs.push({ a: r.path[k - 1], b: r.path[k], len, start: total });
         total += len;
       }
-      for (let n = 0; n < 4; n++) {
+      const count = r.buses ?? 4;
+      for (let n = 0; n < count; n++) {
         const back = n % 2 === 1;
-        const d0 = ((this.t * 7 + (n * total) / 4 + ri * 911) % total + total) % total; // ~7 m/s
+        const d0 = ((this.t * 7 + (n * total) / count + ri * 911) % total + total) % total; // ~7 m/s
         const d = back ? total - d0 : d0;
         const s = segs.find((q) => d >= q.start && d <= q.start + q.len) ?? segs.at(-1)!;
         const f = (d - s.start) / s.len;
