@@ -41,18 +41,34 @@ export function buildingSeed(id: unknown, height: number, minHeight: number) {
   return typeof id === "number" ? id % 100_003 : Math.round(height * 10) * 7 + Math.round(minHeight) * 3;
 }
 
+// OpenMapTiles' color for building:material=brick, used when a tagged color can't be read
+const TAGGED_FALLBACK = [189, 129, 97];
 function hexRgb(s: unknown): number[] | undefined {
   if (typeof s !== "string") return undefined;
-  const m = /^#?([0-9a-f]{6})$/i.exec(s.trim());
-  if (!m) return undefined;
-  const v = parseInt(m[1], 16);
-  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  const t = s.trim();
+  const m = /^#?([0-9a-f]{6})$/i.exec(t);
+  if (m) {
+    const v = parseInt(m[1], 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  }
+  const m3 = /^#([0-9a-f]{3})$/i.exec(t);
+  if (m3) return [...m3[1]].map((c) => parseInt(c + c, 16));
+  return TAGGED_FALLBACK;
+}
+
+/** A tagged OSM color, varied per building: whole neighborhoods are tagged with one material ("brick"), which would
+ *  paint every building the same. Reddish ones become a mix of real brick shades, and each gets its own brightness. */
+function varyTagged(own: number[], seed: number): number[] {
+  const brickish = own[0] > own[1] + 25;
+  const b = BRICK[Math.floor(hash(seed + 5) * BRICK.length)];
+  const k = 0.84 + 0.3 * hash(seed + 6);
+  return own.map((c, i) => Math.min(255, Math.round((brickish ? c * 0.45 + b[i] * 0.55 : c) * k)));
 }
 
 /** Wall color: the OSM building color when mapped, otherwise a Boston material picked by height (stable per building). */
 export function wallColor(colour: unknown, height: number, seed: number): number[] {
   const own = hexRgb(colour);
-  if (own) return own;
+  if (own) return varyTagged(own, seed);
   const r = hash(seed);
   if (height > 45) return r > 0.3 ? GLASS[Math.floor(hash(seed + 1) * GLASS.length)] : STONE[Math.floor(hash(seed + 2) * STONE.length)];
   if (height <= 15) return HOUSE_COLORS[Math.floor(houseHash(seed + 1) * HOUSE_COLORS.length)]; // painted clapboard, brick
@@ -80,14 +96,23 @@ export function wallColorExpression(): ExpressionSpecification {
     const x: ExpressionSpecification = ["*", ["sin", ["*", ["+", seed, k], 12.9898]], 43758.5453];
     return ["-", x, ["floor", x]];
   };
-  const own: ExpressionSpecification = ["case", ["==", ["typeof", ["get", "colour"]], "string"], ["get", "colour"], ""];
+  const rgba: ExpressionSpecification = ["to-rgba", ["to-color", ["get", "colour"], `rgb(${TAGGED_FALLBACK.join(",")})`]];
+  const ch = (i: number): ExpressionSpecification => ["at", i, rgba];
+  const brickish: ExpressionSpecification = [">", ch(0), ["+", ch(1), 25]];
+  const bi: ExpressionSpecification = ["min", BRICK.length - 1, ["floor", ["*", h1(5), BRICK.length]]];
+  const k: ExpressionSpecification = ["+", 0.84, ["*", 0.3, h1(6)]];
+  const chan = (i: number): ExpressionSpecification => [
+    "min", 255,
+    ["round", ["*", ["case", brickish, ["+", ["*", ch(i), 0.45], ["*", ["at", bi, ["literal", BRICK.map((c) => c[i])]], 0.55]], ch(i)], k]],
+  ];
+  const tagged: ExpressionSpecification = ["rgb", chan(0), chan(1), chan(2)];
   const made: ExpressionSpecification = [
     "case",
     [">", height, 45], ["case", [">", h1(0), 0.3], pick(GLASS, h1(1)), pick(STONE, h1(2))],
     ["<=", height, 15], pick(HOUSE_COLORS, h2(1)),
     ["case", [">", h1(0), 0.45], pick(BRICK, h1(3)), pick(STONE, h1(4))],
   ];
-  return ["to-color", own, made] as ExpressionSpecification;
+  return ["case", ["==", ["typeof", ["get", "colour"]], "string"], tagged, ["to-color", made]] as ExpressionSpecification;
 }
 
 /** Basemap building features -> footprints for buildCityMesh (deduplicated, nearest to `center` first). */
@@ -126,6 +151,8 @@ export function footprintsOf(feats: Pick<MapGeoJSONFeature, "id" | "properties" 
   return out.slice(0, limit).map((x) => x.f);
 }
 
+type Group = { meshes: THREE.Mesh[]; center: [number, number] };
+
 /** MapLibre custom layer: the nearby OSM buildings as one three.js mesh with the facade shader. */
 export class OsmFacadesLayer implements CustomLayerInterface {
   id = "osm-facades";
@@ -140,15 +167,12 @@ export class OsmFacadesLayer implements CustomLayerInterface {
   private renderer!: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.Camera();
-  private mesh: THREE.Mesh | null = null;
-  private meshCenter: [number, number] = [0, 0];
+  /** the finished city, and the one being built (drawn as it grows, nearest buildings first, so nothing goes missing) */
+  private city: Group | null = null;
+  private next: Group | null = null;
   private material = (() => {
     const m = makeFacadeMaterial(1, 4.1);
     m.side = THREE.DoubleSide; // clipped tile pieces don't have a reliable winding
-    // the basemap's plain buildings stay underneath (so nothing pops out while facades build); facades win the depth test
-    m.polygonOffset = true;
-    m.polygonOffsetFactor = -2;
-    m.polygonOffsetUnits = -8;
     return m;
   })();
   private tmp = new THREE.Matrix4();
@@ -195,7 +219,7 @@ export class OsmFacadesLayer implements CustomLayerInterface {
     this.map.off("moveend", this.soon);
     this.map.off("sourcedata", this.onData);
     clearTimeout(this.timer);
-    this.mesh?.geometry.dispose();
+    for (const g of [this.city, this.next]) g?.meshes.forEach((m) => m.geometry.dispose());
   }
 
   private sky = new THREE.HemisphereLight(0xffffff, 0xb8b0c0, 1.3);
@@ -272,25 +296,22 @@ export class OsmFacadesLayer implements CustomLayerInterface {
       const center: [number, number] = [c.lng, c.lat];
       const feats = this.map.querySourceFeatures(this.source, { sourceLayer: this.sourceLayer });
       const fps = footprintsOf(feats, center, maxBuildings(zoom));
-      const parts: THREE.BufferGeometry[] = [];
+      const next: Group = { meshes: [], center };
+      this.next = next;
       for (let i = 0; i < fps.length; i += 400) {
         while (this.map.isMoving()) await new Promise((r) => setTimeout(r, 120));
-        parts.push(buildCityMesh(fps.slice(i, i + 400), center));
+        const mesh = new THREE.Mesh(buildCityMesh(fps.slice(i, i + 400), center), this.material);
+        mesh.matrixAutoUpdate = false;
+        mesh.frustumCulled = false;
+        next.meshes.push(mesh);
+        this.scene.add(mesh);
+        this.map.triggerRepaint();
         await new Promise((r) => setTimeout(r, 0));
       }
-      const geo = parts.length ? mergeParts(parts) : null;
-      if (this.mesh) {
-        this.scene.remove(this.mesh);
-        this.mesh.geometry.dispose();
-        this.mesh = null;
-      }
-      if (geo) {
-        this.mesh = new THREE.Mesh(geo, this.material);
-        this.mesh.matrixAutoUpdate = false;
-        this.mesh.frustumCulled = false;
-        this.scene.add(this.mesh);
-      }
-      this.meshCenter = center;
+      // the new city is complete: drop the old one
+      this.city?.meshes.forEach((m) => (this.scene.remove(m), m.geometry.dispose()));
+      this.city = next;
+      this.next = null;
       this.builtAt = { lng: c.lng, lat: c.lat, zoom };
       this.map.triggerRepaint();
     } catch (e) {
@@ -306,7 +327,7 @@ export class OsmFacadesLayer implements CustomLayerInterface {
 
   render(_gl: WebGLRenderingContext | WebGL2RenderingContext, args: CustomRenderMethodInput) {
     const zoom = this.map.getZoom();
-    const showCity = zoom >= this.minZoom && !!this.mesh;
+    const showCity = zoom >= this.minZoom && !!(this.city || this.next);
     const showTrees = zoom >= TREES_MIN_ZOOM && !!this.trees;
     if (!this.visible || this.hidden || (!showCity && !showTrees)) return;
     const pd = args.defaultProjectionData;
@@ -317,11 +338,14 @@ export class OsmFacadesLayer implements CustomLayerInterface {
     const main = new THREE.Matrix4().fromArray((globe ? pd.mainMatrix : pd.fallbackMatrix) as unknown as number[]);
     this.camera.projectionMatrix = main.multiply(origin);
     this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
-    if (this.mesh) {
-      this.mesh.visible = showCity;
-      modelMatrix(this.tmp, this.meshCenter[0], this.meshCenter[1], globe).premultiply(this.originInv);
-      this.mesh.matrix.copy(this.tmp);
-      this.mesh.matrixWorld.copy(this.tmp);
+    for (const g of [this.city, this.next]) {
+      if (!g) continue;
+      modelMatrix(this.tmp, g.center[0], g.center[1], globe).premultiply(this.originInv);
+      for (const m of g.meshes) {
+        m.visible = showCity;
+        m.matrix.copy(this.tmp);
+        m.matrixWorld.copy(this.tmp);
+      }
     }
     if (this.trees) {
       this.trees.visible = showTrees;
@@ -334,22 +358,4 @@ export class OsmFacadesLayer implements CustomLayerInterface {
     this.renderer.render(this.scene, this.camera);
     if (showTrees) this.map.triggerRepaint(); // keep the leaves moving in the wind
   }
-}
-
-/** Joins the chunk geometries (same attributes: position float32, color uint8 normalized). */
-function mergeParts(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  let n = 0;
-  for (const p of parts) n += p.attributes.position.count;
-  const pos = new Float32Array(n * 3), col = new Uint8Array(n * 3);
-  let o = 0;
-  for (const p of parts) {
-    pos.set(p.attributes.position.array as Float32Array, o * 3);
-    col.set(p.attributes.color.array as Uint8Array, o * 3);
-    o += p.attributes.position.count;
-    p.dispose();
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  g.setAttribute("color", new THREE.BufferAttribute(col, 3, true));
-  return g;
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MlMap } from "maplibre-gl";
 import type { Bus } from "@/lib/bus";
 import { decodePolyline, makeRoadNet } from "./bus-track";
-import { BUS_3D_MIN_ZOOM, BusAnimator, Buses3DLayer, SampleBuses, loadSampleRoutes, bearingOf, topBusId, topBusImage, type BusNow } from "./buses3d";
+import { BUS_3D_MIN_ZOOM, BusAnimator, Buses3DLayer, SampleBuses, loadSampleRoutes, type BusNow } from "./buses3d";
 
 const BUS_INTERVAL_MS = 15_000;
 /** Street width in meters by road rank in ground/major.json (5 motorway, 4 trunk, 3 primary, 2 secondary, 1 tertiary),
@@ -22,7 +22,7 @@ const toGeo = (list: BusNow[]): GeoJSON.FeatureCollection => ({
   type: "FeatureCollection",
   features: list.map((x) => ({
     type: "Feature",
-    properties: { id: x.bus.id, icon: topBusId(x.bus.silver), rot: bearingOf(x.heading), number: x.bus.number },
+    properties: { id: x.bus.id, silver: x.bus.silver, number: x.bus.number },
     geometry: { type: "Point", coordinates: [x.lng, x.lat] },
   })),
 });
@@ -50,7 +50,7 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
     }
   };
 
-  // Layers: 3D buses, plus the mini bus symbols for zoomed far out.
+  // Layers: 3D buses, plus moving route-number badges for zoomed out.
   useEffect(() => {
     if (!ready || !map || map.getLayer("buses-3d")) return;
     const layer = new Buses3DLayer(animRef.current);
@@ -60,43 +60,36 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
     const before = beforeId && map.getLayer(beforeId) ? beforeId : map.getStyle().layers.find((l) => l.type === "symbol")?.id;
     map.addLayer(layer, before);
     map.addSource("buses-2d", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    // Zoomed out: no flat bus pictures, just a moving route-number badge (MBTA yellow, Silver Line gray); closer in, the 3D buses.
+    map.addLayer({
+      id: "buses-2d-dot",
+      type: "circle",
+      source: "buses-2d",
+      maxzoom: BUS_3D_MIN_ZOOM,
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 6, 13, 8, BUS_3D_MIN_ZOOM, 11],
+        "circle-color": ["case", ["get", "silver"], "#7C878E", "#FFC72C"],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 1.2, BUS_3D_MIN_ZOOM, 2],
+        "circle-pitch-alignment": "viewport",
+      },
+    }, before);
     map.addLayer({
       id: "buses-2d",
       type: "symbol",
       source: "buses-2d",
       maxzoom: BUS_3D_MIN_ZOOM,
       layout: {
-        // flat bus lying on the street, turned the way it drives
-        "icon-image": ["get", "icon"],
-        "icon-rotate": ["get", "rot"],
-        "icon-rotation-alignment": "map",
-        "icon-pitch-alignment": "map",
-        // about as wide as the drawn street, so the bus stays on it
-        "icon-size": ["interpolate", ["exponential", 1.6], ["zoom"], 10, 0.18, 13, 0.24, 15, 0.36, BUS_3D_MIN_ZOOM, 0.5],
-        "icon-allow-overlap": false, // overlapping buses hide, so far out doesn't turn into a yellow blur
-        "icon-padding": 0,
-        // route number stays upright and readable
         "text-field": ["get", "number"],
         "text-font": ["Noto Sans Bold"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 9, BUS_3D_MIN_ZOOM, 12],
-        "text-offset": [0, 1.5],
-        "text-optional": true,
-        "text-allow-overlap": false,
+        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 7.5, 13, 9, BUS_3D_MIN_ZOOM, 11],
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
       },
-      paint: { "text-color": "#2B1A1F", "text-halo-color": "#FFC72C", "text-halo-width": 2 },
-    });
-    const onMissing = (e: { id: string }) => {
-      const img = topBusImage(e.id);
-      if (img && !map.hasImage(e.id)) map.addImage(e.id, img, { pixelRatio: 2 });
-    };
-    map.on("styleimagemissing", onMissing);
-    // add the two flat bus images up front so the map never asks for them before they exist
-    for (const id of ["bus-top-y", "bus-top-s"]) onMissing({ id });
+      paint: { "text-color": ["case", ["get", "silver"], "#ffffff", "#2B1A1F"] },
+    }, before);
     map.on("mouseenter", "buses-2d", () => (map.getCanvas().style.cursor = "pointer"));
     map.on("mouseleave", "buses-2d", () => (map.getCanvas().style.cursor = ""));
-    return () => {
-      map.off("styleimagemissing", onMissing);
-    };
   }, [map, ready, beforeId]);
 
   // The streets as drawn on the map, so every route shape is moved onto the road (bus-track.ts snapToRoads).
@@ -131,7 +124,7 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
   useEffect(() => {
     if (!ready || !map || !map.getLayer("buses-2d")) return;
     if (layerRef.current) layerRef.current.visible = on;
-    map.setLayoutProperty("buses-2d", "visibility", on ? "visible" : "none");
+    for (const id of ["buses-2d", "buses-2d-dot"]) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
     if (!on) setBus(null);
     map.triggerRepaint();
   }, [map, ready, on]);
@@ -209,7 +202,7 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
   const busAt = (point: { x: number; y: number }): BusNow | null => {
     if (!map || !on) return null;
     if (map.getZoom() < BUS_3D_MIN_ZOOM) {
-      const f = map.getLayer("buses-2d") ? map.queryRenderedFeatures([point.x, point.y], { layers: ["buses-2d"] })[0] : undefined;
+      const f = map.getLayer("buses-2d") ? map.queryRenderedFeatures([point.x, point.y], { layers: ["buses-2d", "buses-2d-dot"] })[0] : undefined;
       const id = f?.properties?.id as string | undefined;
       return id ? (animRef.current.now().find((x) => x.bus.id === id) ?? null) : null;
     }
