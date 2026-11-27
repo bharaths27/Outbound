@@ -4,6 +4,7 @@
 // team, then your name and who sees your visits. Every step can be skipped; nothing here is
 // required to play. Returns to ?next= when done.
 
+import { SchoolLogo } from "@/features/schools/school-logo";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -127,9 +128,13 @@ export function OnboardingPage() {
                 className="flex h-[220px] flex-col items-center justify-center gap-2.5 rounded-[28px] bg-maroon text-white"
                 style={load.school?.color ? { backgroundColor: load.school.color } : undefined}
               >
-                <span aria-hidden className="flex size-[88px] items-center justify-center rounded-full border-4 border-white/90 text-[28px] font-bold">
-                  {load.school ? schoolAbbr(load.school.name) : "?"}
-                </span>
+                {load.school ? (
+                  <SchoolLogo school={load.school} height={112} tilt={-4} className="animate-in zoom-in-75 fade-in duration-500 motion-reduce:animate-none" />
+                ) : (
+                  <span aria-hidden className="flex size-[88px] items-center justify-center rounded-full border-4 border-white/90 text-[28px] font-bold">
+                    ?
+                  </span>
+                )}
                 <p className="font-display text-[22px] font-semibold">{load.school?.name ?? "Your school"}</p>
               </div>
               <div>

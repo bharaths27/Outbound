@@ -25,8 +25,13 @@ import type {
   LeaderboardRow,
   PassportNeighborhood,
   PlayerLeaderboardRow,
+  CommentWithAuthor,
   Friendship,
+  ImportedReview,
   Profile,
+  ProfileBoard,
+  Review,
+  ReviewWithMeta,
   Quest,
   QuestOfTheWeek,
   School,
@@ -62,6 +67,9 @@ export function authError(message: string | undefined, hint?: string | null): Au
  * against) and never "*", which fails once migration 007 revokes qr_code. Which quests need a
  * code comes from qrQuestIds() as ids only.
  */
+/** Profile columns the app may read: never email, which migration 012 hides from other players. */
+const PROFILE_COLUMNS = "id,school_id,display_name,avatar_url,xp,level,xp_to_next_level,privacy,is_demo,created_at,grad_year,bio,banner";
+
 const QUEST_COLUMNS =
   "id,station_id,type,title,description,lat,lon,price_tier,vibe_tags,hours,photo_url,xp,checkin_radius_m,duration_min,walk_min";
 
@@ -101,8 +109,46 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
     return id;
   }
 
+
+  async function isFriend(a: string, b: string): Promise<boolean> {
+    const { data } = await db().from("friends").select("status").eq("status", "accepted").or(`and(user_id.eq.${a},friend_id.eq.${b}),and(user_id.eq.${b},friend_id.eq.${a})`).limit(1);
+    return !!data?.length;
+  }
+
+  async function displayNames(ids: string[]): Promise<Map<string, string>> {
+    const uniq = [...new Set(ids)];
+    if (!uniq.length) return new Map();
+    const { data } = await db().from("profiles").select("id, display_name, school_id").in("id", uniq);
+    return new Map((data ?? []).map((p: { id: string; display_name: string | null }) => [p.id, p.display_name ?? "Player"]));
+  }
+
+  async function withMeta(rows: Review[], viewer: string | null): Promise<ReviewWithMeta[]> {
+    if (!rows.length) return [];
+    const ids = rows.map((r) => r.id);
+    const [likes, comments, authors] = await Promise.all([
+      db().from("review_likes").select("review_id, user_id").in("review_id", ids),
+      db().from("review_comments").select("review_id").in("review_id", ids),
+      db().from("profiles").select("id, display_name, school_id").in("id", [...new Set(rows.map((r) => r.user_id))]),
+    ]);
+    const L = (likes.data ?? []) as { review_id: string; user_id: string }[];
+    const C = (comments.data ?? []) as { review_id: string }[];
+    const A = new Map(((authors.data ?? []) as { id: string; display_name: string | null; school_id: number }[]).map((a) => [a.id, a]));
+    return rows.map((r) => ({
+      ...r,
+      rating: Number(r.rating),
+      likes: L.filter((l) => l.review_id === r.id).length,
+      liked_by_me: !!viewer && L.some((l) => l.review_id === r.id && l.user_id === viewer),
+      comments: C.filter((c) => c.review_id === r.id).length,
+      author: { id: r.user_id, display_name: A.get(r.user_id)?.display_name ?? "Player", school_id: A.get(r.user_id)?.school_id ?? 0 },
+    }));
+  }
+
   async function profileById(id: string): Promise<Profile | null> {
-    return must(await db().from("profiles").select("*").eq("id", id).maybeSingle(), "profile") as Profile | null;
+    const row = must(await db().from("profiles").select(PROFILE_COLUMNS).eq("id", id).maybeSingle(), "profile") as Omit<Profile, "email"> | null;
+    if (!row) return null;
+    // Your own email comes from your auth session; nobody else's is readable.
+    const { data } = await db().auth.getUser();
+    return { ...row, email: data.user?.id === id ? (data.user.email ?? "") : "" } as Profile;
   }
 
   async function membersOf(squadIds: string[]): Promise<Map<string, SquadMemberProfile[]>> {
@@ -145,11 +191,9 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
       if (error) return { ok: false, error: authError(error.message, (error as { hint?: string }).hint) };
       // Supabase hides "already registered" by returning a user with no identities.
       if (data.user && data.user.identities?.length === 0) return { ok: false, error: "already_registered" };
-      if (!data.session) {
-        // Email confirmation is off, so this shouldn't happen; sign in to get a session.
-        const signedIn = await db().auth.signInWithPassword({ email: email.trim(), password });
-        if (signedIn.error) return { ok: false, error: authError(signedIn.error.message) };
-      }
+      // With email confirmation on (it should be: it's what proves the player owns the school
+      // inbox), there's no session until they click the link.
+      if (!data.session) return { ok: false, error: "check_email" };
       return signedInResult();
     },
 
@@ -348,7 +392,7 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
       ) as { user_id: string; friend_id: string }[];
       const ids = [...new Set(rows.map((r) => (r.user_id === me ? r.friend_id : r.user_id)))];
       if (ids.length === 0) return [];
-      return must(await db().from("profiles").select("*").in("id", ids), "friend profiles") as Profile[];
+      return must(await db().from("profiles").select(PROFILE_COLUMNS).in("id", ids), "friend profiles") as Profile[];
     },
 
     async sendFriendRequest(userId) {
@@ -371,7 +415,7 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
         "friend requests",
       ) as { user_id: string }[];
       if (rows.length === 0) return [];
-      return must(await db().from("profiles").select("*").in("id", rows.map((r) => r.user_id)), "request profiles") as Profile[];
+      return must(await db().from("profiles").select(PROFILE_COLUMNS).in("id", rows.map((r) => r.user_id)), "request profiles") as Profile[];
     },
 
     async acceptFriendRequest(userId) {
@@ -387,16 +431,201 @@ export function createSupabaseService(client: () => SupabaseClient): DataService
       );
     },
 
+
+    // ---------- social (migration 011) ----------
+    async getProfileBoard(userId) {
+      const viewer = await myId();
+      const profile = await profileById(userId);
+      if (!profile) return null;
+      const isMe = viewer === userId;
+      // RLS hides everything when privacy says no, so an empty result also means "can't see".
+      const canSee = isMe || profile.privacy === "public" || (profile.privacy === "friends" && !!viewer && (await isFriend(viewer, userId)));
+      if (!canSee) return { profile, visible: false, is_me: false, visits: [], reviews: [], saved: [], badges: [] } satisfies ProfileBoard;
+      const [visits, reviews, saved] = await Promise.all([
+        db().from("visits").select("*").eq("user_id", userId).order("checked_in_at", { ascending: false }),
+        db().from("reviews").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+        db().from("saved_places").select("*").eq("user_id", userId),
+      ]);
+      const badges = isMe ? ((await db().rpc("my_game_progress")).data?.badges ?? []) : [];
+      return {
+        profile,
+        visible: true,
+        is_me: isMe,
+        badges,
+        visits: (must(visits, "visits") as Visit[]).filter((v) => isMe || !v.hidden),
+        reviews: await withMeta(must(reviews, "reviews") as Review[], viewer),
+        saved: must(saved, "saved places") as ProfileBoard["saved"],
+      };
+    },
+
+    async getMyPlaceState(questId) {
+      const me = await myId();
+      if (!me) return { visited: false, saved: false, review: null };
+      const [v, sv, r] = await Promise.all([
+        db().from("visits").select("id").eq("user_id", me).eq("quest_id", questId).limit(1),
+        db().from("saved_places").select("quest_id").eq("user_id", me).eq("quest_id", questId).limit(1),
+        db().from("reviews").select("*").eq("user_id", me).eq("quest_id", questId).maybeSingle(),
+      ]);
+      return {
+        visited: (must(v, "visits") as unknown[]).length > 0,
+        saved: (must(sv, "saved") as unknown[]).length > 0,
+        review: must(r, "review") as Review | null,
+      };
+    },
+
+    async getQuestReviews(questId) {
+      const rows = must(await db().from("reviews").select("*").eq("quest_id", questId).order("rating", { ascending: false }).limit(30), "reviews") as Review[];
+      return withMeta(rows, await myId());
+    },
+
+    async getFriendFeed() {
+      const me = await requireId();
+      const fr = must(
+        await db().from("friends").select("user_id, friend_id").eq("status", "accepted").or(`user_id.eq.${me},friend_id.eq.${me}`),
+        "friends",
+      ) as { user_id: string; friend_id: string }[];
+      const ids = [...new Set(fr.map((f) => (f.user_id === me ? f.friend_id : f.user_id)))];
+      if (!ids.length) return [];
+      const rows = must(await db().from("reviews").select("*").in("user_id", ids).order("created_at", { ascending: false }).limit(20), "feed") as Review[];
+      return withMeta(rows, me);
+    },
+
+    async saveReview(questId, rating, note) {
+      const me = await requireId();
+      const quest = must(await db().from("quests").select("title,lat,lon").eq("id", questId).single(), "quest") as { title: string; lat: number; lon: number };
+      const row = {
+        user_id: me,
+        quest_id: questId,
+        place_name: quest.title,
+        lat: quest.lat,
+        lon: quest.lon,
+        rating: Math.round(Math.min(10, Math.max(1, rating)) * 10) / 10,
+        note: note.trim().slice(0, 600),
+        source: "outbound" as const,
+      };
+      const existing = must(await db().from("reviews").select("id").eq("user_id", me).eq("quest_id", questId).maybeSingle(), "review") as { id: string } | null;
+      const res = existing
+        ? await db().from("reviews").update({ rating: row.rating, note: row.note }).eq("id", existing.id).select().single()
+        : await db().from("reviews").insert(row).select().single();
+      return must(res, "save review") as Review;
+    },
+
+    async deleteReview(reviewId) {
+      must(await db().from("reviews").delete().eq("id", reviewId), "delete review");
+    },
+
+    async setSaved(questId, saved) {
+      const me = await requireId();
+      if (saved) must(await db().from("saved_places").upsert({ user_id: me, quest_id: questId }), "save place");
+      else must(await db().from("saved_places").delete().eq("user_id", me).eq("quest_id", questId), "unsave place");
+    },
+
+    async setLiked(reviewId, liked) {
+      const me = await requireId();
+      if (liked) must(await db().from("review_likes").upsert({ review_id: reviewId, user_id: me }), "like");
+      else must(await db().from("review_likes").delete().eq("review_id", reviewId).eq("user_id", me), "unlike");
+    },
+
+    async getComments(reviewId) {
+      const rows = must(await db().from("review_comments").select("*").eq("review_id", reviewId).order("created_at"), "comments") as CommentWithAuthor[];
+      const names = await displayNames(rows.map((r) => r.user_id));
+      return rows.map((r) => ({ ...r, author: { id: r.user_id, display_name: names.get(r.user_id) ?? "Player" } }));
+    },
+
+    async addComment(reviewId, text) {
+      const me = await requireId();
+      const row = must(await db().from("review_comments").insert({ review_id: reviewId, user_id: me, text: text.trim().slice(0, 300) }).select().single(), "comment") as CommentWithAuthor;
+      const names = await displayNames([me]);
+      return { ...row, author: { id: me, display_name: names.get(me) ?? "You" } };
+    },
+
+    async deleteComment(commentId) {
+      must(await db().from("review_comments").delete().eq("id", commentId), "delete comment");
+    },
+
+    async importReviews(items: ImportedReview[]) {
+      const me = await requireId();
+      const have = must(await db().from("reviews").select("place_name, visited_on").eq("user_id", me).eq("source", "google"), "imported") as { place_name: string; visited_on: string }[];
+      const key = (n: string, d: string) => `${n}|${d}`;
+      const seen = new Set(have.map((h) => key(h.place_name, h.visited_on)));
+      const rows = items
+        .filter((it) => it.name && !seen.has(key(it.name, it.date)))
+        .map((it) => ({
+          user_id: me,
+          quest_id: null,
+          place_name: it.name.slice(0, 200),
+          place_address: it.address,
+          lat: it.lat,
+          lon: it.lon,
+          rating: Math.round(Math.min(10, Math.max(1, it.stars * 2)) * 10) / 10,
+          note: it.text.slice(0, 600),
+          visited_on: it.date,
+          source: "google" as const,
+        }));
+      if (rows.length) must(await db().from("reviews").insert(rows), "import reviews");
+      return { imported: rows.length, skipped: items.length - rows.length };
+    },
+
     // ---------- profile and privacy ----------
     async updatePrivacy(privacy) {
       const me = await requireId();
-      return must(await db().from("profiles").update({ privacy }).eq("id", me).select().single(), "privacy") as Profile;
+      return must(await db().from("profiles").update({ privacy }).eq("id", me).select(PROFILE_COLUMNS).single(), "privacy") as Profile;
+    },
+
+    async updateProfileExtras(extras) {
+      const me = await requireId();
+      const patch: Record<string, unknown> = {};
+      if (extras.display_name !== undefined) patch.display_name = extras.display_name.trim().slice(0, 40) || null;
+      if (extras.grad_year !== undefined) patch.grad_year = extras.grad_year;
+      if (extras.bio !== undefined) patch.bio = extras.bio?.trim().slice(0, 160) || null;
+      if (extras.banner !== undefined) patch.banner = extras.banner;
+      return must(await db().from("profiles").update(patch).eq("id", me).select(PROFILE_COLUMNS).single(), "profile") as Profile;
+    },
+
+    async uploadAvatar(image) {
+      const me = await requireId();
+      const ext = image.type === "image/png" ? "png" : image.type === "image/jpeg" ? "jpg" : "webp";
+      const path = `${me}/avatar.${ext}`;
+      const up = await db().storage.from("avatars").upload(path, image, { upsert: true, contentType: image.type, cacheControl: "3600" });
+      if (up.error) throw new Error(up.error.message);
+      const url = `${db().storage.from("avatars").getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
+      return must(await db().from("profiles").update({ avatar_url: url }).eq("id", me).select(PROFILE_COLUMNS).single(), "avatar") as Profile;
+    },
+
+    async removeAvatar() {
+      const me = await requireId();
+      await db().storage.from("avatars").remove([`${me}/avatar.webp`, `${me}/avatar.jpg`, `${me}/avatar.png`]);
+      return must(await db().from("profiles").update({ avatar_url: null }).eq("id", me).select(PROFILE_COLUMNS).single(), "avatar") as Profile;
+    },
+
+    async getNote(subjectId) {
+      const me = await myId();
+      if (!me) return "";
+      const row = must(await db().from("user_notes").select("text").eq("owner_id", me).eq("subject_id", subjectId).maybeSingle(), "note") as { text: string } | null;
+      return row?.text ?? "";
+    },
+
+    async setNote(subjectId, text) {
+      const me = await requireId();
+      const t = text.trim().slice(0, 500);
+      if (!t) must(await db().from("user_notes").delete().eq("owner_id", me).eq("subject_id", subjectId), "note");
+      else must(await db().from("user_notes").upsert({ owner_id: me, subject_id: subjectId, text: t, updated_at: new Date().toISOString() }), "note");
+    },
+
+    async signInWithGoogle() {
+      // School-only: the signup trigger (handle_new_user) rejects any non-school email, and
+      // `hd` asks Google to show school (Workspace) accounts first.
+      const { error } = await db().auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${window.location.origin}/auth/callback?next=/`, queryParams: { prompt: "select_account" } },
+      });
+      if (error) throw new Error(error.message);
     },
 
     async updateDisplayName(name) {
       const me = await requireId();
       const display_name = name.trim().slice(0, 40) || null;
-      return must(await db().from("profiles").update({ display_name }).eq("id", me).select().single(), "name") as Profile;
+      return must(await db().from("profiles").update({ display_name }).eq("id", me).select(PROFILE_COLUMNS).single(), "name") as Profile;
     },
   };
 }

@@ -4,6 +4,7 @@
 // with the same ranked rows as Schools. Players set to friends-only or ghost aren't listed;
 // the note says so, so a missing name isn't a surprise.
 
+import { SchoolLogo } from "@/features/schools/school-logo";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -132,18 +133,26 @@ function PlayerRow({
       <div className="min-w-0 flex-1 desk:flex desk:items-center desk:gap-4">
         <div className="flex items-baseline justify-between gap-2 desk:block desk:w-[220px] desk:shrink-0">
           <span className="block truncate text-sm font-bold desk:text-[15px]">
-            {row.display_name}
+            <Link href={`/u/${row.user_id}`} className="hover:text-maroon hover:underline">
+              {row.display_name}
+            </Link>
             {mine && <span className="ml-1.5 rounded-full bg-maroon px-1.5 py-px align-middle text-[11px] font-bold text-white">You</span>}
           </span>
           <span className="shrink-0 text-[15px] font-semibold text-ink-2 tabular-nums desk:hidden">
             {row.weekly_xp.toLocaleString("en-US")}
           </span>
-          <span className="hidden truncate text-[13px] text-muted-foreground desk:block">{row.school_name}</span>
+          <span className="hidden items-center gap-1.5 truncate text-[13px] text-muted-foreground desk:flex">
+            <SchoolLogo school={{ name: row.school_name }} height={18} />
+            {row.school_name}
+          </span>
         </div>
         <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-sand desk:mt-0 desk:h-2 desk:flex-1">
           <div className="h-full rounded-full bg-gold-500" style={{ width: `${pct}%` }} />
         </div>
-        <span className="mt-1 block truncate text-xs text-muted-foreground desk:hidden">{row.school_name}</span>
+        <span className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground desk:hidden">
+          <SchoolLogo school={{ name: row.school_name }} height={16} />
+          {row.school_name}
+        </span>
         <span className="hidden w-[100px] shrink-0 text-right text-[15px] font-semibold text-ink-2 tabular-nums desk:block">
           {row.weekly_xp.toLocaleString("en-US")} XP
         </span>

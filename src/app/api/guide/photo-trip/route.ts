@@ -2,6 +2,7 @@ import { z } from "zod";
 import { findFoodReport, geminiKey, planTrip } from "@/lib/photo-trip/agents";
 import { readSubject } from "@/lib/photo-trip/handoff";
 import type { PhotoTripResult } from "@/lib/photo-trip/types";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
@@ -11,6 +12,8 @@ const requestSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const limited = rateLimit(req, "photo-trip", 10, 60000);
+  if (limited) return limited;
   const parsed = requestSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Invalid trip request." }, { status: 400 });
   const { origin, token } = parsed.data;

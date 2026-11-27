@@ -7,11 +7,14 @@
 // MBTA next trains, Tiger Data line delays). Env: GEMINI_API_KEY (server-only), optional MASTRA_MODEL.
 import { NextResponse } from "next/server";
 import { AGENT_MODEL, loadQuests, makePlanner, plannerPrompt, splitReply } from "@/lib/agent/planner";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
+  const limited = rateLimit(req, "agent", 15, 60000);
+  if (limited) return limited;
   let message = "";
   try {
     message = String((await req.json())?.message ?? "").trim().slice(0, 500);

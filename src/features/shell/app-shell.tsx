@@ -1,5 +1,7 @@
 "use client";
 
+import { BadgeUnlockHost } from "@/features/badges/badge-unlock";
+import { Blossoms } from "./blossoms";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -42,7 +44,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-dvh flex-col bg-background">
       {/* Desktop top bar */}
       <header className="hidden bg-maroon text-on-maroon desk:block">
-        <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-7 gap-y-3 px-8 py-2.5">
+        <div className="relative mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-7 gap-y-3 px-8 py-2.5">
+          <Blossoms className="absolute top-0 right-[330px] hidden h-12 w-[110px] opacity-75 xl:block" />
           <Link
             href="/"
             className="flex items-center py-2"
@@ -87,8 +90,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Mobile header: Explore only; other pages bring their own title band. */}
       {onExplore && (
-        <header className="flex items-center gap-1.5 bg-maroon px-3 pt-[calc(14px+env(safe-area-inset-top))] pb-3 text-on-maroon desk:hidden">
-          <div className="flex flex-1 items-center">
+        <header className="relative flex items-center gap-1.5 bg-maroon px-3 pt-[calc(14px+env(safe-area-inset-top))] pb-3 text-on-maroon desk:hidden">
+          <div className="relative flex flex-1 items-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/outbound-wordmark.svg"
@@ -113,6 +116,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         {!onExplore && <ScrollFade key={pathname} />}
         {children}
       </main>
+
+      <BadgeUnlockHost />
 
       {/* Mobile tab bar */}
       <nav

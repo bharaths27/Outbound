@@ -181,7 +181,7 @@ export function FriendsSection() {
                 >
                   <Initial name={nameOf(p)} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{nameOf(p)}</span>
+                    <Link href={`/u/${p.id}`} className="block truncate text-sm font-semibold hover:underline">{nameOf(p)}</Link>
                     <span className="block text-xs text-muted-foreground">Wants to be friends</span>
                   </span>
                   <button
@@ -217,8 +217,10 @@ export function FriendsSection() {
                   key={p.id}
                   className="group flex items-center gap-2 rounded-full border border-border bg-surface py-1 pr-1 pl-1 text-sm font-semibold transition-colors hover:border-border-strong"
                 >
-                  <Initial name={nameOf(p)} small />
-                  <span className="max-w-36 truncate">{nameOf(p)}</span>
+                  <Link href={`/u/${p.id}`} className="flex items-center gap-2 hover:text-maroon">
+                    <Initial name={nameOf(p)} small />
+                    <span className="max-w-36 truncate">{nameOf(p)}</span>
+                  </Link>
                   <button
                     type="button"
                     disabled={busy === p.id}

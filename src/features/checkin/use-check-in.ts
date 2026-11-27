@@ -11,6 +11,7 @@ import { useCallback, useRef, useState } from "react";
 import { data } from "@/lib/data";
 import type { CheckInResult, Profile, Quest } from "@/lib/data/types";
 import type { FlowError } from "./errors";
+import { progressChanged } from "@/features/badges/unlock";
 
 export interface CheckInOptions {
   squadId?: string;
@@ -68,6 +69,7 @@ export function useCheckIn(quest: Quest, profile: Profile | null, needsOptions: 
         const outcome = await data.checkIn(quest.id, location, opts);
         if (!live()) return;
         setState(outcome.ok ? { step: "success", result: outcome.result } : { step: "error", error: outcome.error });
+        if (outcome.ok) progressChanged(); // the badge watcher checks for new badges
       } catch {
         if (live()) setState({ step: "error", error: { code: "NETWORK" } });
       }

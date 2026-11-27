@@ -50,6 +50,27 @@ You should see a line every 15 s like `13:40:15 trains=58 predictions=140 with_s
 4. **Authentication, then URL Configuration**: Site URL = the Vercel URL; add `http://localhost:3000/**` to redirect URLs.
 5. Make 3 or 4 demo accounts from different schools (sign up through the app, or **Authentication, then Users, then Add user** with an email like `demo1@bu.edu`).
 
+### Step 3b. Social profiles and security (run after the others)
+
+Run, in order: `supabase/011_social.sql` (reviews, want-to-visit lists, likes, comments, all behind the
+profile privacy setting) and `supabase/012_profile_extras.sql` (grad year, bio, banner, profile photos,
+private notes, and two lockdowns: players can only edit their own display fields, and nobody can read
+other players' emails).
+
+Then in the Supabase dashboard (these can't be set from SQL):
+
+1. **Authentication → Sign In / Providers → Email:** turn on **Confirm email**. Without it, anyone can
+   sign up as any `@bu.edu` address without owning that inbox, which defeats the school check.
+2. **Authentication → Policies → Password:** minimum length 8; require lowercase, uppercase, and digits
+   or symbols. This matches the checklist on the sign-up screen, so the server enforces the same rules.
+3. **Google sign-in (optional):** Authentication → Sign In / Providers → Google: enable it and paste the
+   OAuth client ID and secret from Google Cloud (OAuth consent screen + "Web application" credentials).
+   Add `https://outboundwith.us/auth/callback` (and `http://localhost:3000/auth/callback` for dev) under
+   Authentication → URL Configuration → Redirect URLs. Personal Gmail accounts are still rejected:
+   `handle_new_user()` only creates profiles for supported school domains.
+4. **Rate limits:** the app limits its paid AI/Maps routes per visitor in memory. For real protection on
+   Vercel, also add a Firewall rate-limit rule on `/api/*`.
+
 ## Step 4. Add the API routes to the Next.js app (you, 10 min)
 
 1. Copy `web-api/app/api/trains` and `web-api/app/api/lateness` into the app's `app/api/` folder.

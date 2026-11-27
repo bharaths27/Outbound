@@ -8,6 +8,7 @@
 export const dynamic = "force-dynamic";
 
 import { googleMapsKey, PLACES_BASE, searchPlaces, type GooglePlace } from "@/lib/google-places";
+import { rateLimit } from "@/lib/rate-limit";
 
 const FIELDS = ["id", "displayName", "formattedAddress", "location", "types", "rating", "userRatingCount", "priceLevel", "currentOpeningHours.openNow", "primaryTypeDisplayName", "googleMapsUri"];
 const PRICE: Record<string, number> = { PRICE_LEVEL_FREE: 0, PRICE_LEVEL_INEXPENSIVE: 1, PRICE_LEVEL_MODERATE: 2, PRICE_LEVEL_EXPENSIVE: 3, PRICE_LEVEL_VERY_EXPENSIVE: 4 };
@@ -31,6 +32,8 @@ function shape(p: GooglePlace) {
 }
 
 export async function GET(req: Request) {
+  const limited = rateLimit(req, "places", 60, 60000);
+  if (limited) return limited;
   const key = googleMapsKey();
   if (!key) return Response.json({ disabled: true });
   const url = new URL(req.url);

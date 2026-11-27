@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 import { googleMapsKey } from "@/lib/google-places";
 import { computeRoutes, seconds } from "@/lib/google-routes";
+import { rateLimit } from "@/lib/rate-limit";
 
 async function ourRoute(req: Request, from: string, to: string, name?: string | null, alts = false) {
   const p = (s: string) => {
@@ -47,6 +48,8 @@ function decode(str: string): [number, number][] {
 }
 const mins = (d?: string) => Math.round((seconds(d) || 0) / 60);
 export async function GET(req: Request) {
+  const limited = rateLimit(req, "route", 60, 60000);
+  if (limited) return limited;
   const u = new URL(req.url);
   const from = u.searchParams.get("from"), to = u.searchParams.get("to"), name = u.searchParams.get("name");
   if (!from || !to) return Response.json({ error: "from and to are required" }, { status: 400 });

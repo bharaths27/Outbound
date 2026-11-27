@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { data } from "@/lib/data";
 import type { BadgeId, GameProgress } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
+import { BadgePatch } from "@/features/badges/badge-patch";
+import { showBadge, unlockDates } from "@/features/badges/unlock";
+import { inkDate } from "./fresh-stamps";
 
 export const BADGES: { id: BadgeId; name: string; how: string; icon: LucideIcon }[] = [
   { id: "line_collector", name: "Line Collector", how: "Check in on the Red, Orange and Green lines", icon: TrainFront },
@@ -18,7 +21,7 @@ export const BADGES: { id: BadgeId; name: string; how: string; icon: LucideIcon 
   { id: "cross_town", name: "Cross-Town", how: "Visit 4 neighborhoods in one week", icon: MapIcon },
 ];
 
-export function BadgesAndStreak({ className }: { className?: string }) {
+export function BadgesAndStreak({ className, userId = null }: { className?: string; userId?: string | null }) {
   // undefined while loading; null when signed out (nothing to show).
   const [progress, setProgress] = useState<GameProgress | null | undefined | "error">(undefined);
   const [attempt, setAttempt] = useState(0);
@@ -60,6 +63,7 @@ export function BadgesAndStreak({ className }: { className?: string }) {
   }
 
   const earned = new Set(progress.badges);
+  const dates = unlockDates(userId);
   const streak = progress.current_streak;
   return (
     <section aria-label="Badges and streak" className={cn("flex flex-col gap-3", className)}>
@@ -86,27 +90,29 @@ export function BadgesAndStreak({ className }: { className?: string }) {
       <ul className="grid grid-cols-2 gap-2 desk:grid-cols-4">
         {BADGES.map((b) => {
           const has = earned.has(b.id);
-          const Icon = b.icon;
-          return (
-            <li
-              key={b.id}
-              className={cn(
-                "flex items-center gap-2.5 rounded-xl border p-2.5",
-                has ? "border-gold-500 bg-badge-earned" : "border-border bg-surface",
-              )}
-            >
-              <span
-                className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-full",
-                  has ? "bg-maroon text-gold" : "bg-sand text-badge-locked-ink",
-                )}
-              >
-                <Icon className="size-5" aria-hidden />
-              </span>
+          const body = (
+            <>
+              <BadgePatch id={b.id} locked={!has} size={52} className={cn(has && "transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110")} />
               <span className="min-w-0">
                 <span className={cn("block text-sm leading-tight font-bold", !has && "text-muted-foreground")}>{b.name}</span>
-                <span className="block text-xs leading-snug text-muted-foreground">{has ? "Earned" : b.how}</span>
+                <span className="block text-xs leading-snug text-muted-foreground">{has ? (dates[b.id] ? `Earned ${inkDate(dates[b.id]).slice(0, -5).toLowerCase().replace(/^./, (c) => c.toUpperCase())} · replay` : "Earned · tap to replay") : b.how}</span>
               </span>
+            </>
+          );
+          return (
+            <li key={b.id}>
+              {has ? (
+                <button
+                  type="button"
+                  onClick={() => showBadge(b.id)}
+                  aria-label={`${b.name}, earned. Replay the unlock`}
+                  className="group ob-shine flex h-full w-full items-center gap-2.5 rounded-xl border border-gold-500 bg-badge-earned p-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-maroon"
+                >
+                  {body}
+                </button>
+              ) : (
+                <div className="flex h-full items-center gap-2.5 rounded-xl border border-dashed border-border-strong bg-surface p-2">{body}</div>
+              )}
             </li>
           );
         })}

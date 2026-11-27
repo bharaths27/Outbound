@@ -37,11 +37,11 @@ export function PageHeader({ title, back, icon, children, desktopAside, desktopB
       {/* Phones */}
       <header
         className={cn(
-          "bg-maroon px-4 pt-[calc(14px+env(safe-area-inset-top))] pb-4 text-on-maroon desk:hidden",
+          "ob-torn bg-maroon px-4 pt-[calc(14px+env(safe-area-inset-top))] pb-4 text-on-maroon desk:hidden",
           className,
         )}
       >
-        <div className="flex min-h-9 items-center gap-2.5">
+        <div className="relative flex min-h-9 items-center gap-2.5">
           {back ? (
             <Link
               href={back.href}
@@ -57,7 +57,7 @@ export function PageHeader({ title, back, icon, children, desktopAside, desktopB
           {guideInHeader && <AskGuideButton compact />}
           <ProfileLink player={player} size={34} />
         </div>
-        {children && <div className="mt-3">{children}</div>}
+        {children && <div className="relative mt-3">{children}</div>}
       </header>
 
       {/* Desktop */}

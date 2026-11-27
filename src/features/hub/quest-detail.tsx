@@ -8,6 +8,7 @@
 //   hours and time cards side by side) and a sticky side column (stamp, reward, Check in,
 //   distance note, student deals).
 
+import { RatePanel } from "@/features/social/rate-panel";
 import { ArrowLeft, Clock, Navigation } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
@@ -179,6 +180,8 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
     </div>
   );
 
+  const ratings = <RatePanel questId={quest.id} signedIn={!!player.profile} myId={player.profile?.id ?? null} />;
+
   // ---------- inside the hub ----------
   if (!page) {
     return (
@@ -201,6 +204,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
           <div className="mt-3">{timeLine}</div>
         </section>
         {dealsBox}
+        {ratings}
         {reward}
         {actions}
         <StickyCheckIn>{checkIn}</StickyCheckIn>
@@ -228,6 +232,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
               {timeLine}
             </section>
           </div>
+          {ratings}
           <div className="flex flex-col gap-4 desk:hidden">
             {dealsBox}
             {reward}

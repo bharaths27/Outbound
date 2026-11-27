@@ -4,7 +4,7 @@
 // one line, and Craving / Budget / Time chips. Each chip opens a short menu. The picks carry
 // into every station hub opened afterwards (explore-filters.ts), where the full filters live.
 
-import { ChevronDown, ChevronUp, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronUp, PartyPopper, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { data } from "@/lib/data";
@@ -114,15 +114,24 @@ export function ExploreCard({ className }: { className?: string }) {
     } catch {}
   };
 
+  // Phones: one slim bar (search + a Filters button) so the map stays visible; the filters open under it.
+  const [open, setOpen] = useState(false);
+  const active = (filters.craving !== ANY ? 1 : 0) + (filters.budget !== null ? 1 : 0) + (filters.minutes !== null ? 1 : 0) + extras;
+
   return (
     <section
       aria-labelledby="explore-title"
-      className={cn("rounded-[22px] bg-surface shadow-card desk:rounded-3xl", collapsed ? "px-4 py-2 desk:px-5" : "p-3.5 desk:p-5", className)}
+      className={cn(
+        "rounded-[20px] bg-surface shadow-card desk:rounded-3xl",
+        collapsed ? "p-1.5 desk:px-5 desk:py-2" : "p-1.5 desk:p-5",
+        open && "max-desk:pb-3",
+        className,
+      )}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="hidden items-center justify-between gap-3 desk:flex">
         <h1
           id="explore-title"
-          className={cn("font-display leading-tight font-semibold whitespace-nowrap text-maroon italic", collapsed ? "text-[20px]" : "text-[24px] desk:text-[28px]")}
+          className={cn("font-display leading-tight font-semibold whitespace-nowrap text-maroon italic", collapsed ? "text-[20px]" : "text-[28px]")}
         >
           Explore Boston
         </h1>
@@ -163,12 +172,38 @@ export function ExploreCard({ className }: { className?: string }) {
           </button>
         </div>
       </div>
-      {/* Hidden, not removed: the map's search box lives in the slot below. */}
-      <div className={cn(collapsed && "hidden")}>
-        <p className="mt-0.5 text-[13px] text-muted-foreground desk:text-sm">
+      {/* Phones: a grid whose first row is [search | Filters]; desktop: one column in reading order.
+          Hidden, not removed, when folded on desktop: the map's search box lives in the slot. */}
+      <div className={cn("grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-1.5 desk:grid-cols-1", collapsed && "desk:hidden")}>
+        <p className="order-1 mt-0.5 hidden text-sm text-muted-foreground desk:block">
           {any ? "The map shows only what matches. Tap a station for its quests." : "Find food, events, and hidden spots across the T."}
         </p>
-        <div className="mt-3 flex gap-1.5 desk:gap-2">
+        {/* The map's "Where to?" search (TransitMap portals it here). Empty until the map loads. */}
+        <div id={MAP_SEARCH_SLOT} className="order-0 min-h-10 desk:order-4 desk:mt-3 desk:min-h-0 desk:empty:hidden" />
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-label={active ? `Filters, ${active} on` : "Filters"}
+          onClick={() => setOpen((o) => !o)}
+          className={cn(
+            "relative order-0 grid size-10 place-items-center rounded-full border transition-all duration-200 active:scale-95 desk:hidden",
+            open || active ? "border-maroon bg-maroon text-white" : "border-border-strong bg-sand text-ink",
+          )}
+        >
+          <SlidersHorizontal className="size-[18px]" aria-hidden />
+          {active > 0 && (
+            <span className="absolute -top-1 -right-1 grid size-[18px] place-items-center rounded-full bg-gold text-[11px] font-bold text-gold-foreground ring-2 ring-surface">
+              {active}
+            </span>
+          )}
+        </button>
+        <div
+          className={cn(
+            "order-2 col-span-2 mt-2.5 flex gap-1.5 px-1 desk:col-span-1 desk:mt-3 desk:gap-2 desk:px-0",
+            !open && "max-desk:hidden",
+            open && "max-desk:animate-in max-desk:fade-in max-desk:slide-in-from-top-1 max-desk:duration-200",
+          )}
+        >
           <Chip
             label={filters.craving === ANY ? "Craving" : cravingLabel(filters.craving)}
             active={filters.craving !== ANY}
@@ -204,15 +239,29 @@ export function ExploreCard({ className }: { className?: string }) {
             )}
           >
             <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
-            {/* phones: icon only, so Craving / Budget / Time keep their words */}
             <span className="sr-only">More filters</span>
             {extras ? <span className="rounded-full bg-white/25 px-1.5 text-xs">{extras}</span> : null}
           </button>
         </div>
-        {more && <MoreFilters f={filters} />}
-        {/* The map's "Where to?" search (TransitMap portals it here). Empty until the map loads. */}
-        <div id={MAP_SEARCH_SLOT} className="mt-2.5 empty:hidden desk:mt-3" />
-        <HostedEventsLink />
+        {more && (
+          <div className={cn("order-3 col-span-2 px-1 desk:col-span-1 desk:px-0", !open && "max-desk:hidden")}>
+            <MoreFilters f={filters} />
+          </div>
+        )}
+        <div className={cn("order-5 col-span-2 flex items-center gap-2 px-1 desk:col-span-1 desk:block desk:px-0", !open && "max-desk:hidden")}>
+          <div className="min-w-0 flex-1">
+            <HostedEventsLink />
+          </div>
+          {any && (
+            <button
+              type="button"
+              onClick={() => setExploreFilters(NO_EXPLORE_FILTERS)}
+              className="mt-2.5 h-9 shrink-0 rounded-full px-2 text-sm font-semibold text-maroon desk:hidden"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
     </section>
   );
@@ -309,7 +358,7 @@ function HostedEventsLink() {
       href="/host"
       className="mt-2.5 flex min-h-9 items-center gap-2 rounded-xl bg-violet-50 px-3 py-1.5 text-[13px] text-violet-900 transition-colors hover:bg-violet-100 desk:mt-3 dark:bg-violet-950/50 dark:text-violet-100"
     >
-      <span aria-hidden>🎉</span>
+      <PartyPopper className="size-4 shrink-0 text-violet-700 dark:text-violet-200" aria-hidden />
       <span className="min-w-0 flex-1">
         {counts && counts.all > 0 ? (
           <>

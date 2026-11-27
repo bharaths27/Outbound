@@ -2,21 +2,20 @@
 
 // Profile: avatar with school ring, level and XP, latest stamps, squads, privacy, sign out.
 
+import { ProfileBoardView } from "@/features/social/profile-board";
 import { ChevronRight, LogOut, Shield } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { initials, squadName } from "@/features/compete/compete";
+import { squadName } from "@/features/compete/compete";
 import { buildPassport, type EarnedStamp } from "@/features/passport/build-passport";
 import { Stamp } from "@/features/passport/stamp";
 import { FriendsSection } from "@/features/friends/friends";
 import { privacyLabel } from "@/features/settings/privacy-choice";
 import { XP_PER_LEVEL, data, levelProgress } from "@/lib/data";
 import type { Profile, School, SquadWithMembers, Tier } from "@/lib/data/types";
-import { PlayerAvatar } from "@/features/shell/shell-parts";
 import { PageHeader } from "@/features/shell/page-header";
 
 type Ready = {
@@ -101,33 +100,10 @@ export function ProfilePage() {
 }
 
 function ProfileView({ load, onSignOut }: { load: Ready; onSignOut: () => void }) {
-  const { profile, school, latest, stampCount, squads } = load;
+  const { profile, latest, stampCount, squads } = load;
   return (
     <>
-      <header className="flex items-center gap-4">
-        {profile.avatar_url ? (
-          <Avatar
-            size="lg"
-            className="size-20 ring-3 ring-offset-2 ring-offset-background"
-            // School colors appear only as small marks, like this ring (DESIGN.md).
-            style={{ ["--tw-ring-color" as string]: school?.color ?? "var(--border)" }}
-          >
-            <AvatarImage src={profile.avatar_url} alt="" />
-            <AvatarFallback className="type-title">{initials(profile.display_name)}</AvatarFallback>
-          </Avatar>
-        ) : (
-          <PlayerAvatar player={{ profile, school: school ?? null }} size={76} />
-        )}
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="type-title truncate">{profile.display_name ?? "New player"}</h2>
-          <p className="type-body text-muted-foreground">{school?.name ?? "Your school"}</p>
-          {profile.is_demo && (
-            <span className="mt-0.5 w-fit rounded-full bg-sample px-2 py-0.5 text-[11px] font-bold tracking-wide text-sample-foreground uppercase">
-              Demo account
-            </span>
-          )}
-        </div>
-      </header>
+      <ProfileBoardView userId={profile.id} />
 
       <section aria-label="Level" className="rounded-xl border border-border bg-surface p-4">
         <div className="flex items-baseline justify-between gap-3">

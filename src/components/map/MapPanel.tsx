@@ -75,25 +75,25 @@ export default function MapPanel(props: {
 }) {
   const { collapsed, setCollapsed, show, setShow } = props;
   return (
-    <section aria-label="Map view" className="ob-panel flex max-h-full min-h-0 flex-col overflow-hidden !rounded-2xl text-[14px]">
+    <section aria-label="Map view" className={`ob-panel flex max-h-full min-h-0 flex-col overflow-hidden !rounded-2xl text-[14px] ${collapsed ? "max-desk:self-start max-desk:!rounded-full" : ""}`}>
       {/* header: always visible, folds the panel */}
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
         aria-expanded={!collapsed}
-        className="flex w-full shrink-0 items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--ob-cream)]"
+        className={`flex w-full shrink-0 items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--ob-cream)] ${collapsed ? "max-desk:w-auto max-desk:gap-2 max-desk:py-1.5 max-desk:pr-3.5 max-desk:pl-1.5" : ""}`}
       >
-        <span className="grid size-7 place-items-center rounded-lg bg-[var(--ob-maroon)] text-white [&_svg]:size-4" aria-hidden>
+        <span className={`grid size-7 place-items-center rounded-lg bg-[var(--ob-maroon)] text-white [&_svg]:size-4 ${collapsed ? "max-desk:rounded-full" : ""}`} aria-hidden>
           <MapIcon size={17} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[14.5px] leading-tight font-semibold text-[var(--ob-ink)]">Map view</span>
-          <span className="block truncate text-[12px] text-[var(--ob-ink-2)]">
+          <span className={`block truncate text-[12px] text-[var(--ob-ink-2)] ${collapsed ? "max-desk:hidden" : ""}`}>
             {props.is3D ? "3D" : "2D"}
             {props.setRealistic ? (props.realistic ? " · realistic" : " · illustrated") : ""} · {Object.values(show).filter(Boolean).length} layers on
           </span>
         </span>
-        <span className="ob-link flex items-center gap-0.5 text-[12px] font-semibold text-[var(--ob-maroon)]">
+        <span className={`ob-link flex items-center gap-0.5 text-[12px] font-semibold text-[var(--ob-maroon)] ${collapsed ? "max-desk:hidden" : ""}`}>
           {collapsed ? <ChevronDown size={18} aria-hidden /> : <ChevronUp size={18} aria-hidden />}
           {collapsed ? "Show" : "Hide"}
         </span>
@@ -164,25 +164,27 @@ export function LinesPanel(props: {
   const { collapsed, setCollapsed } = props;
   const badgeClass = props.badge === "LIVE" ? "bg-emerald-600" : props.badge === "REPLAY" ? "bg-sky-600" : "bg-amber-500";
   return (
-    <section aria-label="MBTA live trains" className="ob-panel flex min-h-[52px] shrink flex-col overflow-hidden !rounded-2xl text-[14px]">
+    <section aria-label="MBTA live trains" className={`ob-panel flex min-h-[52px] shrink flex-col overflow-hidden !rounded-2xl text-[14px] ${collapsed ? "max-desk:min-h-0 max-desk:self-start max-desk:!rounded-full" : ""}`}>
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
         aria-expanded={!collapsed}
-        className="flex w-full shrink-0 items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--ob-cream)]"
+        className={`flex w-full shrink-0 items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--ob-cream)] ${collapsed ? "max-desk:w-auto max-desk:gap-2 max-desk:py-1.5 max-desk:pr-3.5 max-desk:pl-1.5" : ""}`}
       >
-        <span className="grid size-7 place-items-center rounded-lg bg-[var(--ob-maroon)] text-white [&_svg]:size-4" aria-hidden>
+        <span className={`grid size-7 place-items-center rounded-lg bg-[var(--ob-maroon)] text-white [&_svg]:size-4 ${collapsed ? "max-desk:rounded-full" : ""}`} aria-hidden>
           <TrainFront size={17} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[14.5px] leading-tight font-semibold text-[var(--ob-ink)]">MBTA live trains</span>
-          <span className="flex items-center gap-1.5 text-[12px] text-[var(--ob-ink-2)]">
+          <span className="block text-[14.5px] leading-tight font-semibold text-[var(--ob-ink)]">
+            {collapsed ? <><span className="desk:hidden">Live trains</span><span className="max-desk:hidden">MBTA live trains</span></> : "MBTA live trains"}
+          </span>
+          <span className={`flex items-center gap-1.5 text-[12px] text-[var(--ob-ink-2)] ${collapsed ? "max-desk:hidden" : ""}`}>
             <span className={`rounded px-1.5 py-px text-[10px] font-bold tracking-wider text-white ${badgeClass}`}>{props.badge}</span>
             <span className="truncate">{props.status}</span>
           </span>
         </span>
-        {props.weather}
-        <span className="ob-link flex items-center gap-0.5 text-[12px] font-semibold text-[var(--ob-maroon)]">
+        {props.weather && <span className={collapsed ? "max-desk:hidden" : ""}>{props.weather}</span>}
+        <span className={`ob-link flex items-center gap-0.5 text-[12px] font-semibold text-[var(--ob-maroon)] ${collapsed ? "max-desk:hidden" : ""}`}>
           {collapsed ? <ChevronDown size={18} aria-hidden /> : <ChevronUp size={18} aria-hidden />}
           {collapsed ? "Show" : "Hide"}
         </span>

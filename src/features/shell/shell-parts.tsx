@@ -189,7 +189,7 @@ export function PlayerAvatar({
     <span
       aria-hidden
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-full bg-gold font-display font-bold text-gold-foreground",
+        "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gold font-display font-bold text-gold-foreground",
         className,
       )}
       style={{
@@ -200,7 +200,12 @@ export function PlayerAvatar({
         boxShadow: `0 0 0 2px var(--paper), 0 0 0 4px ${player.school?.color ?? "var(--border-strong)"}`,
       }}
     >
-      {initial}
+      {player.profile.avatar_url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- user photo
+        <img src={player.profile.avatar_url} alt="" className="size-full rounded-full object-cover" />
+      ) : (
+        initial
+      )}
     </span>
   );
 }

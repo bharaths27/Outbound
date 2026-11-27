@@ -15,6 +15,7 @@ import { cleanHistory, fallbackGuide, type GuideQuest, type GuideTurn } from "@/
 import { loadQuests } from "@/lib/agent/planner";
 import { makeChatWorkflow, makePhotoWorkflow, runWorkflow, type StageEvent } from "@/lib/agent/pipeline";
 import { fallbackReport, type FinalReport } from "@/lib/agent/report";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // photo: Grok (up to 40 s) + decider + agents
@@ -69,6 +70,8 @@ async function answer(origin: string, message: string, history: GuideTurn[], ima
 }
 
 export async function POST(req: Request) {
+  const limited = rateLimit(req, "guide", 20, 60000);
+  if (limited) return limited;
   let message = "";
   let history: GuideTurn[] = [];
   let image: string | null = null;

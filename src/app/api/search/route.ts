@@ -6,6 +6,7 @@
 // Env: GEMINI_API_KEY (server-only). Optional GEMINI_MODEL (default gemini-2.5-flash).
 import { NextResponse } from "next/server";
 import { buildPrompt, fallbackParse, RESPONSE_SCHEMA, sanitize } from "@/lib/search";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,8 @@ async function askGemini(q: string) {
 }
 
 export async function POST(req: Request) {
+  const limited = rateLimit(req, "search", 40, 60000);
+  if (limited) return limited;
   let q = "";
   try {
     q = String((await req.json())?.q ?? "").trim().slice(0, 300);

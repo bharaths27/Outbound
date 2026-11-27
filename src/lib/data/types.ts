@@ -2,7 +2,7 @@
 // database lives in `src/lib/types.ts` and is re-exported here unchanged. This file adds
 // only frontend shapes derived from that data.
 
-import type { CheckInErrorHint, CheckInResult, Profile, SquadMemberProfile, Squad } from "@/lib/types";
+import type { BadgeId, CheckInErrorHint, CheckInResult, Profile, Review, ReviewComment, SavedPlace, SquadMemberProfile, Squad, Visit } from "@/lib/types";
 
 export type {
   BadgeId,
@@ -22,6 +22,9 @@ export type {
   Quest,
   QuestOfTheWeek,
   QuestType,
+  Review,
+  ReviewComment,
+  SavedPlace,
   School,
   Squad,
   SquadMemberProfile,
@@ -47,7 +50,7 @@ export interface CheckInError {
 }
 
 /** Why sign-in or sign-up failed, for the login screen's copy. */
-export type AuthError = "unsupported_school" | "invalid_credentials" | "already_registered" | "weak_password" | "failed";
+export type AuthError = "unsupported_school" | "invalid_credentials" | "already_registered" | "weak_password" | "check_email" | "failed";
 
 export type AuthResult = { ok: true; profile: Profile } | { ok: false; error: AuthError };
 
@@ -89,3 +92,51 @@ export interface PlaceCheckInResult {
 }
 export type PlaceCheckInOutcome = { ok: true; result: PlaceCheckInResult } | { ok: false; error: CheckInError };
 export type CheckInOutcome = { ok: true; result: CheckInResult } | { ok: false; error: CheckInError };
+
+/** A review with its like and comment counts, and the author for feeds. */
+export interface ReviewWithMeta extends Review {
+  likes: number;
+  liked_by_me: boolean;
+  comments: number;
+  author: { id: string; display_name: string; school_id: number };
+}
+
+export interface CommentWithAuthor extends ReviewComment {
+  author: { id: string; display_name: string };
+}
+
+/** Everything the profile board shows. `visible` is false when privacy hides the rest. */
+export interface ProfileBoard {
+  profile: Profile;
+  visible: boolean;
+  is_me: boolean;
+  visits: Visit[]; // not hidden ones, unless it's you
+  reviews: ReviewWithMeta[];
+  saved: SavedPlace[];
+  /** Badges this player has earned (shown on their profile card). */
+  badges: BadgeId[];
+}
+
+export interface ProfileExtras {
+  display_name?: string;
+  grad_year?: number | null;
+  bio?: string | null;
+  banner?: string | null;
+}
+
+/** One place from a Google Takeout "Reviews.json", already parsed. */
+export interface ImportedReview {
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lon: number | null;
+  stars: number; // Google's 1–5
+  text: string;
+  date: string; // YYYY-MM-DD
+}
+
+export interface MyPlaceState {
+  visited: boolean;
+  saved: boolean;
+  review: Review | null;
+}

@@ -5,6 +5,7 @@
 // -> { coupon, percent, explorer }
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
+import { rateLimit } from "@/lib/rate-limit";
 import { playerFromRequest, rewardsSecret, serverDb } from "@/lib/rewards-server";
 import { explorerTx, redeemMemo, tierFor } from "@/lib/rewards";
 import { parseWallet, verifyRedeem } from "@/lib/solana-server";
@@ -15,6 +16,8 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const player = await playerFromRequest(req);
   if (!player) return NextResponse.json({ error: "Sign in first", hint: "NOT_SIGNED_IN" }, { status: 401 });
+  const limited = rateLimit(req, "redeem", 10, 10 * 60_000, player.userId);
+  if (limited) return limited;
   const body = await req.json().catch(() => ({}));
   const wallet = parseWallet(body?.wallet);
   const tier = tierFor(Number(body?.percent));

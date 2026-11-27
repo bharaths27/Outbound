@@ -265,7 +265,7 @@ export default function SearchBox({
       <div
         className={
           inCard
-            ? "flex h-9 items-center gap-2 rounded-full border border-border-strong bg-sand/70 px-3.5 text-[13px] transition-colors focus-within:border-maroon focus-within:bg-surface"
+            ? "flex h-10 items-center gap-2 rounded-full border border-border-strong bg-sand/70 px-3.5 desk:h-9 text-[13px] transition-colors focus-within:border-maroon focus-within:bg-surface"
             : "ob-panel flex items-center gap-2 px-3 py-2"
         }
       >
