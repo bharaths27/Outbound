@@ -118,6 +118,7 @@ export default function TransitMap() {
   const [routeStart, setRouteStart] = useState<{ lng: number; lat: number } | null>(null);
   const [satellite, setSatellite] = useState(false);
   const [realistic, setRealistic] = useState(false);
+  const [googleCredits, setGoogleCredits] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   // The map panel (3D/2D, layers, lines) folds to one line; phones start folded. Remembered.
@@ -1295,6 +1296,13 @@ export default function TransitMap() {
     return () => window.removeEventListener("outbound:go", onGo);
   }, [ready]);
 
+  // Google requires its logo and the tiles' data credits on screen whenever its 3D tiles show.
+  useEffect(() => {
+    if (!realistic || !GOOGLE_KEY) return setGoogleCredits("");
+    const t = setInterval(() => setGoogleCredits(googleRef.current?.credits() ?? ""), 2000);
+    return () => clearInterval(t);
+  }, [realistic]);
+
   // ---------- illustrated / realistic ----------
   useEffect(() => {
     if (!ready) return;
@@ -1689,6 +1697,15 @@ export default function TransitMap() {
             Directions
           </button>
         </Card>
+      )}
+
+      {/* Google brand + data attribution for the Realistic (Google 3D tiles) view */}
+      {realistic && GOOGLE_KEY && (
+        <div className="pointer-events-none absolute bottom-2 left-1/2 z-[5] flex max-w-[70%] -translate-x-1/2 items-center gap-2 rounded-md bg-white/85 px-2 py-1 shadow-sm">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="https://www.gstatic.com/images/branding/googlelogo/svg/googlelogo_clr_74x24px.svg" alt="Google" className="h-4 w-auto" />
+          {googleCredits && <span className="truncate text-[10px] text-[#3c4043]">{googleCredits}</span>}
+        </div>
       )}
 
       {/* bus card */}
