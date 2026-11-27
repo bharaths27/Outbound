@@ -10,7 +10,8 @@ const LIBERTY = "https://tiles.openfreemap.org/styles/liberty";
 export function detailGround(url: (f: string) => string): { sources: StyleSpecification["sources"]; layers: LayerSpecification[] } {
   const W = (z: number[], w: number[]): ExpressionSpecification => ["interpolate", ["exponential", 2], ["zoom"], ...z.flatMap((zz, i) => [zz, w[i]])];
   const majorW = (k: number): ExpressionSpecification => ["interpolate", ["exponential", 2], ["zoom"],
-    10, ["*", k, ["+", 0.5, ["*", 0.3, ["get", "r"]]]], 16, ["*", k, ["+", 7, ["*", 2.2, ["get", "r"]]]], 19, ["*", k, ["+", 56, ["*", 18, ["get", "r"]]]]];
+    // Wider than life when zoomed out so buses and cars fit on them (buses3d.ts roadMeters matches r = 2).
+    10, ["*", k, ["+", 1, ["*", 0.5, ["get", "r"]]]], 13, ["*", k, ["+", 3, ["*", 1.2, ["get", "r"]]]], 16, ["*", k, ["+", 12, ["*", 3.5, ["get", "r"]]]], 19, ["*", k, ["+", 64, ["*", 20, ["get", "r"]]]]];
   const sources: StyleSpecification["sources"] = {
     "ov-green": { type: "geojson", data: url("ground/green.json"), maxzoom: 15 },
     "ov-water": { type: "geojson", data: url("ground/water.json"), maxzoom: 15 },
@@ -26,8 +27,8 @@ export function detailGround(url: (f: string) => string): { sources: StyleSpecif
     // Real-street look: concrete sidewalks along every street (the wide light casing), gray asphalt, curb edge lines,
     // double yellow center lines and white lane dashes on main roads, zebra crosswalks at main intersections.
     { id: "ov-paths", type: "line", source: "ov-minor", minzoom: 15, filter: ["==", ["get", "k"], "path"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#e3dfd6", "line-width": W([15, 19], [1, 9]) } },
-    { id: "ov-minor-casing", type: "line", source: "ov-minor", minzoom: 13, filter: ["!=", ["get", "k"], "path"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": SIDEWALK, "line-width": W([13, 16, 19], [1.2, 8.5, 62]) } },
-    { id: "ov-minor", type: "line", source: "ov-minor", minzoom: 13, filter: ["!=", ["get", "k"], "path"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["match", ["get", "k"], "service", "#a9abb0", "#9a9da3"], "line-width": W([13, 16, 19], [0.6, 5.5, 38]) } },
+    { id: "ov-minor-casing", type: "line", source: "ov-minor", minzoom: 13, filter: ["!=", ["get", "k"], "path"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": SIDEWALK, "line-width": W([13, 16, 19], [2.2, 13, 70]) } },
+    { id: "ov-minor", type: "line", source: "ov-minor", minzoom: 13, filter: ["!=", ["get", "k"], "path"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["match", ["get", "k"], "service", "#a9abb0", "#9a9da3"], "line-width": W([13, 16, 19], [1.4, 9, 46]) } },
     { id: "ov-major-casing", type: "line", source: "ov-major", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["match", ["get", "r"], 5, "#b9b8b3", SIDEWALK], "line-width": majorW(1.3) } },
     { id: "ov-major", type: "line", source: "ov-major", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["match", ["get", "r"], 5, "#7d8086", 4, "#84878d", "#8d9096"], "line-width": majorW(1) } },
     // white curb lines just inside the road edge
@@ -205,7 +206,10 @@ function restyle(style: StyleSpecification, manifest: BpdaManifest | null): Styl
     // gray asphalt with concrete sidewalks, like a real street
     if (layer.type === "line" && sl === "transportation" && /^(road|bridge|tunnel)_/.test(layer.id) && !/rail|transit|oneway|area/.test(layer.id)) {
       const color = /casing/.test(layer.id) ? SIDEWALK : /path|pedestrian/.test(layer.id) ? "#e3dfd6" : /motorway/.test(layer.id) ? "#7d8086" : /trunk|primary/.test(layer.id) ? "#878a90" : "#9a9da3";
-      layer.paint = { ...layer.paint, "line-color": color };
+      // wider streets (the OpenFreeMap widths are legacy {stops}; scale them up)
+      const w = layer.paint?.["line-width"] as { base?: number; stops?: [number, number][] } | undefined;
+      const width = w && Array.isArray(w.stops) && !/path|pedestrian/.test(layer.id) ? { ...w, stops: w.stops.map(([z, v]) => [z, v * 1.6]) } : w;
+      layer.paint = { ...layer.paint, "line-color": color, ...(width ? { "line-width": width as unknown as number } : {}) };
     }
     // painted center lines on big roads (added once, right after the main road layer)
     const CENTER: Record<string, string[]> = { road_motorway: ["motorway"], road_trunk_primary: ["trunk", "primary"], road_secondary_tertiary: ["secondary"] };

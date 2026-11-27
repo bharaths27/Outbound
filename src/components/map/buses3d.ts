@@ -6,78 +6,31 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CustomLayerInterface, CustomRenderMethodInput, Map as MlMap } from "maplibre-gl";
 import { BUS_YELLOW, SILVER_GRAY, meters, type Bus } from "@/lib/bus";
+import type { BusAnimator, BusNow } from "./bus-track";
 import { modelMatrix } from "./trains3d";
+
+/** Width in meters of a main road as drawn at this zoom (matches majorW in style.ts for a mid-size road, r = 2). */
+export function roadMeters(zoom: number, lat: number): number {
+  const stops: [number, number][] = [[10, 2], [13, 5.4], [16, 19], [19, 104]];
+  let px = stops[0][1];
+  for (let i = 1; i < stops.length; i++) {
+    const [z0, w0] = stops[i - 1], [z1, w1] = stops[i];
+    if (zoom <= z1) {
+      // exponential base 2, like the map's line-width interpolation
+      const t = (Math.pow(2, Math.max(0, zoom - z0)) - 1) / (Math.pow(2, z1 - z0) - 1);
+      px = w0 + (w1 - w0) * Math.min(1, Math.max(0, t));
+      break;
+    }
+    px = w1;
+  }
+  const metersPerPx = (40_075_016 * Math.cos((lat * Math.PI) / 180)) / (512 * Math.pow(2, zoom));
+  return px * metersPerPx;
+}
 
 /** Below this zoom the flat mini bus shows instead of the 3D model. Same as the trains. */
 export const BUS_3D_MIN_ZOOM = 12.3;
 
-const ease = (t: number) => t * t * (3 - 2 * t);
-
-export interface BusNow {
-  bus: Bus;
-  lng: number;
-  lat: number;
-  /** Radians, 0 = east, counter-clockwise (same as the trains). */
-  heading: number;
-}
-
-interface Track {
-  bus: Bus;
-  from: [number, number];
-  to: [number, number];
-  t0: number;
-  t1: number;
-  heading: number;
-}
-
-const headingOfBearing = (deg: number) => Math.PI / 2 - (deg * Math.PI) / 180;
-
-export class BusAnimator {
-  tracks = new Map<string, Track>();
-
-  ingest(buses: Bus[], durationMs: number, now = performance.now()) {
-    const seen = new Set<string>();
-    for (const b of buses) {
-      seen.add(b.id);
-      const to: [number, number] = [b.lon, b.lat];
-      const old = this.tracks.get(b.id);
-      const from = old ? this.at(old, now) : to;
-      let heading = old?.heading ?? headingOfBearing(b.bearing);
-      // Face the way it actually moved; fall back to the MBTA bearing when it barely moved.
-      if (meters(from, to) > 4) {
-        const dx = (to[0] - from[0]) * Math.cos((to[1] * Math.PI) / 180), dy = to[1] - from[1];
-        heading = Math.atan2(dy, dx);
-      } else if (!old) heading = headingOfBearing(b.bearing);
-      this.tracks.set(b.id, { bus: b, from, to, t0: now, t1: now + durationMs, heading });
-    }
-    for (const id of this.tracks.keys()) if (!seen.has(id)) this.tracks.delete(id);
-  }
-
-  private at(t: Track, now: number): [number, number] {
-    const k = ease(t.t1 > t.t0 ? Math.max(0, Math.min(1, (now - t.t0) / (t.t1 - t.t0))) : 1);
-    return [t.from[0] + (t.to[0] - t.from[0]) * k, t.from[1] + (t.to[1] - t.from[1]) * k];
-  }
-
-  /** Every bus now. `side` (meters) shifts each bus to the right-hand lane so opposite directions don't overlap. */
-  now(now = performance.now(), side = 0): BusNow[] {
-    const out: BusNow[] = [];
-    for (const t of this.tracks.values()) {
-      const [lng, lat] = this.at(t, now);
-      const k = 1 / (111_320 * Math.cos((lat * Math.PI) / 180));
-      out.push({
-        bus: t.bus,
-        lng: lng + Math.sin(t.heading) * side * k,
-        lat: lat - Math.cos(t.heading) * side / 110_570,
-        heading: t.heading,
-      });
-    }
-    return out;
-  }
-
-  clear() {
-    this.tracks.clear();
-  }
-}
+export { BusAnimator, type BusNow } from "./bus-track";
 
 // ---------- the 3D model ----------
 
@@ -231,9 +184,12 @@ export class Buses3DLayer implements CustomLayerInterface {
     this.scene.add(this.shadows);
   }
 
-  /** Real size close up, enlarged further out so buses stay easy to see (a bit smaller than the trains). */
-  scaleFor(zoom: number) {
-    return Math.min(20, Math.max(2.4, 1.3 * Math.pow(2, (18 - zoom) * 0.78)));
+  /** Enlarged when zoomed out so buses stay visible: about half as wide as the drawn road (its right-hand side),
+   *  with a floor so they don't shrink to specks far out. */
+  scaleFor(zoom: number, lat: number) {
+    const fitRoad = (0.5 * roadMeters(zoom, lat)) / BUS_WIDTH;
+    const visible = 0.75 * Math.pow(2, (18 - zoom) * 0.78);
+    return Math.min(12, Math.max(1.2, fitRoad, visible));
   }
 
   private roofMat(number: string, silver: boolean) {
@@ -252,7 +208,8 @@ export class Buses3DLayer implements CustomLayerInterface {
       this.drawn = [];
       return;
     }
-    const scale = this.scaleFor(zoom);
+    const center0 = this.map.getCenter();
+    const scale = this.scaleFor(zoom, center0.lat);
     const center = this.map.getCenter();
     const pd = args.defaultProjectionData;
     const globe = pd.fallbackMatrix !== pd.mainMatrix && pd.projectionTransition > 0.5;
@@ -265,7 +222,8 @@ export class Buses3DLayer implements CustomLayerInterface {
     // Only buses on (or just off) the screen.
     const b = this.map.getBounds();
     const padLng = (b.getEast() - b.getWest()) * 0.15, padLat = (b.getNorth() - b.getSouth()) * 0.15;
-    const all = this.animator.now(performance.now(), 2.2 * scale);
+    // Right-hand half of the drawn road: a bus is half the road wide, centered a quarter in from the middle.
+    const all = this.animator.now(performance.now(), 0.25 * roadMeters(zoom, center0.lat));
     const onScreen = all.filter((x) => x.lng > b.getWest() - padLng && x.lng < b.getEast() + padLng && x.lat > b.getSouth() - padLat && x.lat < b.getNorth() + padLat);
     this.drawn = onScreen;
 
@@ -388,6 +346,10 @@ const SAMPLE_ROUTES: { route: string; number: string; silver?: boolean; ends: [s
 /** Simulated buses moving along a few real routes, both ways. Labeled as samples in the UI. */
 export class SampleBuses {
   private t = 0;
+  /** Each sample route's path, so sample buses stay on it like real ones on their shapes. */
+  shapes(): [string, [number, number][]][] {
+    return SAMPLE_ROUTES.map((r) => [r.route, r.path]);
+  }
   step(seconds: number): Bus[] {
     this.t += seconds;
     const out: Bus[] = [];

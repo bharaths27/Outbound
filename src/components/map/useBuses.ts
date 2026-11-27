@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MlMap } from "maplibre-gl";
 import type { Bus } from "@/lib/bus";
+import { decodePolyline } from "./bus-track";
 import { BUS_3D_MIN_ZOOM, BusAnimator, Buses3DLayer, SampleBuses, miniBusId, miniBusImage, type BusNow } from "./buses3d";
 
 const BUS_INTERVAL_MS = 15_000;
@@ -33,6 +34,22 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
   const [bus, setBus] = useState<BusNow | null>(null);
   const [sample, setSample] = useState(false);
   const [count, setCount] = useState(0);
+  const askedShapes = useRef(new Set<string>());
+
+  /** Loads the street shapes for routes we haven't asked about yet, so their buses stay on the road. */
+  const loadShapes = (list: Bus[]) => {
+    const need = [...new Set(list.map((b) => b.route))].filter((r) => !askedShapes.current.has(r));
+    for (let i = 0; i < need.length; i += 60) {
+      const chunk = need.slice(i, i + 60);
+      chunk.forEach((r) => askedShapes.current.add(r));
+      fetch(`/api/bus-shapes?routes=${chunk.join(",")}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j: { shapes?: Record<string, string[]> } | null) => {
+          for (const [route, lines] of Object.entries(j?.shapes ?? {})) animRef.current.setShapes(route, lines.map(decodePolyline));
+        })
+        .catch(() => chunk.forEach((r) => askedShapes.current.delete(r)));
+    }
+  };
 
   // Layers: 3D buses, plus the mini bus symbols for zoomed far out.
   useEffect(() => {
@@ -97,11 +114,13 @@ export function useBuses(map: MlMap | null, ready: boolean, on: boolean, beforeI
           fake = null;
           fails = 0;
           setSample(false);
+          loadShapes(list);
           animRef.current.ingest(list, BUS_INTERVAL_MS + 1500);
           setCount(list.length);
         } catch {
           if (!fake && ++fails >= 2) {
             fake = new SampleBuses();
+            fake.shapes().forEach(([route, line]) => animRef.current.setShapes(route, [line]));
             setSample(true);
             animRef.current.clear();
             animRef.current.ingest(fake.step(0), 0);
