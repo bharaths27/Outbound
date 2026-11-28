@@ -17,6 +17,8 @@ import {
   PartyPopper,
   Satellite,
   Palette,
+  Camera,
+  Sun,
   TrainFront,
   BusFront,
   Users,
@@ -24,6 +26,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { LineLateness, Train } from "@/lib/types";
 import { destinationOf } from "./feed";
+import type { MapLook } from "./style";
 
 export interface MapShow {
   trains: boolean;
@@ -59,6 +62,7 @@ interface LastTrip {
   from: string | null;
   departs: string;
 }
+const LOOK_NAME: Record<MapLook, string> = { map: "map", light: "light", satellite: "satellite" };
 const fmt = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
 
 export default function MapPanel(props: {
@@ -67,7 +71,9 @@ export default function MapPanel(props: {
   is3D: boolean;
   setIs3D: (v: boolean) => void;
   realistic: boolean;
-  setRealistic: ((v: boolean) => void) | null; // null: no realistic imagery available
+  setRealistic: ((v: boolean) => void) | null; // null: no Google photo 3D (no key)
+  look: MapLook;
+  setLook: ((v: MapLook) => void) | null; // null: offline basemap, one look only
   show: MapShow;
   setShow: (s: MapShow) => void;
   delayColors: boolean;
@@ -93,7 +99,7 @@ export default function MapPanel(props: {
           <span className="block text-[14.5px] leading-tight font-semibold text-[var(--ob-ink)]">Map view</span>
           <span className={`block truncate text-[12px] text-[var(--ob-ink-2)] ${collapsed ? "max-desk:hidden" : ""}`}>
             {props.is3D ? "3D" : "2D"}
-            {props.setRealistic ? (props.realistic ? " · realistic" : " · illustrated") : ""} · {Object.values(show).filter(Boolean).length} layers on
+            {props.realistic ? " · photo 3D" : props.setLook ? ` · ${LOOK_NAME[props.look]}` : ""} · {Object.values(show).filter(Boolean).length} layers on
           </span>
         </span>
         <span className={`ob-link flex items-center gap-0.5 text-[12px] font-semibold text-[var(--ob-maroon)] ${collapsed ? "max-desk:hidden" : ""}`}>
@@ -115,14 +121,25 @@ export default function MapPanel(props: {
             />
             {props.setRealistic && (
               <BigSeg
-                label="Look"
+                label="Photo 3D"
                 options={[
-                  { label: "Illustrated", icon: <Palette size={16} aria-hidden />, on: !props.realistic, pick: () => props.setRealistic?.(false) },
-                  { label: "Realistic", icon: <Satellite size={16} aria-hidden />, on: props.realistic, pick: () => props.setRealistic?.(true) },
+                  { label: "Map", icon: <Palette size={16} aria-hidden />, on: !props.realistic, pick: () => props.setRealistic?.(false) },
+                  { label: "Photo", icon: <Camera size={16} aria-hidden />, on: props.realistic, pick: () => props.setRealistic?.(true) },
                 ]}
               />
             )}
           </div>
+          {props.setLook && !props.realistic && (
+            <BigSeg
+              label="Map style"
+              options={(["map", "light", "satellite"] as const).map((k) => ({
+                label: LOOK_NAME[k][0].toUpperCase() + LOOK_NAME[k].slice(1),
+                icon: k === "map" ? <MapIcon size={16} aria-hidden /> : k === "light" ? <Sun size={16} aria-hidden /> : <Satellite size={16} aria-hidden />,
+                on: props.look === k,
+                pick: () => props.setLook?.(k),
+              }))}
+            />
+          )}
           <p className="-mt-2 text-[12px] leading-snug text-[var(--ob-muted)]">
             Drag to move · right-drag to turn{props.is3D ? " and tilt" : ""} · right-click for directions · tap anything for its card
           </p>

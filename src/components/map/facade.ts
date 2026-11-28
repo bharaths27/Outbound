@@ -87,6 +87,16 @@ const FRAG_COLOR = /* glsl */ `
       float lit = step(mix(0.94, 0.55, uNight), obHash(id));
       glass = mix(glass, vec3(1.0, 0.86, 0.55), lit * 0.85);
       c = mix(base, base * 0.82, band);
+      // brick walls up close: running-bond courses with light mortar joints
+      if (base.r > base.g * 1.3 && base.r > base.b * 1.3) {
+        float bv = h / 0.2;
+        float bu = u / 0.42 + 0.5 * mod(floor(bv), 2.0);
+        float bw = fwidth(bv);
+        float joint = max(1.0 - smoothstep(0.0, 0.1 + bw, fract(bv)), 1.0 - smoothstep(0.0, 0.05 + fwidth(bu), fract(bu)));
+        float near = 1.0 - smoothstep(0.12, 0.4, bw);
+        float tone = 0.92 + 0.16 * obHash(vec2(floor(bu), floor(bv)));
+        c = mix(c * mix(1.0, tone, near), mix(c, vec3(0.78, 0.74, 0.68), 0.6), joint * near * 0.7);
+      }
       c = mix(c, trimCol, trim);
       c = mix(c, trimCol * 1.05, sill);
       c = mix(c, glass, win);
@@ -105,7 +115,7 @@ const FRAG_COLOR = /* glsl */ `
     // far away: windows merge into soft floor stripes (still reads as a building, without shimmer)
     float sy = fwidth(cell.y);
     float stripes = (1.0 - smoothstep(0.45, 1.4, sy)) * obBox(f.y, glassy ? 0.12 : 0.3, glassy ? 0.86 : 0.8, max(sy * 0.7, 0.08));
-    vec3 winAvg = glassy ? vec3(0.26, 0.48, 0.78) : mix(base, vec3(0.3, 0.38, 0.5), 0.55);
+    vec3 winAvg = glassy ? mix(vec3(0.26, 0.48, 0.78), base, 0.3) : base * 0.62 + vec3(0.02, 0.03, 0.05); // keeps the wall's own color
     vec3 far = mix(base * (glassy ? 0.85 : 0.97), winAvg, stripes * (glassy ? 0.85 : 0.6));
     // texture: each bay of the facade is a slightly different shade, like real panels and brick
     float shade = 0.94 + 0.09 * obHash(vec2(id.x, 3.0)) + 0.03 * obHash(id + vec2(1.0, 2.0));
@@ -114,17 +124,16 @@ const FRAG_COLOR = /* glsl */ `
     obWin *= max(detail, uNight * 0.7 * (1.0 - smoothstep(0.3, 1.2, px)));   // at night lit windows read from further away, like city lights
     obWin += vec3(1.0, 0.8, 0.45) * uNight * 0.35 * stripes * (1.0 - detail) * step(0.6, obHash(vec2(id.y, floor(u / 12.0))));
   } else if (up < 0.97) {
-    // ---- sloped roof: colored shingles in rows ----
-    float pick = fract(dot(base, vec3(13.1, 7.7, 3.3)) * 9.0);
-    vec3 roof = pick < 0.34 ? vec3(0.44, 0.38, 0.52) : pick < 0.67 ? vec3(0.32, 0.52, 0.56) : vec3(0.74, 0.44, 0.38);
+    // ---- sloped roof: shingles in rows, in the roof color the building gave (a shade of its walls) ----
+    vec3 roof = base;
     float row = fract(h / 0.45);
     float px = fwidth(h / 0.45);
     float lines = mix(1.0, 0.82 + 0.18 * smoothstep(0.0, 0.25, row), 1.0 - smoothstep(0.3, 0.7, px));
     diffuseColor.rgb = roof * lines;
   } else {
-    // ---- flat roof: light gravel with a darker parapet look near edges is left to the walls ----
+    // ---- flat roof: the building's own roof color with a little gravel texture ----
     float n = obHash(floor(vLocal.xz * 1.5));
-    diffuseColor.rgb = mix(vec3(0.8, 0.78, 0.84), base, 0.35) * (0.95 + 0.05 * n);
+    diffuseColor.rgb = base * (0.93 + 0.07 * n);
   }
 }
 `;

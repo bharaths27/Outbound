@@ -1,8 +1,22 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { armAxis, CYCLE_S, lightAt, secondsLeft, signalOffset } from "./signals";
+import { armAxis, CYCLE_S, lightAt, secondsLeft, signalOffset, walkAt } from "./signals";
 
 describe("traffic lights", () => {
+  it("the walk signal only says WALK while that street's cars are stopped, and does each cycle", () => {
+    for (const off of [0, 0.37, 0.8]) {
+      for (const axis of [0, 1] as const) {
+        let walks = 0;
+        for (let t = 0; t < CYCLE_S; t += 0.25) {
+          if (!walkAt(axis, off, t)) continue;
+          walks++;
+          expect(lightAt(axis, off, t)).toBe("red");
+        }
+        expect(walks).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it("crossing streets are never green at the same time", () => {
     for (const off of [0, 0.13, 0.5, 0.91]) {
       for (let t = 0; t < CYCLE_S * 2; t += 0.25) {

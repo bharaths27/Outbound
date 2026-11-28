@@ -34,6 +34,10 @@ export interface TrainNow {
   heading: number; // radians, 0 = east, ccw
 }
 
+/** Train model size multiplier: big and easy to spot when zoomed out (matching the thick T lines); never below
+ *  2.2x real size, for readability. Buses use a bit less (see busFit). */
+export const trainScale = (zoom: number) => Math.min(18, Math.max(2.2, Math.pow(2, (18 - zoom) * 0.78)));
+
 /** Half the distance between the two tracks (meters, before the zoom scale): wider than half a car, so cars never touch. */
 export const TRACK_HALF_GAP = 1.9;
 
@@ -276,8 +280,7 @@ export class Trains3DLayer implements CustomLayerInterface {
 
   /** Model size multiplier: real size when zoomed in, gently enlarged when zoomed out so trains stay readable. */
   scaleFor(zoom: number) {
-    // big and easy to spot when zoomed out (matching the thick T lines); never below 2.2x real size, for readability
-    return Math.min(18, Math.max(2.2, Math.pow(2, (18 - zoom) * 0.78)));
+    return trainScale(zoom);
   }
 
   render(_gl: WebGLRenderingContext | WebGL2RenderingContext, args: CustomRenderMethodInput) {

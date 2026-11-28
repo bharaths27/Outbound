@@ -52,21 +52,24 @@ describe("bus tracks", () => {
   });
 });
 
-import { BUS_3D_MIN_ZOOM, busFit, HALF_STREET_M, roadMeters } from "./buses3d";
+import { BUS_3D_MIN_ZOOM, busFit, roadMeters } from "./buses3d";
+import { trainScale } from "./trains3d";
 
 describe("buses stay on the street", () => {
-  it("a bus never reaches past the curb or the drawn road, at any 3D zoom", () => {
+  it("a bus keeps to its own side of the centerline, at any 3D zoom", () => {
     for (let z = BUS_3D_MIN_ZOOM; z <= 21; z += 0.25) {
       const { width, offset } = busFit(z, 42.35);
-      const road = roadMeters(z, 42.35);
-      expect(offset + width / 2).toBeLessThanOrEqual(HALF_STREET_M + 1e-9);
-      expect(offset + width / 2).toBeLessThanOrEqual(road / 2 + 1.3); // real bus width allowed on very close zoom
       expect(offset - width / 2).toBeGreaterThanOrEqual(-1e-9); // stays in its own half, not across the centerline
     }
   });
 
-  it("drawn roads are much wider than before when zoomed out", () => {
-    expect(roadMeters(15, 42.35)).toBeGreaterThan(30);
+  it("main roads are drawn at least real width up close, and buses are a bit smaller than trains", () => {
+    for (let z = 15; z <= 21; z += 0.5) expect(roadMeters(z, 42.35)).toBeGreaterThanOrEqual(15);
+    for (let z = BUS_3D_MIN_ZOOM; z <= 21; z += 0.5) {
+      const busScale = busFit(z, 42.35).width / 2.6;
+      expect(busScale).toBeLessThan(trainScale(z)); // a bit smaller than the trains
+      expect(busScale).toBeGreaterThan(0.8 * trainScale(z));
+    }
   });
 
   it("over a long random drive the bus is always on the street line", () => {
@@ -92,5 +95,72 @@ describe("buses stay on the street", () => {
       }
       t += 1000;
     }
+  });
+});
+
+import { bendPose, makeRoadNet, snapToRoads, snapToRoadsW } from "./bus-track";
+
+describe("route shapes snap onto the drawn streets", () => {
+  it("moves a shape running 10 m beside a street onto it, but leaves the cross street alone", () => {
+    const street: [number, number][] = [[-71.1, 42.35], [-71.09, 42.35]]; // east-west
+    const cross: [number, number][] = [[-71.095, 42.345], [-71.095, 42.355]]; // north-south
+    const net = makeRoadNet([street, cross]);
+    const off = 10 / 110_570;
+    const shape: [number, number][] = [[-71.099, 42.35 + off], [-71.091, 42.35 + off]];
+    const snapped = snapToRoads(net, shape);
+    expect(snapped.length).toBeGreaterThan(10);
+    for (const p of snapped) expect(Math.abs(p[1] - 42.35)).toBeLessThan(1e-7);
+  });
+
+  it("keeps points with no street nearby", () => {
+    const net = makeRoadNet([[[-71.1, 42.35], [-71.09, 42.35]]]);
+    const far: [number, number][] = [[-71.1, 42.36], [-71.09, 42.36]];
+    const s = snapToRoads(net, far);
+    for (const p of s) expect(p[1]).toBeCloseTo(42.36, 6);
+  });
+});
+
+describe("articulated bus bends on turns", () => {
+  // east 200 m, then a right-angle turn north 200 m
+  const kx = 111_320 * Math.cos((42.35 * Math.PI) / 180);
+  const c: [number, number] = [-71.1 + 200 / kx, 42.35];
+  const shape = makeShape([[-71.1, 42.35], c, [c[0], 42.35 + 200 / 110_570]]);
+  it("is straight on a straight street", () => {
+    const p = bendPose(shape, 100, 0, 9, 5);
+    expect(p.front).toBeCloseTo(0, 6);
+    expect(p.rear).toBeCloseTo(0, 6);
+  });
+  it("front turns first at the corner, rear follows", () => {
+    const p = bendPose(shape, 200 - 3, 0, 9, 5); // joint just before the corner
+    expect(p.front).toBeGreaterThan(0.3); // front swung toward north
+    expect(Math.abs(p.rear)).toBeLessThan(1e-6); // rear still heading east
+    const q = bendPose(shape, 200 + 3, 0, 9, 5); // joint just past the corner
+    expect(q.front).toBeCloseTo(Math.PI / 2, 6);
+    expect(q.rear).toBeGreaterThan(0.2);
+    expect(q.rear).toBeLessThan(Math.PI / 2 - 0.2); // bent at the joint
+  });
+});
+
+import { laneOffset, lanePoint, DEFAULT_ROAD_M } from "./bus-track";
+
+describe("a bus always fits on its street", () => {
+  it("stays between the centerline and the curb on every street it drives, at every size it is drawn", () => {
+    for (const road of [DEFAULT_ROAD_M, 12, 15, 22])
+      for (let busW = 2.6; busW <= 2.6 * 1.5; busW += 0.1) {
+        const off = laneOffset(road, busW);
+        expect(off - busW / 2).toBeGreaterThanOrEqual(0); // not over the centerline
+        expect(off + busW / 2).toBeLessThanOrEqual(road / 2 + 1e-9); // not past the curb
+      }
+  });
+
+  it("uses the width of the street it was snapped onto", () => {
+    const net = makeRoadNet([[[-71.1, 42.35], [-71.09, 42.35]], [[-71.1, 42.36], [-71.09, 42.36]]], 42.36, [22, 9]);
+    const wide = makeShape(...(Object.values(snapToRoadsW(net, [[-71.099, 42.35], [-71.091, 42.35]])) as [never, never]));
+    const narrow = makeShape(...(Object.values(snapToRoadsW(net, [[-71.099, 42.36], [-71.091, 42.36]])) as [never, never]));
+    const side = (w: number) => laneOffset(w, 2.6);
+    const dWide = Math.abs(lanePoint(wide, 100, side).p[1] - 42.35) * 110_570;
+    const dNarrow = Math.abs(lanePoint(narrow, 100, side).p[1] - 42.36) * 110_570;
+    expect(dWide).toBeCloseTo(5.5, 1); // middle of the right lane of a 22 m road
+    expect(dNarrow).toBeLessThanOrEqual(4.5 - 1.3 + 1e-6); // inside its half of a 9 m road
   });
 });

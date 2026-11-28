@@ -13,7 +13,7 @@ describe("buses", () => {
     const s = new SampleBuses();
     const a = new BusAnimator();
     const first = s.step(0);
-    expect(first.length).toBe(24);
+    expect(first.length).toBe(24); // the built-in fallback routes: 6 routes x 4 buses
     a.ingest(first, 0, 0);
     const later = s.step(20);
     a.ingest(later, 1000, 0);
@@ -31,19 +31,17 @@ import { readFileSync } from "node:fs";
 import { meters } from "@/lib/bus";
 
 describe("sample bus routes", () => {
-  it("follow streets: every point is a corner of a real road, with no long straight cuts", () => {
-    const roads = JSON.parse(readFileSync("public/data/ground/major.json", "utf8")) as { features: { geometry: { type: string; coordinates: number[][] | number[][][] } }[] };
-    const vertices = new Set<string>();
-    const k = (p: number[]) => `${p[0].toFixed(6)},${p[1].toFixed(6)}`;
-    for (const f of roads.features) {
-      const lines = f.geometry.type === "LineString" ? [f.geometry.coordinates as number[][]] : (f.geometry.coordinates as number[][][]);
-      for (const l of lines) for (const p of l) vertices.add(k(p));
-    }
-    const { routes } = JSON.parse(readFileSync("public/data/bus-samples.json", "utf8")) as { routes: { route: string; path: [number, number][] }[] };
-    expect(routes.length).toBe(6);
+  it("cover every regular MBTA bus route on its real shape, with buses by route length", () => {
+    const { routes } = JSON.parse(readFileSync("public/data/bus-samples.json", "utf8")) as { routes: { route: string; number: string; buses: number; path: [number, number][] }[] };
+    expect(routes.length).toBeGreaterThan(140);
+    for (const n of ["1", "39", "57", "66", "SL1", "SL5", "111", "28"]) expect(routes.some((r) => r.number === n)).toBe(true);
+    expect(routes.some((r) => /shuttle/i.test(r.number))).toBe(false);
     for (const r of routes) {
-      for (const p of r.path) expect(vertices.has(k(p))).toBe(true);
-      for (let i = 1; i < r.path.length; i++) expect(meters(r.path[i - 1], r.path[i])).toBeLessThan(1000); // consecutive corners of the same street
+      expect(r.path.length).toBeGreaterThan(1);
+      expect(r.buses).toBeGreaterThanOrEqual(2);
+      expect(r.buses).toBeLessThanOrEqual(10);
+      const len = r.path.slice(1).reduce((s, p, i) => s + meters(r.path[i], p), 0);
+      expect(len).toBeGreaterThan(500);
     }
   });
 });

@@ -1,9 +1,11 @@
-// Basemap: OpenFreeMap "Liberty" (real OpenStreetMap data for the whole world, free, no API key),
-// restyled for a soft, realistic 3D city look. Satellite imagery (Esri World Imagery) is a toggle.
+// Basemap: the Boston 3D map look — OpenFreeMap "Liberty" as published (real OpenStreetMap data, free, no API key),
+// with Map / Light / Satellite looks. Offline (no tile server) it falls back to the bundled illustrated basemap.
 import type { StyleSpecification, LayerSpecification, ExpressionSpecification, ImageSourceSpecification } from "maplibre-gl";
 import type { BpdaManifest } from "./buildings3d";
+import type { Map as MlMap } from "maplibre-gl";
+import { FACADE_MIN_ZOOM, wallColorExpression } from "./osmFacades";
 
-const LIBERTY = "https://tiles.openfreemap.org/styles/liberty";
+const LIBERTY = "https://tiles.openfreemap.org/styles/liberty"; // the Boston 3D base map
 
 /** Detailed street-level ground for the whole T area (Overture Maps / OpenStreetMap): parks, woods, water, every road,
  *  path and sidewalk, painted like real streets (lane lines, crosswalks). "ov-minor" starts empty and is filled near the view (TransitMap). */
@@ -155,83 +157,61 @@ function groundLayers(manifest: BpdaManifest | null, sources: StyleSpecification
 const SIDEWALK = "#d6d3cc";
 export const PALETTE = { land: "#ece6da", water: "#8ec3e6", park: "#b2d895", wood: "#9ccc84", road: "#ffffff", casing: "#d9d2c5" };
 
-/** OpenStreetMap buildings (the rest of Massachusetts) in the same pastel palette as the Boston/Cambridge city:
- *  each building gets a color from its id (stable, varied), towers get sky-blue glass. */
-const PASTELS = ["#ac4e36", "#d6aa76", "#e8dcc4", "#8c382a", "#c47860", "#969692", "#80503c", "#dead5c"];
-const BUILDING_COLOR: ExpressionSpecification = [
-  "case",
-  [">", ["coalesce", ["get", "render_height"], 0], 60],
-  ["match", ["%", ["floor", ["coalesce", ["to-number", ["id"]], ["get", "render_height"]]], 3], 0, "#4882b6", 1, "#80aace", "#305e92"],
-  ["match", ["%", ["floor", ["+", ["coalesce", ["to-number", ["id"]], 0], ["*", ["coalesce", ["get", "render_height"], 10], 7]]], 8],
-    0, PASTELS[0], 1, PASTELS[1], 2, PASTELS[2], 3, PASTELS[3], 4, PASTELS[4], 5, PASTELS[5], 6, PASTELS[6], PASTELS[7]],
-];
-
 export async function loadBaseStyle(manifest: BpdaManifest | null): Promise<{ style: StyleSpecification; offline: boolean }> {
   try {
     const r = await fetch(LIBERTY);
     if (!r.ok) throw new Error(String(r.status));
     const style = (await r.json()) as StyleSpecification;
-    return { style: restyle(style, manifest), offline: false };
+    return { style: plainStyle(style), offline: false };
   } catch {
     return { style: fallbackStyle(manifest), offline: true };
   }
 }
 
-function restyle(style: StyleSpecification, manifest: BpdaManifest | null): StyleSpecification {
+/** Fill layers to hide when satellite imagery is on (land cover, parks, water...). */
+export function groundLayerIds(style: StyleSpecification) {
+  return style.layers
+    .filter((l) => l.type === "fill" && (l as { "source-layer"?: string })["source-layer"] !== "building")
+    .map((l) => l.id)
+    .concat(style.layers.filter((l) => l.type === "raster" && l.id !== "satellite" && l.id !== "earth").map((l) => l.id));
+}
+
+// ---------- the Boston 3D base map (OpenFreeMap Liberty as published, like boston-3d-map.html) ----------
+
+export type MapLook = "map" | "light" | "satellite";
+
+/** Plain extruded OSM buildings for zoomed-out views (closer in, osmFacades.ts draws them with facades).
+ *  Map and Satellite: each building keeps its facade color (brick, stone, glass, painted houses). Light: soft grays. */
+const LIGHT_PALETTE = ["#ece9e4", "#e4e2de", "#dfe3e8", "#d5dbe2"];
+export function buildingExtrusionColor(look: MapLook): ExpressionSpecification {
+  if (look !== "light") return wallColorExpression();
+  const pal = LIGHT_PALETTE;
+  return ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 0], 0, pal[0], 25, pal[1], 70, pal[2], 160, pal[3]];
+}
+
+/** OpenFreeMap Liberty unchanged, except: our own MBTA lines and stations replace OSM's, the buildings get the
+ *  Boston 3D map's soft height colors (and hand over to the facade buildings up close), and a satellite option. */
+export function plainStyle(style: StyleSpecification): StyleSpecification {
   const layers: LayerSpecification[] = [];
   for (const l of style.layers) {
     const layer = { ...l } as LayerSpecification & { paint?: Record<string, unknown>; layout?: Record<string, unknown>; "source-layer"?: string };
-    const sl = layer["source-layer"];
-    if (layer.type === "fill-extrusion" && sl === "building") {
+    if (layer.id.includes("transit_rail") || layer.id === "poi_transit") layer.layout = { ...layer.layout, visibility: "none" };
+    if (layer.type === "line" && layer["source-layer"] === "transportation") widenToReal(layer);
+    if (layer.type === "fill-extrusion" && layer["source-layer"] === "building") {
       layer.minzoom = 13;
+      layer.maxzoom = FACADE_MIN_ZOOM; // closer in, the facade buildings (osmFacades.ts) draw them instead
+      (layer as { filter?: unknown }).filter = ["!=", ["get", "hide_3d"], true];
       layer.paint = {
-        ...layer.paint,
-        "fill-extrusion-color": BUILDING_COLOR,
-        "fill-extrusion-opacity": 0.93,
+        "fill-extrusion-color": buildingExtrusionColor("map"),
+        // full height as soon as buildings appear, so zoomed out the city stays 3D
+        "fill-extrusion-height": ["coalesce", ["get", "render_height"], 6],
+        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+        "fill-extrusion-opacity": 0.95,
         "fill-extrusion-vertical-gradient": true,
       };
     }
-    if (layer.type === "fill" && sl === "building") {
-      layer.maxzoom = 24; // keep flat footprints in 2D mode at every zoom
-      layer.paint = { ...layer.paint, "fill-color": "#cbbfae", "fill-outline-color": "#a89c8b" };
-    }
-    // our own MBTA lines and stations replace OpenStreetMap's subway lines and station icons
-    if (layer.id.includes("transit_rail") || layer.id === "poi_transit") layer.layout = { ...layer.layout, visibility: "none" };
-    if (layer.type === "background") layer.paint = { ...layer.paint, "background-color": PALETTE.land };
-    // richer greens and cleaner ground, closer to a game map
-    const GREEN: Record<string, string> = { park: PALETTE.park, landcover_grass: PALETTE.park, landcover_wood: PALETTE.wood, landuse_pitch: "#a9d68e", landuse_cemetery: "#c3dcaa", landuse_school: "#ece9dc" };
-    if (layer.type === "fill" && GREEN[layer.id]) layer.paint = { ...layer.paint, "fill-color": GREEN[layer.id] };
-    if (layer.id === "landuse_residential") layer.paint = { ...layer.paint, "fill-color": "rgba(232, 227, 216, 0.55)" };
-    if (layer.type === "fill" && sl === "water") layer.paint = { ...layer.paint, "fill-color": PALETTE.water };
-    // gray asphalt with concrete sidewalks, like a real street
-    if (layer.type === "line" && sl === "transportation" && /^(road|bridge|tunnel)_/.test(layer.id) && !/rail|transit|oneway|area/.test(layer.id)) {
-      const color = /casing/.test(layer.id) ? SIDEWALK : /path|pedestrian/.test(layer.id) ? "#e3dfd6" : /motorway/.test(layer.id) ? "#7d8086" : /trunk|primary/.test(layer.id) ? "#878a90" : "#9a9da3";
-      // wider streets (the OpenFreeMap widths are legacy {stops}; scale them up)
-      const w = layer.paint?.["line-width"] as { base?: number; stops?: [number, number][] } | undefined;
-      const width = w && Array.isArray(w.stops) && !/path|pedestrian/.test(layer.id) ? { ...w, stops: w.stops.map(([z, v]) => [z, v * 2.4]) } : w;
-      layer.paint = { ...layer.paint, "line-color": color, ...(width ? { "line-width": width as unknown as number } : {}) };
-    }
-    // painted center lines on big roads (added once, right after the main road layer)
-    const CENTER: Record<string, string[]> = { road_motorway: ["motorway"], road_trunk_primary: ["trunk", "primary"], road_secondary_tertiary: ["secondary"] };
-    if (CENTER[layer.id] && (layer as { "source-layer"?: string })["source-layer"] === "transportation") {
-      layers.push(layer);
-      layers.push({
-        id: `${layer.id}-centerline`,
-        type: "line",
-        source: "openmaptiles",
-        "source-layer": "transportation",
-        minzoom: 15.5,
-        filter: ["match", ["get", "class"], CENTER[layer.id], true, false],
-        paint: { "line-color": "#f2c24a", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15.5, 0.5, 19, 1.6], "line-gap-width": ["interpolate", ["exponential", 2], ["zoom"], 15.5, 0.4, 19, 2.2] },
-      });
-      continue;
-    }
-    // fewer POI icons: they compete with stations and campuses
-    if (layer.type === "symbol" && sl === "poi") layer.minzoom = Math.max(layer.minzoom ?? 0, 16);
     layers.push(layer);
   }
-
-  // satellite imagery under everything else (hidden by default)
   style.sources = {
     ...style.sources,
     satellite: {
@@ -242,43 +222,80 @@ function restyle(style: StyleSpecification, manifest: BpdaManifest | null): Styl
       attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
     },
   };
-  // terrain shading (free AWS Terrarium elevation tiles) so hills and valleys across Massachusetts read in 3D
-  style.sources.dem = {
-    type: "raster-dem",
-    tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
-    encoding: "terrarium",
-    tileSize: 256,
-    maxzoom: 14,
-    attribution: "Elevation: Mapzen Terrain Tiles (AWS)",
-  };
-  style.sources.earth = EARTH_SOURCE(new URL("/data/base/earth.jpg", document.baseURI).href);
-  // illustrated central Boston ground under the streets
-  const groundSrc: StyleSpecification["sources"] = {};
-  const ground = groundLayers(manifest, groundSrc, (f) => new URL(`/data/${f}`, document.baseURI).href);
-  Object.assign(style.sources, groundSrc);
-  layers.splice(layers.findIndex((l) => l.id === "water"), 0, ...ground); // OSM water draws over it
-  const firstLine = layers.findIndex((l) => l.type === "line");
-  layers.splice(firstLine, 0,
-    { id: "hillshade", type: "hillshade", source: "dem", paint: { "hillshade-exaggeration": 0.35, "hillshade-shadow-color": "#5d6b58", "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#5d6b58" } },
-    // online, real map tiles cover every zoom: fade the space photo out by state zoom as before
-    { ...EARTH_LAYER, maxzoom: 8.5, paint: { ...EARTH_LAYER.paint, "raster-opacity": ["interpolate", ["linear"], ["zoom"], 4.5, 1, 7.5, 0] } } as LayerSpecification,
-  );
   const bgIndex = layers.findIndex((l) => l.type === "background");
-  layers.splice(bgIndex + 1, 0, {
-    id: "satellite",
-    type: "raster",
-    source: "satellite",
-    layout: { visibility: "none" },
-    paint: { "raster-saturation": -0.1, "raster-contrast": 0.05 },
-  });
-
+  layers.splice(bgIndex + 1, 0, { id: "satellite", type: "raster", source: "satellite", layout: { visibility: "none" } });
   return { ...style, layers };
 }
 
-/** Fill layers to hide when satellite imagery is on (land cover, parks, water...). */
-export function groundLayerIds(style: StyleSpecification) {
-  return style.layers
-    .filter((l) => l.type === "fill" && (l as { "source-layer"?: string })["source-layer"] !== "building")
-    .map((l) => l.id)
-    .concat(style.layers.filter((l) => l.type === "raster" && l.id !== "satellite" && l.id !== "earth").map((l) => l.id));
+/** "Light" look: the same map in pale grays, like OpenFreeMap Positron. */
+const LIGHT: { test: (id: string, sl?: string, type?: string) => boolean; prop: Parameters<MlMap["getPaintProperty"]>[1]; value: string }[] = [
+  { test: (_i, _s, t) => t === "background", prop: "background-color", value: "#f6f6f4" },
+  { test: (_i, s, t) => t === "fill" && s === "water", prop: "fill-color", value: "#d4dadc" },
+  { test: (_i, s, t) => t === "fill" && (s === "park" || s === "landcover"), prop: "fill-color", value: "#e6ebe0" },
+  { test: (_i, s, t) => t === "fill" && s === "landuse", prop: "fill-color", value: "#efefec" },
+  { test: (i, s, t) => t === "line" && s === "transportation" && /casing/.test(i), prop: "line-color", value: "#dcdcdc" },
+  { test: (i, s, t) => t === "line" && s === "transportation" && !/casing|rail|transit/.test(i), prop: "line-color", value: "#ffffff" },
+  { test: (_i, s, t) => t === "line" && s === "waterway", prop: "line-color", value: "#d4dadc" },
+  { test: (_i, s, t) => t === "fill" && s === "building", prop: "fill-color", value: "#e8e6e2" },
+  { test: (_i, s, t) => t === "symbol" && (s === "transportation_name" || s === "place"), prop: "text-color", value: "#6f7378" },
+];
+const originals = new WeakMap<MlMap, Map<string, unknown>>();
+
+/** Switch between the Map, Light and Satellite looks without reloading the style (so the T and 3D layers stay). */
+export function setMapLook(map: MlMap, look: MapLook) {
+  let saved = originals.get(map);
+  if (!saved) originals.set(map, (saved = new Map()));
+  for (const l of map.getStyle().layers) {
+    const sl = (l as { "source-layer"?: string })["source-layer"];
+    for (const rule of LIGHT) {
+      if (!rule.test(l.id, sl, l.type)) continue;
+      const key = `${l.id}|${rule.prop}`;
+      if (!saved.has(key)) saved.set(key, map.getPaintProperty(l.id, rule.prop));
+      map.setPaintProperty(l.id, rule.prop, (look === "light" ? rule.value : saved.get(key)) as string);
+    }
+    if (l.type === "fill-extrusion" && sl === "building") map.setPaintProperty(l.id, "fill-extrusion-color", buildingExtrusionColor(look));
+  }
+}
+
+// ---------- streets at their real width up close ----------
+// Liberty's roads thin out to a few meters when zoomed in close, narrower than a bus, next to full-size buildings.
+// From zoom 15 on, each road is at least as wide as the real street (curb to curb, casings include sidewalks).
+
+/** Real street widths in meters, by Liberty road layer. */
+export function realRoadMeters(id: string): number | null {
+  if (/rail|path|pedestrian|aerialway|ferry|area|oneway/.test(id)) return null;
+  const casing = /casing/.test(id) ? 3 : 0;
+  const w = /motorway_link|_link/.test(id) ? 7 : /motorway/.test(id) ? 22 : /trunk_primary/.test(id) ? 15 : /secondary_tertiary/.test(id) ? 12 : /minor|street/.test(id) ? 9 : /service|track/.test(id) ? 5 : null;
+  return w == null ? null : w + casing;
+}
+/** Meters per pixel at a zoom (512 px tiles), at Boston's latitude. */
+export const metersPerPx = (zoom: number, lat = 42.35) => (40_075_016 * Math.cos((lat * Math.PI) / 180)) / (512 * Math.pow(2, zoom));
+
+/** Value of an ["interpolate", ["exponential", b], ["zoom"], z0, v0, ...] width at a zoom. */
+export function evalZoomInterp(base: number, stops: [number, number][], zoom: number): number {
+  if (zoom <= stops[0][0]) return stops[0][1];
+  for (let i = 1; i < stops.length; i++) {
+    const [z0, v0] = stops[i - 1], [z1, v1] = stops[i];
+    if (zoom <= z1) {
+      const t = base === 1 ? (zoom - z0) / (z1 - z0) : (Math.pow(base, zoom - z0) - 1) / (Math.pow(base, z1 - z0) - 1);
+      return v0 + (v1 - v0) * t;
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
+function widenToReal(layer: LayerSpecification & { paint?: Record<string, unknown> }) {
+  const real = realRoadMeters(layer.id);
+  const w = layer.paint?.["line-width"];
+  if (real == null || !Array.isArray(w) || w[0] !== "interpolate" || (w[2] as unknown[])?.[0] !== "zoom") return;
+  const base = Array.isArray(w[1]) && w[1][0] === "exponential" ? Number(w[1][1]) : 1;
+  const stops: [number, number][] = [];
+  for (let i = 3; i + 1 < w.length; i += 2) stops.push([Number(w[i]), Number(w[i + 1])]);
+  if (stops.some(([z, v]) => !Number.isFinite(z) || !Number.isFinite(v))) return;
+  const out: number[] = [];
+  // Liberty's own width up to zoom 15 (sampled every zoom level, since its next stop was past 15)
+  const zs = [...new Set([...stops.map(([z]) => z).filter((z) => z < 15), ...[8, 9, 10, 11, 12, 13, 14].filter((z) => z > stops[0][0])])].sort((a, b) => a - b);
+  for (const z of zs) out.push(z, evalZoomInterp(base, stops, z));
+  for (let z = 15; z <= 22; z++) out.push(z, Math.max(evalZoomInterp(base, stops, z), real / metersPerPx(z)));
+  layer.paint = { ...layer.paint, "line-width": ["interpolate", ["exponential", base], ["zoom"], ...out] as unknown as number };
 }

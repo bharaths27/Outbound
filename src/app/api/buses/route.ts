@@ -22,7 +22,8 @@ export async function GET() {
       `${MBTA}/vehicles?filter[route_type]=3&include=trip,stop&fields[trip]=headsign&fields[stop]=name` +
         "&fields[vehicle]=latitude,longitude,bearing,current_status,direction_id",
       {
-        headers: { "x-api-key": process.env.MBTA_API_KEY ?? "", accept: "application/vnd.api+json" },
+        // without a key the MBTA still answers (lower rate limit), so only send one when it's set
+        headers: { ...(process.env.MBTA_API_KEY ? { "x-api-key": process.env.MBTA_API_KEY } : {}), accept: "application/vnd.api+json" },
         next: { revalidate: 10 },
       },
     );
