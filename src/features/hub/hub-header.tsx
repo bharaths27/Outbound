@@ -16,7 +16,7 @@ function CloseButton({ onClose }: { onClose: () => void }) {
       type="button"
       onClick={onClose}
       aria-label="Close station"
-      className="flex size-11 shrink-0 items-center justify-center rounded-full bg-sand text-ink"
+      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sand text-ink"
     >
       <X className="size-[18px]" strokeWidth={2.2} aria-hidden />
     </button>

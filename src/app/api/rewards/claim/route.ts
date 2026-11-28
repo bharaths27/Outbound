@@ -2,6 +2,7 @@
 // Mints every OUT the player has earned (1 per XP) but not claimed yet to their wallet on Solana devnet.
 // -> { minted: number, signature?: string, explorer?: string }
 import { NextResponse } from "next/server";
+import { rateLimit } from "@/lib/rate-limit";
 import { playerFromRequest, rewardsSecret, serverDb } from "@/lib/rewards-server";
 import { explorerTx } from "@/lib/rewards";
 import { mintOut, parseWallet } from "@/lib/solana-server";
@@ -12,6 +13,8 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const player = await playerFromRequest(req);
   if (!player) return NextResponse.json({ error: "Sign in first", hint: "NOT_SIGNED_IN" }, { status: 401 });
+  const limited = rateLimit(req, "claim", 10, 10 * 60_000, player.userId);
+  if (limited) return limited;
   const wallet = parseWallet((await req.json().catch(() => ({})))?.wallet);
   if (!wallet) return NextResponse.json({ error: "Connect a Solana wallet first", hint: "BAD_WALLET" }, { status: 400 });
 

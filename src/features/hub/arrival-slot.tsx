@@ -52,7 +52,7 @@ export function ArrivalSlot({ stationId }: { stationId: string }) {
   // A white box with a live dot: "Heath St 2 min · Park St 4 min" (DESIGN.md §6).
   return (
     <div
-      className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2.5 text-sm"
+      className="flex min-h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2.5 text-sm"
       aria-live="polite"
       data-station-id={stationId}
     >

@@ -15,6 +15,7 @@ import type { Player } from "@/features/hub/use-player";
 import { bostonDateKey } from "@/features/quests/daily";
 import { PlayerAvatar } from "@/features/shell/shell-parts";
 import { MIN_PLAYERS, type RankedRow, schoolAbbr, weeklyXp } from "./compete";
+import { SchoolLogo, schoolLogoSrc } from "@/features/schools/school-logo";
 
 /** Pin the player's school above the list when it's this far down or more. */
 const PIN_AFTER = 5;
@@ -23,7 +24,15 @@ export type SchoolsLoad = { status: "loading" } | { status: "error" } | { status
 
 const FALLBACK_COLOR = "#6E5A5E";
 
-function SchoolMark({ row, size, ring = false }: { row: Pick<RankedRow, "name" | "color">; size: number; ring?: boolean }) {
+function SchoolMark({ row, size, ring = false, tilt = 0 }: { row: Pick<RankedRow, "name" | "color">; size: number; ring?: boolean; tilt?: number }) {
+  if (schoolLogoSrc(row)) {
+    // Stickers are wider than tall: give them the circle's box, a little taller on the podium.
+    return (
+      <span className="grid shrink-0 place-items-center" style={{ width: size * (ring ? 1.5 : 1.35), height: size * (ring ? 1.15 : 1) }}>
+        <SchoolLogo school={row} height={size * (ring ? 1.15 : 1)} tilt={tilt} className="max-w-full" />
+      </span>
+    );
+  }
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden className="shrink-0">
       <circle cx="32" cy="32" r={ring ? 29 : 32} fill={row.color ?? FALLBACK_COLOR} stroke={ring ? "#FBF6EC" : undefined} strokeWidth={ring ? 4 : undefined} />
@@ -47,14 +56,14 @@ export function Podium({ rows, className }: { rows: RankedRow[]; className?: str
         return (
           <li
             key={r.school_id}
-            className="flex flex-col items-center gap-1.5 desk:gap-2"
+            className={cn("flex flex-col items-center gap-1.5 desk:gap-2", first && "[&>span:first-child]:animate-[ob-bob_3s_ease-in-out_infinite] desk:[&>span:nth-child(2)]:animate-[ob-bob_3s_ease-in-out_infinite]")}
             aria-label={`Rank ${r.rank}, ${r.name}, ${r.weekly_xp.toLocaleString("en-US")} XP${r.mine ? ", your school" : ""}`}
           >
             <span className="desk:hidden">
-              <SchoolMark row={r} size={first ? 72 : 58} ring />
+              <SchoolMark row={r} size={first ? 64 : 50} ring tilt={first ? 0 : r.rank === 2 ? -6 : 5} />
             </span>
             <span className="hidden desk:block">
-              <SchoolMark row={r} size={first ? 84 : 68} ring />
+              <SchoolMark row={r} size={first ? 92 : 72} ring tilt={first ? 0 : r.rank === 2 ? -6 : 5} />
             </span>
             <span className="text-center text-sm leading-tight font-bold text-white desk:text-lg">{r.name}</span>
             <span className="text-[13px] font-bold text-gold tabular-nums desk:text-[15px]">

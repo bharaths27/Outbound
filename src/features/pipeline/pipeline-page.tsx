@@ -61,7 +61,7 @@ export function PipelinePage() {
 
   return (
     <>
-      <PageHeader title="Pipeline" />
+      <PageHeader title="How it works" />
       <div className="mx-auto w-full max-w-[720px] px-4 pt-3 pb-28 desk:max-w-[1400px] desk:px-8 desk:pt-6">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1">
@@ -71,7 +71,7 @@ export function PipelinePage() {
           <button
             type="button"
             onClick={play}
-            className="inline-flex h-12 shrink-0 items-center gap-2 rounded-full bg-maroon px-6 text-base font-bold text-white hover:bg-maroon-600"
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-maroon px-6 text-sm font-bold text-white hover:bg-maroon-600"
           >
             {playing ? <Pause className="size-5" aria-hidden /> : <Play className="size-5" aria-hidden />}
             {playing ? "Pause" : "Play"}

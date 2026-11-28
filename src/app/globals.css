@@ -515,3 +515,94 @@
 .ob-hosted-live::before { content: ""; position: absolute; inset: -6px; border-radius: 18px; border: 2px solid #db2777; opacity: 0; animation: ob-hosted-ping 1.8s ease-out infinite; pointer-events: none; }
 @keyframes ob-hosted-ping { 0% { opacity: .7; scale: .95; } 100% { opacity: 0; scale: 1.15; } }
 @keyframes ob-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Podium winner's sticker floats a little. */
+@keyframes ob-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+@media (prefers-reduced-motion: reduce) { [class*="ob-bob"] { animation: none !important; } }
+
+/* Paper grain on the page, like the cream cards in the mockups. Very light; off in dark mode. */
+body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .26 0 0 0 0 .2 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+[data-theme="dark"] body { background-image: none; }
+
+/* Torn-paper bottom edge for the maroon title bands on phones. */
+.ob-torn { position: relative; }
+.ob-torn::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -9px;
+  height: 10px;
+  background-color: inherit;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='10' preserveAspectRatio='none'%3E%3Cpath d='M0 0h120v3l-6 4-7-3-8 5-6-4-9 3-7-5-8 4-6-2-9 5-7-4-8 3-6-4-8 4-7-3-9 5-6-3-8 2V0z'/%3E%3C/svg%3E") repeat-x 0 0 / 120px 10px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='10' preserveAspectRatio='none'%3E%3Cpath d='M0 0h120v3l-6 4-7-3-8 5-6-4-9 3-7-5-8 4-6-2-9 5-7-4-8 3-6-4-8 4-7-3-9 5-6-3-8 2V0z'/%3E%3C/svg%3E") repeat-x 0 0 / 120px 10px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Badge unlock: the patch slams down like a stamp, a gold ring pulses out, rays turn, confetti pops. */
+.ob-unlock-card { animation: ob-card-in .35s cubic-bezier(.2,.9,.3,1.2) both; }
+.ob-unlock-patch { animation: ob-slam .7s cubic-bezier(.2,.8,.25,1) .1s both; }
+.ob-unlock-ring { opacity: 0; animation: ob-ring .8s ease-out .42s both; }
+.ob-unlock-rays {
+  background: repeating-conic-gradient(from 0deg, rgb(242 193 78 / .32) 0 10deg, transparent 10deg 24deg);
+  -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%);
+  mask: radial-gradient(circle, #000 30%, transparent 70%);
+  animation: ob-rays-in .5s ease-out .35s both, ob-spin 14s linear .35s infinite;
+}
+.ob-confetti { opacity: 0; animation: ob-pop 1.1s cubic-bezier(.15,.7,.3,1) both; }
+.ob-unlock-text { animation: ob-rise .4s ease-out both; }
+@keyframes ob-card-in { from { opacity: 0; transform: translateY(16px) scale(.96); } }
+@keyframes ob-slam {
+  0% { opacity: 0; transform: scale(2.3) rotate(-24deg); }
+  55% { opacity: 1; transform: scale(.9) rotate(5deg); }
+  75% { transform: scale(1.06) rotate(-4deg); }
+  100% { transform: scale(1) rotate(-3deg); }
+}
+@keyframes ob-ring { 0% { opacity: .9; transform: scale(.6); } 100% { opacity: 0; transform: scale(1.5); } }
+@keyframes ob-rays-in { from { opacity: 0; transform: scale(.4); } }
+@keyframes ob-spin { to { rotate: 360deg; } }
+@keyframes ob-pop {
+  0% { opacity: 1; transform: translate(-50%, -50%) rotate(0); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 60px)) rotate(calc(var(--r) + 540deg)); }
+}
+@keyframes ob-rise { from { opacity: 0; transform: translateY(8px); } }
+/* A badge earned since your last passport visit shines once. */
+.ob-shine { position: relative; overflow: hidden; }
+.ob-shine::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / .55) 50%, transparent 65%); transform: translateX(-100%); animation: ob-shine 1.4s ease-out .3s 2; pointer-events: none; }
+@keyframes ob-shine { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .ob-unlock-card, .ob-unlock-patch, .ob-unlock-ring, .ob-unlock-rays, .ob-confetti, .ob-unlock-text, .ob-shine::after { animation: none !important; }
+  .ob-confetti, .ob-unlock-ring { display: none; }
+}
+
+/* Like: the heart pops. Calendar days with visits bloom in. */
+.ob-heart-pop { animation: ob-heart .45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes ob-heart { 0% { transform: scale(.6); } 60% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.ob-bloom { animation: ob-bloom .4s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes ob-bloom { from { transform: scale(.3); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ob-heart-pop, .ob-bloom { animation: none; } }
+
+/* Rating slider: maroon track, gold thumb. */
+.ob-range { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; background: linear-gradient(90deg, #8A2A44, #C7901A 55%, #2F6B4F); outline: none; }
+.ob-range::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #F2C14E; border: 3px solid #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .3); cursor: pointer; }
+.ob-range::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #F2C14E; border: 3px solid #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .3); cursor: pointer; }
+.ob-range:focus-visible { box-shadow: 0 0 0 3px rgb(107 31 51 / .35); }
+
+/* A new passport stamp is pressed onto the page: it drops in, thuds, leaves an ink ring,
+   and the dated rubber stamp lands next to it. */
+.ob-stamp-press { display: inline-block; animation: ob-press .75s cubic-bezier(.2,.8,.25,1) .35s both; }
+.ob-thud { animation: ob-thud .35s ease-out .72s both; }
+.ob-ink-ring { border: 3px solid rgb(45 90 138 / .35); opacity: 0; animation: ob-ink .7s ease-out .72s both; }
+.ob-date-press { animation: ob-date .45s cubic-bezier(.2,1.4,.4,1) 1.05s both; }
+@keyframes ob-press {
+  0% { opacity: 0; transform: translateY(-46px) scale(1.9) rotate(-14deg); filter: drop-shadow(0 30px 18px rgb(43 26 31 / .35)); }
+  50% { opacity: 1; transform: translateY(0) scale(.92) rotate(3deg); filter: drop-shadow(0 2px 2px rgb(43 26 31 / .3)); }
+  70% { transform: scale(1.04) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0); filter: none; }
+}
+@keyframes ob-thud { 0%, 100% { transform: none; } 30% { transform: translateY(2px); } 60% { transform: translateY(-1px); } }
+@keyframes ob-ink { 0% { opacity: .9; transform: scale(.7); } 100% { opacity: 0; transform: scale(1.35); } }
+@keyframes ob-date { 0% { opacity: 0; transform: scale(2.2) rotate(-20deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .ob-stamp-press, .ob-thud, .ob-ink-ring, .ob-date-press { animation: none; } .ob-ink-ring { display: none; } }

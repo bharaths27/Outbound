@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Stamp } from "@/features/passport/stamp";
+import { DateStamp } from "@/features/passport/date-stamp";
 import type { CheckInResult, Quest, Tier } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { REASON_LABEL, TIER_LABEL, TOTAL_MS, frameAt, summary } from "./sequence";
@@ -99,9 +100,9 @@ export function Celebration({ quest, result, prevTier, squadName, actions, rewar
         {summary(result, prevTier)}
       </p>
 
-      <div className="flex min-h-11 w-full justify-end">
+      <div className="flex min-h-9 w-full justify-end">
         {!f.done && (
-          <button type="button" onClick={skip} className="min-h-11 px-3 text-sm font-semibold text-on-maroon-muted">
+          <button type="button" onClick={skip} className="min-h-9 px-3 text-sm font-semibold text-on-maroon-muted">
             Skip
           </button>
         )}
@@ -141,6 +142,10 @@ export function Celebration({ quest, result, prevTier, squadName, actions, rewar
             rotate={0}
           />
         </div>
+        {/* The dated rubber stamp lands once the stamp has. */}
+        <span className={cn("absolute -right-6 bottom-0", t >= 700 ? "ob-date-press" : "opacity-0")}>
+          <DateStamp at={new Date()} onMaroon />
+        </span>
       </div>
 
       <div className={cn("flex flex-col items-center gap-1", show(t >= 450))}>

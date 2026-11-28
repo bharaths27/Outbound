@@ -8,18 +8,20 @@ export interface Footprint {
   h: number; // meters, top of building
   b?: number; // meters, bottom (for stacked building parts)
   rgb?: number[]; // fixed wall color
+  seed?: number; // stable per building (colors, roof, chimney); defaults to its index
 }
 
 const M_LAT = 110_540;
 const mLng = (lat: number) => 111_320 * Math.cos((lat * Math.PI) / 180);
 
 // Cambridge triple-deckers and row houses come in many colors; bigger buildings are brick, stone or glass.
-const HOUSE_COLORS = [
-  [230, 218, 194], [217, 179, 140], [201, 123, 90], [184, 102, 74], [214, 196, 162],
-  [158, 154, 146], [140, 160, 172], [176, 150, 124], [126, 146, 128], [196, 186, 160],
+export const HOUSE_COLORS = [
+  // painted triple-deckers and row houses: cream, butter yellow, sky blue, sage, gray, white, brick, brownstone
+  [236, 226, 204], [232, 198, 110], [120, 152, 190], [134, 166, 120], [150, 150, 148],
+  [243, 238, 228], [172, 78, 54], [128, 80, 60], [196, 120, 96], [96, 104, 116],
 ];
-const BIG_COLORS = [[201, 123, 90], [184, 102, 74], [217, 179, 140], [230, 218, 194], [214, 196, 162], [158, 154, 146], [156, 82, 62], [176, 150, 124]];
-const TOWER_COLORS = [[98, 132, 168], [78, 108, 146], [118, 146, 176]];
+const BIG_COLORS = [[172, 78, 54], [140, 56, 42], [214, 170, 118], [232, 220, 196], [150, 150, 146], [128, 80, 60], [196, 120, 96], [222, 172, 92]];
+const TOWER_COLORS = [[72, 130, 182], [48, 94, 146], [96, 140, 184]];
 
 function hash(n: number) {
   const x = Math.sin(n * 12.9898) * 43758.5453;
@@ -88,7 +90,8 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
   const kx = mLng(lat0);
   const toXZ = ([lng, lat]: [number, number]): [number, number] => [(lng - lng0) * kx, -(lat - lat0) * M_LAT];
   const b = new Buf();
-  feats.forEach((f, i) => {
+  feats.forEach((f, idx) => {
+    const i = f.seed ?? idx;
     const outer = f.rings[0].slice(0, -1).map(toXZ);
     if (outer.length < 3) return;
     const holes = f.rings.slice(1).map((r) => r.slice(0, -1).map(toXZ));
@@ -98,11 +101,12 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
     const rect = area / (4 * box.hu * box.hv);
     const r = hash(i + 1);
 
-    if (!f.b && !f.rgb && H <= 15 && area < 420 && area > 25 && rect > 0.78) {
+    if (!f.b && H <= 15 && area < 420 && area > 25 && rect > 0.78) {
       // ---- house: walls to the eaves, gable roof along the long side, chimney ----
-      const rgb = HOUSE_COLORS[Math.floor(r * HOUSE_COLORS.length)];
+      const rgb = f.rgb ?? HOUSE_COLORS[Math.floor(r * HOUSE_COLORS.length)];
       const eave = Math.max(2.8, H - Math.min(box.hu, box.hv) * 0.75);
-      const roofCol = [[164, 85, 63], [138, 74, 58], [111, 106, 106], [95, 102, 112]][Math.floor(hash(i + 7) * 4)];
+      // shingles: a darker, grayer shade of the house's own color, so the roof always goes with the walls
+      const roofCol = rgb.map((c) => Math.round(c * 0.55 + 70 * 0.25));
       const long = box.hu >= box.hv;
       const c = Math.cos(box.ang), s = Math.sin(box.ang);
       const P = (u: number, v: number, y: number) => [box.cx + u * c - v * s, y, box.cz + u * s + v * c];
@@ -145,7 +149,8 @@ export function buildCityMesh(feats: Footprint[], center: [number, number]) {
       holes.filter((h) => h.length >= 3).map((h) => h.map(([x, z]) => new THREE.Vector2(x, z))),
     );
     const all = [...outer, ...holes.flat()];
-    const roofRgb = [141, 144, 150];
+    // roof: a lighter tone of the building's own walls, so it always goes with them
+    const roofRgb = rgb.map((c) => Math.round(c * 0.8 + 255 * 0.2));
     for (const [p, q, t] of shape) {
       const A = [all[p][0], H, all[p][1]], B = [all[q][0], H, all[q][1]], C = [all[t][0], H, all[t][1]];
       // face up: choose winding so the normal points +y

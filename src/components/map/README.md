@@ -5,9 +5,11 @@ Live 3D map of the T on a globe: whole USA, zooms into Massachusetts and Boston.
 | File | What |
 | --- | --- |
 | `TransitMap.tsx` | The map page: controls, station card with live countdown, train card, replay bar |
-| `style.ts` | Basemap: OpenFreeMap Liberty (real OpenStreetMap data, no key) restyled, Esri satellite toggle, offline fallback basemap |
-| `buildings3d.ts` | Real 3D buildings of central Boston (BPDA 3D Smart Model meshes: roofs, towers, setbacks) |
+| `style.ts` | Basemap: the Boston 3D map (OpenFreeMap Liberty as published, no key) with Map / Light / Satellite looks, streets at real width up close, offline fallback basemap |
+| `osmFacades.ts` | Close-up 3D buildings from the basemap's own OSM buildings, with facades (windows, doors, shop fronts, brick, roofs) |
+| `buildings3d.ts` | Older BPDA 3D city layer (not on the map since the Boston 3D base map; the manifest still feeds the offline basemap) |
 | `SearchBox.tsx` | Search places, streets, stations, campuses (bundled index offline + Photon geocoder online) |
+| `buses3d.ts`, `bus-track.ts` | Live buses: articulated 3D model that bends at the joint on turns; route shapes snapped onto the drawn streets |
 | `trains3d.ts` | Train animation along the real track + three.js layer that draws every car |
 | `trainModels.ts` | 3D models of the current cars: Red #1900, Orange #1400, Green Type 9 |
 | `track.ts` | Snaps trains onto the track and walks along it (so cars follow curves) |

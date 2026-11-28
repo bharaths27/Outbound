@@ -4,9 +4,11 @@
 // with the same ranked rows as Schools. Players set to friends-only or ghost aren't listed;
 // the note says so, so a missing name isn't a surprise.
 
+import { SchoolLogo } from "@/features/schools/school-logo";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FriendButton, useFriendships } from "@/features/friends/friends";
 import { data } from "@/lib/data";
 import type { PlayerLeaderboardRow } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
@@ -16,6 +18,7 @@ type Load = { status: "loading" } | { status: "error" } | { status: "ready"; row
 export function PlayersTab({ myId, active }: { myId: string | null; active: boolean }) {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
+  const friends = useFriendships(active ? myId : null);
 
   useEffect(() => {
     if (!active) return;
@@ -72,7 +75,7 @@ export function PlayersTab({ myId, active }: { myId: string | null; active: bool
       ) : (
         <ol className="overflow-hidden rounded-xl border border-border bg-surface">
           {rows.map((r) => (
-            <PlayerRow key={r.user_id} row={r} top={top} mine={r.user_id === myId} />
+            <PlayerRow key={r.user_id} row={r} top={top} mine={r.user_id === myId} friends={myId ? friends : null} />
           ))}
         </ol>
       )}
@@ -91,13 +94,23 @@ export function PlayersTab({ myId, active }: { myId: string | null; active: bool
   );
 }
 
-function PlayerRow({ row, top, mine }: { row: PlayerLeaderboardRow; top: number; mine: boolean }) {
+function PlayerRow({
+  row,
+  top,
+  mine,
+  friends,
+}: {
+  row: PlayerLeaderboardRow;
+  top: number;
+  mine: boolean;
+  friends: ReturnType<typeof useFriendships> | null;
+}) {
   const pct = Math.round((row.weekly_xp / top) * 100);
   const initial = row.display_name.trim().charAt(0).toUpperCase() || "?";
   return (
     <li
       className={cn(
-        "flex items-center gap-3 border-t border-sand px-3.5 py-3 first:border-t-0 desk:gap-4 desk:px-5 desk:py-3.5",
+        "flex items-center gap-3 border-t border-sand px-3.5 py-2.5 transition-colors first:border-t-0 hover:bg-cream/60 desk:gap-4 desk:px-5 desk:py-3",
         mine && "bg-cream",
       )}
       aria-current={mine ? "true" : undefined}
@@ -119,23 +132,32 @@ function PlayerRow({ row, top, mine }: { row: PlayerLeaderboardRow; top: number;
       </span>
       <div className="min-w-0 flex-1 desk:flex desk:items-center desk:gap-4">
         <div className="flex items-baseline justify-between gap-2 desk:block desk:w-[220px] desk:shrink-0">
-          <span className="block truncate text-[15px] font-bold desk:text-base">
-            {row.display_name}
+          <span className="block truncate text-sm font-bold desk:text-[15px]">
+            <Link href={`/u/${row.user_id}`} className="hover:text-maroon hover:underline">
+              {row.display_name}
+            </Link>
             {mine && <span className="ml-1.5 rounded-full bg-maroon px-1.5 py-px align-middle text-[11px] font-bold text-white">You</span>}
           </span>
           <span className="shrink-0 text-[15px] font-semibold text-ink-2 tabular-nums desk:hidden">
             {row.weekly_xp.toLocaleString("en-US")}
           </span>
-          <span className="hidden truncate text-[13px] text-muted-foreground desk:block">{row.school_name}</span>
+          <span className="hidden items-center gap-1.5 truncate text-[13px] text-muted-foreground desk:flex">
+            <SchoolLogo school={{ name: row.school_name }} height={18} />
+            {row.school_name}
+          </span>
         </div>
         <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-sand desk:mt-0 desk:h-2 desk:flex-1">
           <div className="h-full rounded-full bg-gold-500" style={{ width: `${pct}%` }} />
         </div>
-        <span className="mt-1 block truncate text-xs text-muted-foreground desk:hidden">{row.school_name}</span>
+        <span className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground desk:hidden">
+          <SchoolLogo school={{ name: row.school_name }} height={16} />
+          {row.school_name}
+        </span>
         <span className="hidden w-[100px] shrink-0 text-right text-[15px] font-semibold text-ink-2 tabular-nums desk:block">
           {row.weekly_xp.toLocaleString("en-US")} XP
         </span>
       </div>
+      {friends && !mine && <FriendButton name={row.display_name} userId={row.user_id} friends={friends} />}
     </li>
   );
 }

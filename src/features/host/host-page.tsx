@@ -7,6 +7,7 @@
 
 import { CalendarPlus, LocateFixed, MapPin, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { data } from "@/lib/data";
 import type { HostedEvent, HostedEventKind, HostedFood, NewHostedEvent, Station } from "@/lib/data/types";
@@ -66,7 +67,13 @@ const emptyDraft = (hostName: string): Draft => ({
   here: null,
 });
 
-export function HostPage() {
+/**
+ * Student events + the "Create an event" form. Rendered inside the Events page (embedded): the
+ * form opens from the + Host button in the Events header (/events?host=1).
+ */
+export function HostPage({ embedded = false }: { embedded?: boolean }) {
+  const router = useRouter();
+  const wantsForm = useSearchParams().get("host") === "1";
   const player = useShellPlayer();
   const me = player?.profile.id ?? null;
   const [events, setEvents] = useState<HostedEvent[] | null | "error">(null);
@@ -94,6 +101,18 @@ export function HostPage() {
       window.removeEventListener(EVENTS_CHANGED, load);
     };
   }, []);
+
+  // The + Host button in the Events header opens the form (and scrolls to it).
+  useEffect(() => {
+    if (!wantsForm) return;
+    setOpen(true);
+    setError(null);
+    requestAnimationFrame(() => document.getElementById("host-form")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, [wantsForm]);
+  const closeForm = () => {
+    setOpen(false);
+    if (wantsForm) router.replace("/events", { scroll: false });
+  };
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }));
   const station = stations.find((s) => s.id === draft.station_id) ?? null;
@@ -156,7 +175,7 @@ export function HostPage() {
     try {
       const saved = await data.createHostedEvent(e);
       setPublished(saved);
-      setOpen(false);
+      closeForm();
       setDraft(emptyDraft(draft.host_name));
       window.dispatchEvent(new Event(EVENTS_CHANGED));
       await load();
@@ -190,12 +209,12 @@ export function HostPage() {
 
   return (
     <>
-      <PageHeader title="Host" />
-      <div className="mx-auto w-full max-w-[720px] px-4 pt-3 pb-10 desk:max-w-[1360px] desk:px-8 desk:pt-6 desk:pb-14">
-        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 desk:flex-row desk:items-center desk:p-5">
+      {!embedded && <PageHeader title="Host" />}
+      <div className={embedded ? "" : "mx-auto w-full max-w-[720px] px-4 pt-3 pb-10 desk:max-w-[1360px] desk:px-8 desk:pt-6 desk:pb-14"}>
+        {!open && !embedded && <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 desk:flex-row desk:items-center desk:p-5">
           <div className="min-w-0 flex-1">
-            <p className="text-lg font-semibold text-ink">Throw something. Students will find it on the map.</p>
-            <p className="mt-1 text-base text-muted-foreground">
+            <p className="text-base font-semibold text-ink">Throw something. Students will find it on the map.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
               Parties, study jams, club nights, pop-ups. Say what it is, if there’s free or cheap food, and what people can
               win. It shows on the map for everyone as soon as you publish.
             </p>
@@ -207,25 +226,25 @@ export function HostPage() {
                 setOpen(true);
                 setError(null);
               }}
-              className="inline-flex h-12 items-center gap-2 rounded-full bg-maroon px-5 text-base font-semibold text-white hover:bg-maroon-600"
+              className="inline-flex h-10 items-center gap-2 rounded-full bg-maroon px-5 text-sm font-semibold text-white transition-all hover:bg-maroon-600 active:scale-95"
             >
-              <CalendarPlus className="size-5" aria-hidden />
+              <CalendarPlus className="size-4" aria-hidden />
               Create an event
             </button>
             <button
               type="button"
               onClick={useSpark}
-              className="inline-flex h-12 items-center gap-2 rounded-full border border-border-strong px-4 text-base font-semibold text-ink hover:bg-sand"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink hover:bg-sand"
             >
-              <Sparkles className="size-5" aria-hidden />
+              <Sparkles className="size-4" aria-hidden />
               Use the Spark! example
             </button>
           </div>
-        </div>
+        </div>}
 
         {published && (
           <div role="status" className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-green-600/30 bg-green-50 p-4 text-green-900 dark:bg-green-950/40 dark:text-green-100">
-            <p className="min-w-0 flex-1 text-base">
+            <p className="min-w-0 flex-1 text-sm">
               <b>{published.title}</b> is published. It’s on the map now for everyone.
             </p>
             <Link href={eventMapHref(published)} className="inline-flex h-10 items-center gap-1 rounded-full bg-green-700 px-4 text-sm font-semibold text-white hover:bg-green-800">
@@ -239,10 +258,13 @@ export function HostPage() {
         )}
 
         {open && (
-          <form onSubmit={submit} className="mb-6 flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4 desk:p-6" aria-label="Create an event">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-ink">Create an event</h2>
-              <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="rounded-full p-1.5 text-muted-foreground hover:bg-sand">
+          <form id="host-form" onSubmit={submit} className="mb-6 flex scroll-mt-4 flex-col gap-4 rounded-2xl border border-border bg-surface p-4 animate-in fade-in slide-in-from-top-2 duration-300 desk:p-6" aria-label="Create an event">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-xl font-semibold text-ink">Host an event</h2>
+              <button type="button" onClick={useSpark} className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-full border border-border-strong px-3 text-xs font-semibold text-ink hover:bg-sand">
+                <Sparkles className="size-3.5" aria-hidden /> Fill with an example
+              </button>
+              <button type="button" aria-label="Close" onClick={closeForm} className="rounded-full p-1.5 text-muted-foreground hover:bg-sand">
                 <X className="size-5" aria-hidden />
               </button>
             </div>
@@ -250,7 +272,7 @@ export function HostPage() {
             {!me && (
               <p className="rounded-xl bg-sand p-3 text-base text-ink">
                 You’ll need to{" "}
-                <Link href="/login?next=/host" className="font-semibold underline">
+                <Link href="/login?next=%2Fevents%3Fhost%3D1" className="font-semibold underline">
                   sign in
                 </Link>{" "}
                 to publish. You can fill this in first.
@@ -311,7 +333,7 @@ export function HostPage() {
                   id="ev-len"
                   value={draft.hours}
                   onChange={(e) => set("hours", Number(e.target.value))}
-                  className="h-12 w-full rounded-lg border border-input bg-surface px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="h-10 w-full rounded-lg border border-input bg-surface px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   {LENGTHS.map((h) => (
                     <option key={h} value={h}>
@@ -329,7 +351,7 @@ export function HostPage() {
                     id="ev-station"
                     value={draft.station_id}
                     onChange={(e) => setDraft((d) => ({ ...d, station_id: e.target.value, here: null }))}
-                    className="h-12 min-w-0 flex-1 rounded-lg border border-input bg-surface px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-surface px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   >
                     <option value="">Pick a stop…</option>
                     {stations.map((s) => (
@@ -342,7 +364,7 @@ export function HostPage() {
                     type="button"
                     onClick={useMyLocation}
                     disabled={locating}
-                    className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-lg border border-border-strong px-3 text-sm font-semibold text-ink hover:bg-sand disabled:opacity-60"
+                    className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-border-strong px-3 text-sm font-semibold text-ink hover:bg-sand disabled:opacity-60"
                   >
                     <LocateFixed className="size-4" aria-hidden />
                     {locating ? "Finding…" : "Use my location"}
@@ -370,7 +392,7 @@ export function HostPage() {
               <button
                 type="submit"
                 disabled={busy}
-                className="inline-flex h-12 items-center rounded-full bg-maroon px-6 text-base font-semibold text-white hover:bg-maroon-600 disabled:opacity-60"
+                className="inline-flex h-10 items-center rounded-full bg-maroon px-6 text-sm font-semibold text-white hover:bg-maroon-600 disabled:opacity-60"
               >
                 {busy ? "Publishing…" : "Publish event"}
               </button>
@@ -439,7 +461,7 @@ export function HostPage() {
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Link
                         href={eventMapHref(e)}
-                        className="inline-flex h-10 items-center gap-1 rounded-full bg-maroon px-4 text-sm font-semibold text-white hover:bg-maroon-600"
+                        className="inline-flex h-10 items-center gap-1 rounded-full bg-maroon px-4 text-sm font-semibold text-white transition-all hover:bg-maroon-600 active:scale-95"
                       >
                         <MapPin className="size-4" aria-hidden />
                         Directions
@@ -491,7 +513,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       role="radio"
       aria-checked={on}
       onClick={onClick}
-      className={`inline-flex h-10 items-center gap-1 rounded-full border px-3.5 text-[15px] font-medium transition-colors ${
+      className={`inline-flex h-10 items-center gap-1 rounded-full border px-3.5 text-sm font-medium transition-colors ${
         on ? "border-maroon bg-maroon text-white" : "border-border-strong bg-surface text-ink hover:bg-sand"
       }`}
     >

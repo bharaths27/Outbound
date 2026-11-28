@@ -8,6 +8,7 @@
 //   hours and time cards side by side) and a sticky side column (stamp, reward, Check in,
 //   distance note, student deals).
 
+import { RatePanel } from "@/features/social/rate-panel";
 import { ArrowLeft, Clock, Navigation } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
@@ -166,18 +167,21 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
   const directions = (
     <Link
       href={directionsHref}
-      className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-maroon px-4 text-sm font-semibold text-white outline-none hover:bg-maroon-600 focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2"
+      className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-full bg-maroon px-3 text-sm font-semibold text-white outline-none hover:bg-maroon-600 focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2"
     >
       <Navigation className="size-4" aria-hidden /> Directions
     </Link>
   );
   const actions = (
-    <div className="flex flex-wrap gap-2">
+    // One row: Directions, Share and (after a check-in this week) Vote, split evenly.
+    <div className="grid auto-cols-fr grid-flow-col gap-2 [&>*]:min-w-0 [&>*]:px-3">
       {directions}
-      <ShareQuestButton questId={quest.id} questTitle={quest.title} />
-      <RecommendButton questId={quest.id} visits={player.visits} />
+      <ShareQuestButton questId={quest.id} questTitle={quest.title} compact />
+      <RecommendButton questId={quest.id} visits={player.visits} compact />
     </div>
   );
+
+  const ratings = <RatePanel questId={quest.id} signedIn={!!player.profile} myId={player.profile?.id ?? null} />;
 
   // ---------- inside the hub ----------
   if (!page) {
@@ -187,7 +191,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
           <button
             type="button"
             onClick={onBack}
-            className="-ml-1 inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-bold text-maroon"
+            className="-ml-1 inline-flex min-h-9 items-center gap-1.5 self-start text-sm font-bold text-maroon"
           >
             <ArrowLeft className="size-[18px]" aria-hidden />
             All quests
@@ -201,6 +205,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
           <div className="mt-3">{timeLine}</div>
         </section>
         {dealsBox}
+        {ratings}
         {reward}
         {actions}
         <StickyCheckIn>{checkIn}</StickyCheckIn>
@@ -228,6 +233,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
               {timeLine}
             </section>
           </div>
+          {ratings}
           <div className="flex flex-col gap-4 desk:hidden">
             {dealsBox}
             {reward}
@@ -253,11 +259,7 @@ export function QuestDetail({ quest, station, player, now, onBack, onCheckedIn, 
           {reward}
           <div className="w-full">{checkIn}</div>
           <p className="text-[13px] text-muted-foreground">You&apos;ll need to be within {quest.checkin_radius_m} m.</p>
-          <div className="flex w-full flex-col gap-2 [&>a]:w-full [&>button]:w-full">
-            {directions}
-            <ShareQuestButton questId={quest.id} questTitle={quest.title} />
-            <RecommendButton questId={quest.id} visits={player.visits} />
-          </div>
+          <div className="w-full">{actions}</div>
         </div>
         {dealsBox}
       </aside>

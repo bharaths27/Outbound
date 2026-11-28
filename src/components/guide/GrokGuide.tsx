@@ -627,7 +627,7 @@ export default function GrokGuide({
                 disabled={busy}
                 aria-label="Add a photo of food or a place"
                 title="Add a photo of food or a place"
-                className="flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-semibold hover:border-maroon disabled:opacity-40"
+                className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-semibold hover:border-maroon disabled:opacity-40"
               >
                 <Camera className="size-4.5" aria-hidden /> Photo
               </button>
@@ -644,15 +644,15 @@ export default function GrokGuide({
                 }}
                 maxLength={500}
                 placeholder={photo ? "Add a note (optional)" : "Cheap dumplings, 1 hour…"}
-                className="max-h-24 min-h-11 min-w-0 flex-1 resize-none rounded-3xl border border-border bg-transparent px-4 py-2.5 text-sm outline-none focus:border-maroon"
+                className="max-h-24 min-h-9 min-w-0 flex-1 resize-none rounded-3xl border border-border bg-transparent px-4 py-[7px] text-sm outline-none focus:border-maroon"
               />
               <button
                 type="submit"
                 disabled={busy || (!input.trim() && !photo)}
                 aria-label="Send"
-                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-maroon text-white hover:bg-maroon-600 disabled:opacity-40"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-maroon text-white hover:bg-maroon-600 disabled:opacity-40"
               >
-                {busy ? <Loader2 className="size-5 animate-spin motion-reduce:animate-none" aria-hidden /> : <ArrowUp className="size-5" aria-hidden />}
+                {busy ? <Loader2 className="size-5 animate-spin motion-reduce:animate-none" aria-hidden /> : <ArrowUp className="size-4" aria-hidden />}
               </button>
             </form>
           </div>
@@ -666,9 +666,9 @@ export default function GrokGuide({
           setUnread(false);
         }}
         aria-expanded={open}
-        className="relative flex items-center gap-2 rounded-full bg-maroon py-3 pr-5 pl-4 text-[15px] font-semibold text-white shadow-lg hover:bg-maroon-600"
+        className="relative flex items-center gap-1.5 rounded-full bg-maroon py-2 pr-4 pl-3 text-sm font-semibold text-white shadow-lg ring-1 ring-white/10 transition-[transform,background-color,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:bg-maroon-600 hover:shadow-xl active:translate-y-0 active:scale-95 motion-reduce:transition-none"
       >
-        {open ? <ChevronDown className="size-5" aria-hidden /> : <Sparkles className="size-5 text-gold" aria-hidden />}
+        {open ? <ChevronDown className="size-4" aria-hidden /> : <Sparkles className="size-4 text-gold" aria-hidden />}
         {open ? "Put away" : busy ? "Guide is working…" : "Ask Guide"}
         {!open && unread && <span className="absolute -top-0.5 -right-0.5 size-3.5 rounded-full border-2 border-white bg-gold" aria-label="New answer" />}
       </button>

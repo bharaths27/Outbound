@@ -140,6 +140,10 @@ export interface Profile {
   privacy: Privacy;
   is_demo: boolean; // demo accounts can check in without a location
   created_at: string;
+  // profile extras (migration 012), all optional
+  grad_year?: number | null;
+  bio?: string | null;
+  banner?: string | null; // a preset id from features/profile-card/banners.ts
 }
 
 /** public.squads */
@@ -211,7 +215,25 @@ export interface QuestOfTheWeek {
   base_xp_multiplier: number; // 2
 }
 
-export type BadgeId = "line_collector" | "night_owl" | "squad_goals" | "cross_town";
+export type BadgeId =
+  | "first_stop"
+  | "line_collector"
+  | "night_owl"
+  | "early_bird"
+  | "cross_town"
+  | "squad_goals"
+  | "critic"
+  | "free_food_finder"
+  | "week_on_the_t"
+  | "green_line_veteran"
+  | "bridge_builder"
+  | "weekly_regular"
+  | "taste_maker"
+  | "snow_day"
+  | "passport_complete"
+  | "host_with_the_most"
+  | "boston_local"
+  | "month_on_the_t";
 
 /** my_game_progress(): earned badges and the check-in streak, in Boston days. */
 export interface GameProgress {
@@ -237,4 +259,38 @@ export interface LeaderboardRow {
   weekly_xp: number;
   players: number;
   eligible: boolean; // needs 5+ active players this week
+}
+
+// ---------- social (migration 011_social) ----------
+
+/** public.reviews: a 1–10 rating of a quest spot (or an imported place) with a note. */
+export interface Review {
+  id: string;
+  user_id: string;
+  quest_id: string | null; // null for places imported from Google that aren't quests
+  place_name: string;
+  place_address: string | null;
+  lat: number | null;
+  lon: number | null;
+  rating: number; // 1.0–10.0, one decimal
+  note: string;
+  visited_on: string; // YYYY-MM-DD
+  source: "outbound" | "google";
+  created_at: string;
+}
+
+/** public.saved_places: the want-to-visit list. */
+export interface SavedPlace {
+  user_id: string;
+  quest_id: string;
+  created_at: string;
+}
+
+/** public.review_comments */
+export interface ReviewComment {
+  id: string;
+  review_id: string;
+  user_id: string;
+  text: string;
+  created_at: string;
 }

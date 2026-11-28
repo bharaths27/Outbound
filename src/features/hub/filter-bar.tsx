@@ -104,8 +104,8 @@ export function FilterBar({ filters, cravings, resultCount, rideMin = null, onCh
         </ToggleGroup>
       </ChipRow>
 
-      <div className="flex min-h-11 items-center justify-between gap-3">
-        <label htmlFor={openId} className="flex items-center gap-2.5 text-[15px] font-semibold">
+      <div className="flex min-h-9 items-center justify-between gap-3">
+        <label htmlFor={openId} className="flex items-center gap-2.5 text-sm font-semibold">
           <Switch id={openId} checked={filters.openNow} onCheckedChange={(openNow) => set({ openNow })} />
           Open now
         </label>
@@ -114,7 +114,7 @@ export function FilterBar({ filters, cravings, resultCount, rideMin = null, onCh
             {resultLabel(resultCount)}
           </p>
           {activeCount(filters) > 0 && (
-            <Button variant="link" onClick={() => onChange(EMPTY_FILTERS)} className="h-11 px-1 font-bold text-maroon underline">
+            <Button variant="link" onClick={() => onChange(EMPTY_FILTERS)} className="h-9 px-1 font-bold text-maroon underline">
               Clear
             </Button>
           )}

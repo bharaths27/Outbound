@@ -3,28 +3,29 @@
 // Pieces of the shell shared by the mobile header, desktop top bar, and page headers:
 // nav items, the XP pill, the Ask Guide button, the notifications bell, and the player avatar (DESIGN.md §4–5).
 
-import { Bell, Moon, Sparkles, Sun } from "lucide-react";
+import { Bell, BookOpenCheck, LogOut, Moon, Sparkles, Sun, UserRound, UsersRound, Workflow } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { data } from "@/lib/data";
+import { SchoolLogo } from "@/features/schools/school-logo";
 import { setTheme, useTheme } from "@/features/theme/theme";
 import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { openGuide } from "@/features/guide/open-guide";
 import { cn } from "@/lib/utils";
-import type { ShellPlayer } from "./use-shell-player";
+import { notifyPlayerChanged, type ShellPlayer } from "./use-shell-player";
 
 /** Icon paths from the reference designs (24 × 24, 1.8 stroke). */
 export const NAV = [
   { href: "/", label: "Explore", d: "M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" },
   { href: "/quests", label: "Quests", d: "M5 21V4M5 4h11l-2 4 2 4H5" },
-  {
-    href: "/passport",
-    label: "Passport",
-    d: "M6 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM11.5 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 17h5",
-  },
+  // Events: student events (with the + Host button) and event quests near the T.
+  { href: "/events", label: "Events", d: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" },
   {
     href: "/leaderboard",
     label: "Leaderboard",
@@ -35,20 +36,15 @@ export const NAV = [
     label: "Rewards",
     d: "M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 7h18v4H3zM12 7v14M12 7c-1.4-2.8-5-3.2-5-1.2C7 7 9.5 7 12 7zm0 0c1.4-2.8 5-3.2 5-1.2C17 7 14.5 7 12 7z",
   },
-  { href: "/events", label: "Events", d: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4", desktopOnly: true },
-  // Host (BU Spark! track): publish an event that shows on the map. Phones reach it from the map.
-  { href: "/host", label: "Host", d: "M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8zM5 21h14", desktopOnly: true },
-  // Pipeline: how the app works (tracks, agents, tools), for the demo.
-  { href: "/pipeline", label: "Pipeline", d: "M4 6h5v4H4zM15 14h5v4h-5zM9 8h3a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2M4 18h5M6.5 10v8", desktopOnly: true },
-] as const satisfies readonly { href: string; label: string; d: string; desktopOnly?: boolean }[];
+] as const satisfies readonly { href: string; label: string; d: string }[];
 
-/** The phone tab bar keeps 5 items (DESIGN.md §4); Events and Host are desktop only (phones reach Host from the map). */
-export const PHONE_NAV = NAV.filter((item) => !("desktopOnly" in item && item.desktopOnly));
+/** Same five on phones and desktop. Passport, Profile, Squads and How it works live in the avatar menu. */
+export const PHONE_NAV = NAV;
 
 export const isActive = (pathname: string, href: string) =>
   href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
-export function NavIcon({ d, size = 22 }: { d: string; size?: number }) {
+export function NavIcon({ d, size = 20 }: { d: string; size?: number }) {
   return (
     <svg
       width={size}
@@ -72,7 +68,7 @@ const STAR = "M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5
 export function XpPill({ player, size = "md" }: { player: ShellPlayer | null | undefined; size?: "sm" | "md" }) {
   const base = cn(
     "flex shrink-0 items-center gap-1.5 rounded-full bg-gold px-3 font-bold text-gold-foreground tabular-nums",
-    size === "sm" ? "h-[34px] text-sm" : "h-9 text-sm",
+    size === "sm" ? "h-8 text-[13px]" : "h-8 text-[13px]",
   );
   if (player === undefined) return <span className={cn(base, "w-24 opacity-60")} aria-hidden />;
   if (player === null) {
@@ -92,7 +88,7 @@ export function XpPill({ player, size = "md" }: { player: ShellPlayer | null | u
       aria-label={`Level ${level}, ${xp.toLocaleString("en-US")} XP, ${toNext} XP to level ${level + 1}. See the leaderboard`}
       title={`Level ${level} · ${toNext} XP to level ${level + 1}`}
     >
-      <span className="grid size-[26px] shrink-0 place-items-center rounded-full bg-maroon text-[12px] font-extrabold text-white">{level}</span>
+      <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-maroon text-[11px] font-extrabold text-white">{level}</span>
       <span className="flex flex-col items-start leading-none">
         <span className="flex items-center gap-1">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -118,7 +114,7 @@ export function AskGuideButton({ compact = false }: { compact?: boolean }) {
   // Compact (phone title bands): icon only, so long titles like "Today's Quests" still fit.
   if (compact) {
     return (
-      <button type="button" onClick={() => openGuide()} aria-label="Ask Guide" title="Ask Guide" className={cn(base, "size-11")}>
+      <button type="button" onClick={() => openGuide()} aria-label="Ask Guide" title="Ask Guide" className={cn(base, "size-9")}>
         <Sparkles className="size-5 text-gold" aria-hidden />
       </button>
     );
@@ -142,11 +138,11 @@ export function ThemeToggle({ tint = false }: { tint?: boolean }) {
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
       title={dark ? "Light mode" : "Dark mode"}
       className={cn(
-        "flex size-11 shrink-0 items-center justify-center rounded-md text-on-maroon outline-none focus-visible:ring-2 focus-visible:ring-gold",
+        "flex size-9 shrink-0 items-center justify-center rounded-md text-on-maroon outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-gold",
         tint ? "bg-white/12" : "bg-transparent",
       )}
     >
-      {dark ? <Sun className="size-[22px]" aria-hidden /> : <Moon className="size-[22px]" aria-hidden />}
+      {dark ? <Sun className="size-[18px]" aria-hidden /> : <Moon className="size-[18px]" aria-hidden />}
     </button>
   );
 }
@@ -158,11 +154,11 @@ export function NotificationsBell({ tint = false }: { tint?: boolean }) {
       <DropdownMenuTrigger
         aria-label="Notifications"
         className={cn(
-          "flex size-11 shrink-0 items-center justify-center rounded-md text-on-maroon outline-none focus-visible:ring-2 focus-visible:ring-gold",
+          "flex size-9 shrink-0 items-center justify-center rounded-md text-on-maroon outline-none transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-gold",
           tint ? "bg-white/12" : "bg-transparent",
         )}
       >
-        <Bell className="size-[22px]" aria-hidden />
+        <Bell className="size-[18px]" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72 rounded-xl p-2">
         <DropdownMenuLabel className="type-heading px-2 pt-1">Notifications</DropdownMenuLabel>
@@ -189,7 +185,7 @@ export function PlayerAvatar({
     <span
       aria-hidden
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-full bg-gold font-display font-bold text-gold-foreground",
+        "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gold font-display font-bold text-gold-foreground",
         className,
       )}
       style={{
@@ -200,16 +196,88 @@ export function PlayerAvatar({
         boxShadow: `0 0 0 2px var(--paper), 0 0 0 4px ${player.school?.color ?? "var(--border-strong)"}`,
       }}
     >
-      {initial}
+      {player.profile.avatar_url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- user photo
+        <img src={player.profile.avatar_url} alt="" className="size-full rounded-full object-cover" />
+      ) : (
+        initial
+      )}
     </span>
   );
 }
 
-export function ProfileLink({ player, size = 44 }: { player: ShellPlayer | null | undefined; size?: number }) {
+const ME_TILES = [
+  { href: "/passport", label: "Passport", hint: "Stamps & badges", Icon: BookOpenCheck, tone: "bg-gold text-gold-foreground" },
+  { href: "/profile", label: "Profile", hint: "Your board", Icon: UserRound, tone: "bg-maroon text-white" },
+  { href: "/leaderboard?tab=squads", label: "Squads", hint: "Friends & invites", Icon: UsersRound, tone: "bg-[#2F6B4F] text-white" },
+  { href: "/pipeline", label: "How it works", hint: "The tech behind it", Icon: Workflow, tone: "bg-[#1F2A5C] text-white" },
+] as const;
+
+/**
+ * The avatar opens a small "me" menu: who you are, big tiles for Passport, Profile, Squads and
+ * How it works, then dark mode and sign out. Keeps the top bar and tab bar short.
+ */
+export function ProfileLink({ player, size = 36 }: { player: ShellPlayer | null | undefined; size?: number }) {
+  const router = useRouter();
+  const theme = useTheme();
   if (!player) return null;
+  const { profile, school } = player;
+  const dark = theme === "dark";
+  async function signOut() {
+    await data.signOut().catch(() => {});
+    notifyPlayerChanged();
+    router.push("/login");
+  }
   return (
-    <Link href="/profile" aria-label="Your profile" className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold">
-      <PlayerAvatar player={player} size={size} />
-    </Link>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="Your menu: passport, profile and settings"
+        className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold"
+      >
+        <PlayerAvatar player={player} size={size} className="transition-transform duration-200 hover:scale-105" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={8} className="w-[300px] rounded-2xl p-2.5">
+        <div className="flex items-center gap-3 px-1 pt-1 pb-2.5">
+          <PlayerAvatar player={player} size={44} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-lg leading-tight font-semibold">{profile.display_name ?? "Explorer"}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              Lv. {profile.level} · {profile.xp.toLocaleString("en-US")} XP{school ? ` · ${school.name}` : ""}
+            </p>
+          </div>
+          {school && <SchoolLogo school={school} height={34} tilt={6} />}
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {ME_TILES.map(({ href, label, hint, Icon, tone }) => (
+            <DropdownMenuItem key={href} asChild className="h-auto rounded-xl p-0 focus:bg-sand">
+              <Link href={href} className="flex flex-col items-start gap-2 rounded-xl border border-border p-2.5 transition-transform hover:-translate-y-0.5">
+                <span className={cn("grid size-9 place-items-center rounded-lg", tone)}>
+                  <Icon className="size-[18px]" aria-hidden />
+                </span>
+                <span>
+                  <span className="block text-sm leading-tight font-bold text-ink">{label}</span>
+                  <span className="block text-[11px] text-muted-foreground">{hint}</span>
+                </span>
+              </Link>
+            </DropdownMenuItem>
+          ))}
+        </div>
+        <div className="mt-2 flex gap-1.5 border-t border-border pt-2">
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              setTheme(dark ? "light" : "dark");
+            }}
+            className="flex-1 justify-center gap-1.5 rounded-lg text-[13px] font-semibold"
+          >
+            {dark ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
+            {dark ? "Light mode" : "Dark mode"}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={signOut} className="flex-1 justify-center gap-1.5 rounded-lg text-[13px] font-semibold">
+            <LogOut className="size-4" aria-hidden /> Sign out
+          </DropdownMenuItem>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

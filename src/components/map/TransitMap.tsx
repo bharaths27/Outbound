@@ -21,13 +21,17 @@ import type { LineLateness, Station, Train } from "@/lib/types";
 import { LINE_COLORS } from "@/lib/lines";
 import { TrackNetwork } from "./track";
 import { TRACK_HALF_GAP, TrainAnimator, Trains3DLayer, TrainNow } from "./trains3d";
-import { loadBaseStyle, groundLayerIds, registerFontProtocol } from "./style";
-import { CityBuildingsLayer, fetchBpdaManifest, fetchRegionManifest, inBpda, inRegion } from "./buildings3d";
+import { useBuses } from "./useBuses";
+import { loadSignals, SignalsLayer } from "./signals";
+import { busStatus } from "@/lib/bus";
+import { setRoadStyle } from "./buses3d";
+import { loadBaseStyle, groundLayerIds, registerFontProtocol, setMapLook, type MapLook } from "./style";
+import { fetchBpdaManifest } from "./buildings3d";
+import { OsmFacadesLayer } from "./osmFacades";
 import { GOOGLE_KEY, GoogleTilesLayer } from "./googleTiles";
-import SearchBox, { pointInRing } from "./SearchBox";
+import SearchBox from "./SearchBox";
 import Explorer, { type ExplorerHandle } from "./Explorer";
 import MapPanel, { LinesPanel, type MapShow } from "./MapPanel";
-import { addWaves } from "./waves";
 import { fetchWeather, type Weather } from "./weather";
 import WeatherFx from "./WeatherFx";
 import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, LocateFixed, Moon, Star, Sun } from "lucide-react";
@@ -96,7 +100,7 @@ export default function TransitMap() {
   const mapRef = useRef<MlMap | null>(null);
   const animRef = useRef<TrainAnimator | null>(null);
   const layerRef = useRef<Trains3DLayer | null>(null);
-  const cityRef = useRef<CityBuildingsLayer | null>(null);
+  const cityRef = useRef<OsmFacadesLayer | null>(null);
   const [friend, setFriend] = useState<FriendVisit | null>(null);
   const [crStation, setCrStation] = useState<CrStation | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
@@ -114,8 +118,9 @@ export default function TransitMap() {
   // right-click (without dragging): a small menu for directions to / from that point
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; lng: number; lat: number } | null>(null);
   const [routeStart, setRouteStart] = useState<{ lng: number; lat: number } | null>(null);
-  const [satellite, setSatellite] = useState(false);
+  const [look, setLook] = useState<MapLook>("map");
   const [realistic, setRealistic] = useState(false);
+  const [googleCredits, setGoogleCredits] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   // The map panel (3D/2D, layers, lines) folds to one line; phones start folded. Remembered.
@@ -157,7 +162,11 @@ export default function TransitMap() {
   const userLocRef = useRef<[number, number] | null>(null);
   const meMarker = useRef<maplibregl.Marker | null>(null);
   const explorer = useRef<ExplorerHandle>(null);
-  const [show, setShow] = useState<MapShow>({ trains: true, campuses: true, friends: true, delays: true, events: true });
+  const [show, setShow] = useState<MapShow>({ trains: true, buses: true, signals: true, campuses: true, friends: true, delays: true, events: true });
+  const buses = useBuses(ready ? mapRef.current : null, ready, show.buses);
+  const signalsRef = useRef<SignalsLayer | null>(null);
+  const busesRef = useRef(buses);
+  busesRef.current = buses;
   const [delayColors, setDelayColors] = useState(false);
   const [feedMode, setFeedMode] = useState<FeedMode>("live");
   const [autoFallback, setAutoFallback] = useState(false);
@@ -204,19 +213,18 @@ export default function TransitMap() {
   // ---------- map setup ----------
   useEffect(() => {
     let disposed = false;
-    let stopWaves = () => {};
     let map: MlMap | null = null;
     (async () => {
-      const [manifest, region] = await Promise.all([fetchBpdaManifest(), fetchRegionManifest()]);
-      const [{ style, offline }, linesGeo, stations, cambridgeOutline, crStations] = await Promise.all([
+      const manifest = await fetchBpdaManifest(); // only for the offline fallback basemap
+      const [{ style, offline }, linesGeo, stations, crStations] = await Promise.all([
         loadBaseStyle(manifest),
         fetch("/data/mbta-lines.geojson").then((r) => r.json()),
         fetch("/data/mbta-stations.json").then((r) => r.json()) as Promise<StationData[]>,
-        fetch("/data/cambridge/outline.geojson").then((r) => r.json()).catch(() => null),
         fetch("/data/cr-stations.json").then((r) => r.json()).catch(() => []) as Promise<CrStation[]>,
       ]);
       if (disposed || !box.current) return;
       setOfflineBasemap(offline);
+      setRoadStyle(offline ? "offline" : "liberty"); // buses and signals are sized to the roads this basemap draws
       stationsRef.current = stations;
       groundRef.current = groundLayerIds(style as StyleSpecification);
       const net = new TrackNetwork(linesGeo);
@@ -280,16 +288,17 @@ export default function TransitMap() {
       map.on("style.load", () => {
         const m = map!;
         m.setProjection({ type: "mercator" }); // flat map: the view is locked to the T network, so no globe
+        // sky and light of the Boston 3D map
         m.setSky({
-          "sky-color": "#8ec5ff",
-          "horizon-color": "#e3f1ff",
-          "fog-color": "#eef4fb",
+          "sky-color": "#8ec3f2",
+          "horizon-color": "#e4eef8",
+          "fog-color": "#eef2f6",
           "sky-horizon-blend": 0.6,
           "horizon-fog-blend": 0.6,
-          "fog-ground-blend": 0.4,
-          "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 6, 0.8, 9, 0],
+          "fog-ground-blend": 0.5,
+          "atmosphere-blend": 0.8,
         });
-        m.setLight({ anchor: "map", position: [1.3, 210, 35], intensity: 0.35, color: "#ffffff" });
+        m.setLight({ anchor: "viewport", position: [1.4, 210, 35], intensity: 0.32, color: "#ffffff" });
 
         const firstSymbol = m.getStyle().layers.find((l) => l.type === "symbol")?.id;
         const firstBuilding = m.getStyle().layers.find((l) => l.type === "fill-extrusion")?.id;
@@ -353,8 +362,9 @@ export default function TransitMap() {
         m.addLayer({ id: "campus-halo", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2.5, 16, 5], "line-opacity": 0.85 } }, beforeLines);
         m.addLayer({ id: "campus-line", type: "line", source: "campuses", layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 2, 16, 3.6], "line-dasharray": [3, 2] } }, beforeLines);
 
-        // game-style 3D city: Boston's own building models (BPDA), Cambridge footprints + heights, trees
-        const city = new CityBuildingsLayer(manifest, region);
+        // close up: the map's real OpenStreetMap buildings with facades (windows, doors, shop fronts, roofs)
+        const city = new OsmFacadesLayer();
+        if (process.env.NODE_ENV !== "production") (window as unknown as { __obFacades: typeof OsmFacadesLayer }).__obFacades = OsmFacadesLayer; // for tests
         cityRef.current = city;
         m.addLayer(city, labelsStart);
         // night: a blue wash over the ground (under the T lines, campuses and buildings), matching the 3D city's light
@@ -390,9 +400,7 @@ export default function TransitMap() {
           m.on("moveend", loadXwalk);
           loadXwalk();
         }
-        // moving water on the river, harbor and ponds
         const styleIds = m.getStyle().layers.map((l) => l.id);
-        stopWaves = addWaves(m, styleIds.filter((id) => id === "water" || id === "cam-water"));
         // near street level, flat street names would float over the buildings in front: hide them there
         const streetLabels = styleIds.filter((id) => id.startsWith("street-names") || /^highway[-_]name/.test(id));
         const syncLabels = () => {
@@ -423,17 +431,12 @@ export default function TransitMap() {
           pickBuildings();
           m.triggerRepaint();
         };
-        // OpenStreetMap's boxy buildings only where the real city models don't cover the view
-        const cambRing = cambridgeOutline?.geometry?.coordinates?.[0] as [number, number][] | undefined;
+        // the plain extruded buildings (zoomed out) hide while Google's 3D draws the city
         const osmBuildings = m.getStyle().layers.filter((l) => l.type === "fill-extrusion" && (l as { source?: string }).source === "openmaptiles").map((l) => l.id);
         const pickBuildings = () => {
-          const c = m.getCenter();
-          const real = (manifest && inBpda(c.lng, c.lat)) || (region && inRegion(c.lng, c.lat)) || (cambRing && pointInRing([c.lng, c.lat], cambRing));
-          // (the 3D city layer draws the whole T area itself; Google's 3D draws everything)
-          for (const id of osmBuildings) m.setFilter(id, real || google ? ["==", ["get", "render_height"], -1] : null);
+          for (const id of osmBuildings) m.setLayoutProperty(id, "visibility", google ? "none" : "visible");
         };
         pickBuildings();
-        m.on("moveend", pickBuildings);
 
         // 3D trains (depth-tested against buildings)
         const layer = new Trains3DLayer(animator);
@@ -561,6 +564,7 @@ export default function TransitMap() {
           const id = e.features?.[0]?.properties?.id as string;
           const t = animRef.current?.snapshot().find((x) => x.id === id);
           if (t) {
+            busesRef.current.setBus(null);
             setTrain(t);
           }
         });
@@ -585,7 +589,6 @@ export default function TransitMap() {
     })();
     return () => {
       disposed = true;
-      stopWaves();
       map?.remove();
       mapRef.current = null;
     };
@@ -771,6 +774,12 @@ export default function TransitMap() {
     const map = mapRef.current;
     if (!ready || !map) return;
     const onMapClick = (e: maplibregl.MapMouseEvent) => {
+      const tapped = busesRef.current.busAt(e.point);
+      if (tapped) {
+        setTrain(null);
+        busesRef.current.setBus(tapped);
+        return;
+      }
       const hits = map.queryRenderedFeatures(e.point);
       if (hits.some((f) => ["poi-xp", "stations", "cr-stations", "trains-2d"].includes(f.layer.id))) return; // they have their own
       const poi = hits.find((f) => f.sourceLayer === "poi" && (f.properties?.name || f.properties?.["name:latin"]));
@@ -1283,20 +1292,43 @@ export default function TransitMap() {
     return () => window.removeEventListener("outbound:go", onGo);
   }, [ready]);
 
-  // ---------- illustrated / realistic ----------
+  // Traffic lights at main intersections (3D, from zoom 15)
   useEffect(() => {
-    if (!ready) return;
-    if (GOOGLE_KEY) setRealisticRef.current(realistic);
-    else if (!offlineBasemap) setSatellite(realistic); // no Google key: real satellite photos under the 3D city
-  }, [ready, realistic, offlineBasemap]);
+    const m = mapRef.current;
+    if (!ready || !m || m.getLayer("signals-3d")) return;
+    const layer = new SignalsLayer();
+    signalsRef.current = layer;
+    m.addLayer(layer, m.getStyle().layers.find((l) => l.type === "symbol")?.id);
+    loadSignals().then((list) => ((layer.signals = list), m.triggerRepaint())).catch(() => {});
+  }, [ready]);
+  useEffect(() => {
+    if (signalsRef.current) signalsRef.current.visible = show.signals;
+    mapRef.current?.triggerRepaint();
+  }, [show.signals, ready]);
 
-  // ---------- satellite ----------
+  // Google requires its logo and the tiles' data credits on screen whenever its 3D tiles show.
+  useEffect(() => {
+    if (!realistic || !GOOGLE_KEY) return setGoogleCredits("");
+    const t = setInterval(() => setGoogleCredits(googleRef.current?.credits() ?? ""), 2000);
+    return () => clearInterval(t);
+  }, [realistic]);
+
+  // ---------- Google photo 3D (optional) ----------
+  useEffect(() => {
+    if (!ready || !GOOGLE_KEY) return;
+    setRealisticRef.current(realistic);
+  }, [ready, realistic]);
+
+  // ---------- look: Map / Light / Satellite (the Boston 3D map's three styles) ----------
   useEffect(() => {
     const map = mapRef.current;
-    if (!ready || !map || !map.getLayer("satellite")) return;
-    map.setLayoutProperty("satellite", "visibility", satellite ? "visible" : "none");
-    for (const id of groundRef.current) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", satellite ? "none" : "visible");
-  }, [ready, satellite]);
+    if (!ready || !map || offlineBasemap) return;
+    setMapLook(map, look);
+    if (!map.getLayer("satellite")) return;
+    const sat = look === "satellite";
+    map.setLayoutProperty("satellite", "visibility", sat ? "visible" : "none");
+    for (const id of groundRef.current) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", sat ? "none" : "visible");
+  }, [ready, look, offlineBasemap]);
 
   // ---------- lateness (Tiger Data) ----------
   useEffect(() => {
@@ -1472,14 +1504,16 @@ export default function TransitMap() {
           bottom middle; Ask Guide bottom left. Nothing overlaps: each column stops above the corner
           controls. Phones: one column under the Explore card (the wrapper is display: contents on desktop). */}
       <div className="pointer-events-none absolute top-[calc(var(--ob-map-top,0px)+10px)] right-[64px] bottom-[150px] left-3 flex flex-col gap-2 desk:contents">
-        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 shrink-0 flex-col desk:absolute desk:top-4 desk:bottom-[100px] desk:left-4 desk:w-[clamp(380px,29vw,440px)] desk:shrink">
+        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 shrink-0 flex-col desk:absolute desk:top-4 desk:bottom-[100px] desk:left-4 desk:w-[clamp(300px,21vw,330px)] desk:shrink">
           <MapPanel
             collapsed={panelFolded || guideOpen}
             setCollapsed={foldPanel}
             is3D={is3D}
             setIs3D={setIs3D}
             realistic={realistic}
-            setRealistic={GOOGLE_KEY || !offlineBasemap ? setRealistic : null}
+            setRealistic={GOOGLE_KEY ? setRealistic : null}
+            look={look}
+            setLook={offlineBasemap ? null : setLook}
             show={show}
             setShow={setShow}
             delayColors={delayColors}
@@ -1489,7 +1523,7 @@ export default function TransitMap() {
             onReplay={() => (feedMode === "live" ? startReplay() : (setAutoFallback(false), goLive()))}
           />
         </div>
-        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 flex-col gap-2 desk:absolute desk:top-[calc(var(--ob-map-top,0px)+12px)] desk:right-4 desk:bottom-[76px] desk:w-[clamp(380px,29vw,440px)]">
+        <div className="pointer-events-none flex *:pointer-events-auto min-h-0 flex-col gap-2 desk:absolute desk:top-[calc(var(--ob-map-top,0px)+12px)] desk:right-4 desk:bottom-[76px] desk:w-[clamp(360px,27vw,420px)]">
           {(() => {
             const search = (
               <SearchBox
@@ -1579,7 +1613,7 @@ export default function TransitMap() {
             setNotice("Turn on location for Outbound to see where you are. Showing BU for now.");
           }
         }}
-        className="ob-panel absolute right-[10px] bottom-[172px] flex size-11 items-center justify-center !rounded-full text-[var(--ob-ink)] hover:text-[var(--ob-maroon)] desk:right-[150px] desk:bottom-4"
+        className="ob-panel absolute right-[10px] bottom-[172px] flex size-9 items-center justify-center !rounded-full text-[var(--ob-ink)] hover:text-[var(--ob-maroon)] desk:right-[150px] desk:bottom-4"
       >
         <LocateFixed size={22} strokeWidth={2} aria-hidden />
       </button>
@@ -1614,7 +1648,7 @@ export default function TransitMap() {
       {friend && (
         <Card onClose={() => setFriend(null)}>
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ring-2 ring-white" style={{ background: friend.color, boxShadow: `0 0 0 3px ${friend.color}55` }}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ring-2 ring-white" style={{ background: friend.color, boxShadow: `0 0 0 3px ${friend.color}55` }}>
               {initials(friend.name)}
             </span>
             <div className="min-w-0">
@@ -1675,6 +1709,38 @@ export default function TransitMap() {
             className="mt-3 w-full rounded-lg bg-[var(--ob-maroon)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--ob-maroon-dark)]"
           >
             Directions
+          </button>
+        </Card>
+      )}
+
+      {/* Google brand + data attribution for the Realistic (Google 3D tiles) view */}
+      {realistic && GOOGLE_KEY && (
+        <div className="pointer-events-none absolute bottom-2 left-1/2 z-[5] flex max-w-[70%] -translate-x-1/2 items-center gap-2 rounded-md bg-white/85 px-2 py-1 shadow-sm">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="https://www.gstatic.com/images/branding/googlelogo/svg/googlelogo_clr_74x24px.svg" alt="Google" className="h-4 w-auto" />
+          {googleCredits && <span className="truncate text-[10px] text-[#3c4043]">{googleCredits}</span>}
+        </div>
+      )}
+
+      {/* bus card */}
+      {buses.bus && (
+        <Card onClose={() => buses.setBus(null)}>
+          <span
+            className="rounded px-1.5 py-0.5 text-[11px] font-extrabold"
+            style={{ background: buses.bus.bus.silver ? "#8E979D" : "#FFC72C", color: buses.bus.bus.silver ? "#fff" : "#3b2a00" }}
+          >
+            {buses.bus.bus.silver ? `Silver Line ${buses.bus.bus.number.slice(2)}` : `Bus ${buses.bus.bus.number}`}
+          </span>
+          <h2 className="mt-1 text-lg font-semibold text-[var(--ob-ink)]">{buses.bus.bus.headsign ? `To ${buses.bus.bus.headsign}` : "MBTA bus"}</h2>
+          <p className="text-[var(--ob-ink-2)]">
+            {buses.bus.bus.stopName ? `${busStatus(buses.bus.bus.status)} ${buses.bus.bus.stopName}` : "On its route"}
+          </p>
+          {buses.sample && <p className="mt-1 text-xs text-[var(--ob-muted)]">Sample bus: the live MBTA bus feed isn’t reachable right now.</p>}
+          <button
+            className="mt-3 w-full rounded-lg border border-[var(--ob-line)] px-3 py-1.5 text-sm font-medium text-[var(--ob-ink)] hover:bg-[var(--ob-cream)]"
+            onClick={() => mapRef.current?.flyTo({ center: [buses.bus!.lng, buses.bus!.lat], zoom: 17, pitch: 62, duration: 1800 })}
+          >
+            Follow closer
           </button>
         </Card>
       )}

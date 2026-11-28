@@ -167,7 +167,7 @@ function Segmented({ tab, onChange, onMaroon = false }: { tab: Tab; onChange: (t
             onClick={() => onChange(t.id)}
             className={cn(
               "rounded-full border-0 font-semibold outline-none focus-visible:ring-2",
-              onMaroon ? "h-11 flex-1 text-sm focus-visible:ring-gold" : "h-11 px-[22px] text-[15px] focus-visible:ring-maroon focus-visible:ring-offset-2",
+              onMaroon ? "h-9 flex-1 text-sm focus-visible:ring-gold" : "h-9 px-[22px] text-sm focus-visible:ring-maroon focus-visible:ring-offset-2",
               on && onMaroon && "bg-paper font-bold text-maroon",
               on && !onMaroon && "bg-maroon font-bold text-white",
               !on && onMaroon && "text-white",

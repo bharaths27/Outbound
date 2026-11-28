@@ -16,7 +16,15 @@ import type {
   PassportNeighborhood,
   Privacy,
   PlayerLeaderboardRow,
+  Friendship,
+  CommentWithAuthor,
+  ImportedReview,
+  MyPlaceState,
   Profile,
+  ProfileBoard,
+  ProfileExtras,
+  Review,
+  ReviewWithMeta,
   Quest,
   QuestOfTheWeek,
   School,
@@ -92,8 +100,44 @@ export interface DataService {
   // friends (accepted friendships only)
   getFriends(): Promise<Profile[]>;
   sendFriendRequest(userId: string): Promise<void>;
+  /** Every friendship row you're part of (pending both ways, and accepted), for Add / Requested / Accept buttons. */
+  getFriendships(): Promise<Friendship[]>;
+  /** Profiles of people who sent you a request you haven't accepted yet. */
+  getFriendRequests(): Promise<Profile[]>;
+  acceptFriendRequest(userId: string): Promise<void>;
+  /** Unfriend, cancel your request, or decline theirs. */
+  removeFriend(userId: string): Promise<void>;
+
+  // social profiles (Beli-style): reviews, want-to-visit list, likes, comments
+  /** Null if there's no such player. Privacy decides `visible`. */
+  getProfileBoard(userId: string): Promise<ProfileBoard | null>;
+  getMyPlaceState(questId: string): Promise<MyPlaceState>;
+  /** Visible reviews of one quest (yours, friends', public players'). */
+  getQuestReviews(questId: string): Promise<ReviewWithMeta[]>;
+  /** Recent reviews from your friends. */
+  getFriendFeed(): Promise<ReviewWithMeta[]>;
+  /** Rate a quest you've checked in at (creates or updates your review). */
+  saveReview(questId: string, rating: number, note: string): Promise<Review>;
+  deleteReview(reviewId: string): Promise<void>;
+  setSaved(questId: string, saved: boolean): Promise<void>;
+  setLiked(reviewId: string, liked: boolean): Promise<void>;
+  getComments(reviewId: string): Promise<CommentWithAuthor[]>;
+  addComment(reviewId: string, text: string): Promise<CommentWithAuthor>;
+  deleteComment(commentId: string): Promise<void>;
+  /** Bring in reviews from a Google Takeout file. Skips ones already imported. */
+  importReviews(items: ImportedReview[]): Promise<{ imported: number; skipped: number }>;
 
   // profile and privacy
   updatePrivacy(privacy: Privacy): Promise<Profile>;
-  updateDisplayName(name: string): Promise<Profile>; // profiles.display_name (onboarding)
+  updateDisplayName(name: string): Promise<Profile>;
+  /** Grad year, bio, banner, name. */
+  updateProfileExtras(extras: ProfileExtras): Promise<Profile>;
+  /** Uploads a profile photo (already resized, image/webp or jpeg) and sets avatar_url. */
+  uploadAvatar(image: Blob): Promise<Profile>;
+  removeAvatar(): Promise<Profile>;
+  /** Your private note about another player (Discord-style). Only you can read it. */
+  getNote(subjectId: string): Promise<string>;
+  setNote(subjectId: string, text: string): Promise<void>;
+  /** Google sign-in limited to school accounts (Supabase only). Redirects the page. */
+  signInWithGoogle?(): Promise<void>; // profiles.display_name (onboarding)
 }

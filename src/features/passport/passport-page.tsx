@@ -5,6 +5,7 @@
 // neighborhood with tier progress, and To explore. Desktop adds a profile card with stats and
 // a "Next stamp" card beside the book. Tiers and counts come from the passport view.
 
+import { SchoolLogo } from "@/features/schools/school-logo";
 import { Compass, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -17,7 +18,10 @@ import type { Profile, School, Tier } from "@/lib/data/types";
 import { cn } from "@/lib/utils";
 import { TIER_LABEL, buildPassport, progressLine, type NeighborhoodView, type PassportView } from "./build-passport";
 import { BadgesAndStreak } from "./badges";
+import { SeasonalStamps } from "./seasonal-stamps";
 import { Stamp } from "./stamp";
+import { DateStamp } from "./date-stamp";
+import { useFreshStamps } from "./fresh-stamps";
 import { PageHeader } from "@/features/shell/page-header";
 import { PlayerAvatar } from "@/features/shell/shell-parts";
 
@@ -100,6 +104,7 @@ export function PassportPage() {
               )}
               {load.status === "signed-out" && (
                 <Centered
+                  preview
                   title="Sign in to start your passport"
                   body="Every quest you finish adds a stamp. Collect enough in a neighborhood to go from Bronze to Gold."
                   action={
@@ -118,7 +123,6 @@ export function PassportPage() {
   );
 }
 
-const STAR = "M12 2.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L12 17l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z";
 
 function levelProgress(profile: Profile) {
   const { into, pct } = sharedLevelProgress(profile);
@@ -134,7 +138,7 @@ function ProfileStrip({ profile, school }: { profile: Profile; school: School | 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <span className="truncate text-lg font-bold">{profile.display_name ?? "Explorer"}</span>
-          {school && <span className="truncate text-[13px] text-on-maroon-muted">{school.name}</span>}
+          {school && <SchoolLogo school={school} height={22} label={school.name} />}
           <span className="ml-auto shrink-0 rounded-full bg-gold px-2.5 py-[3px] text-xs font-bold text-gold-foreground">
             Lv. {profile.level} Explorer
           </span>
@@ -167,7 +171,12 @@ function ProfileCard({ profile, school, view }: { profile: Profile; school: Scho
         <PlayerAvatar player={{ profile, school }} size={96} />
       </div>
       <p className="mt-3 font-display text-[28px] font-semibold">{profile.display_name ?? "Explorer"}</p>
-      {school && <p className="text-sm text-on-maroon-muted">{school.name}</p>}
+      {school && (
+        <p className="mt-1 flex items-center justify-center gap-2 text-sm text-on-maroon-muted">
+          <SchoolLogo school={school} height={30} />
+          {school.name}
+        </p>
+      )}
       <div className="mt-4 rounded-2xl bg-paper p-3.5 text-left text-ink">
         <div className="flex items-baseline justify-between">
           <span className="font-display text-lg font-semibold text-maroon">Lv. {profile.level} Explorer</span>
@@ -237,33 +246,35 @@ function NextStamp({ view }: { view: PassportView }) {
   );
 }
 
+const LEGEND: [string, string, string][] = [
+  ["tier-bronze", "Bronze", "1 quest"],
+  ["tier-silver", "Silver", "3 quests"],
+  ["tier-gold", "Gold", "5 quests"],
+  ["cross-school", "Cross-school", "with a squad from another school"],
+];
+
 function Legend() {
   return (
-    <div className="grid grid-cols-2 gap-x-2.5 gap-y-1.5 border-t border-divider pt-2.5 text-xs text-muted-2 desk:grid-cols-4">
-      <span className="flex items-center gap-1.5">
-        <span aria-hidden className="size-3 rounded-full border-[2.5px] border-tier-bronze" />
-        <b className="text-ink">Bronze</b> 1 quest
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span aria-hidden className="size-3 rounded-full bg-tier-silver" />
-        <b className="text-ink">Silver</b> 3 quests
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span aria-hidden className="size-3 rounded-full bg-gold-500" />
-        <b className="text-ink">Gold</b> 5 quests
-      </span>
-      <span className="flex items-center gap-1.5">
-        <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" className="fill-gold-500">
-          <path d={STAR} />
-        </svg>
-        <b className="text-ink">Cross-school</b> gold ring
-      </span>
+    <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-divider pt-3 text-xs text-muted-2 desk:grid-cols-4">
+      {LEGEND.map(([img, name, how]) => (
+        <span key={img} className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/stamps/${img}.webp`} alt="" aria-hidden className="size-7 shrink-0" />
+          <span>
+            <b className="text-ink">{name}</b> {how}
+          </span>
+        </span>
+      ))}
     </div>
   );
 }
 
 function Passport({ profile, view }: { profile: Profile; view: PassportView }) {
   const empty = view.visited.length === 0;
+  const fresh = useFreshStamps(profile.id, view.visited.flatMap((n) => n.earned.map((e) => e.quest.id)));
+  useEffect(() => {
+    if (fresh.size) document.querySelector("[data-fresh]")?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [fresh]);
   return (
     <>
       <div className="flex items-baseline justify-between gap-3 pr-9">
@@ -277,7 +288,8 @@ function Passport({ profile, view }: { profile: Profile; view: PassportView }) {
         </span>
       </div>
 
-      <BadgesAndStreak />
+      <BadgesAndStreak userId={profile.id} />
+      <SeasonalStamps userId={profile.id} />
 
       <Tabs defaultValue={empty ? "explore" : "stamps"} className="gap-4">
         <TabsList className="w-full desk:w-fit">
@@ -297,7 +309,7 @@ function Passport({ profile, view }: { profile: Profile; view: PassportView }) {
               }
             />
           ) : (
-            view.visited.map((n) => <Neighborhood key={n.neighborhood} n={n} />)
+            view.visited.map((n) => <Neighborhood key={n.neighborhood} n={n} fresh={fresh} />)
           )}
         </TabsContent>
 
@@ -337,7 +349,7 @@ function Passport({ profile, view }: { profile: Profile; view: PassportView }) {
   );
 }
 
-function Neighborhood({ n }: { n: NeighborhoodView }) {
+function Neighborhood({ n, fresh }: { n: NeighborhoodView; fresh: Set<string> }) {
   const collected = n.earned.length;
   const total = collected + n.locked.length;
   return (
@@ -384,22 +396,35 @@ function Neighborhood({ n }: { n: NeighborhoodView }) {
       </header>
 
       <ul className="grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-5">
-        {n.earned.map((e) => (
-          <li key={e.quest.id}>
+        {n.earned.map((e) => {
+          const isNew = fresh.has(e.quest.id);
+          return (
+          <li key={e.quest.id} className={cn(isNew && "ob-thud relative z-10")} data-fresh={isNew || undefined}>
             <Link
               href={`/q/${e.quest.id}`}
               className="group flex flex-col items-center gap-1.5 rounded-xl p-1 text-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              <Stamp
-                questId={e.quest.id}
-                title={e.quest.title}
-                neighborhood={n.neighborhood}
-                stationId={e.quest.station_id}
-                type={e.quest.type}
-                tier={n.tier}
-                crossSchool={e.crossSchool}
-                size={88}
-              />
+              <span className={cn("relative", isNew && "ob-stamp-press")}>
+                {isNew && <span aria-hidden className="ob-ink-ring absolute inset-[-10px] rounded-full" />}
+                <Stamp
+                  questId={e.quest.id}
+                  title={e.quest.title}
+                  neighborhood={n.neighborhood}
+                  stationId={e.quest.station_id}
+                  type={e.quest.type}
+                  tier={n.tier}
+                  crossSchool={e.crossSchool}
+                  size={88}
+                />
+                {isNew && (
+                  <span className="absolute -right-3 bottom-0 origin-bottom-right scale-[.78]">
+                    <span className="ob-date-press block">
+                      <DateStamp at={e.at} />
+                    </span>
+                  </span>
+                )}
+              </span>
+              {isNew && <span className="rounded-full bg-gold px-2 py-px text-[10px] font-bold text-gold-foreground uppercase">New stamp</span>}
               <span className="type-small line-clamp-2 group-hover:underline">{e.quest.title}</span>
               <span className="type-tiny text-muted-foreground tabular-nums">
                 {dateFormat.format(new Date(e.at))}
@@ -407,7 +432,8 @@ function Neighborhood({ n }: { n: NeighborhoodView }) {
               </span>
             </Link>
           </li>
-        ))}
+          );
+        })}
         {n.locked.map((q) => (
           <li key={q.id}>
             <Link
@@ -424,9 +450,48 @@ function Neighborhood({ n }: { n: NeighborhoodView }) {
   );
 }
 
-function Centered({ title, body, action }: { title: string; body: string; action?: React.ReactNode }) {
+// Three sample stamps (Bronze, Silver, Gold) so the empty passport shows what you're collecting.
+const PREVIEW = [
+  { id: "place-chncl", hood: "Chinatown", tier: "bronze", rotate: -8 },
+  { id: "place-kencl", hood: "Fenway-Kenmore", tier: "gold", rotate: 3 },
+  { id: "place-harsq", hood: "Harvard Square", tier: "silver", rotate: 7 },
+] as const;
+
+function Centered({
+  title,
+  body,
+  action,
+  preview = false,
+}: {
+  title: string;
+  body: string;
+  action?: React.ReactNode;
+  preview?: boolean;
+}) {
   return (
     <div className="flex flex-col items-center gap-3 py-12 text-center">
+      {preview && (
+        <div className="mb-3 flex items-end justify-center -space-x-3" aria-hidden>
+          {PREVIEW.map((p, i) => (
+            <div
+              key={p.id}
+              className="animate-in fade-in zoom-in-75 fill-mode-both duration-500 motion-reduce:animate-none"
+              style={{ animationDelay: `${i * 120}ms` }}
+            >
+              <Stamp
+                questId={p.id}
+                title={p.hood}
+                neighborhood={p.hood}
+                stationId={p.id}
+                tier={p.tier}
+                rotate={p.rotate}
+                size={i === 1 ? 104 : 84}
+                label=""
+              />
+            </div>
+          ))}
+        </div>
+      )}
       <p className="type-heading">{title}</p>
       <p className="type-body max-w-sm text-muted-foreground">{body}</p>
       {action}

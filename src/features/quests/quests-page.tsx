@@ -5,7 +5,7 @@
 // done state. Done comes from today's check-ins (visits.visit_date), not a manual toggle:
 // an open quest's square links to the quest, where the player checks in.
 
-import { Check } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { XP_PER_LEVEL, data, levelProgress } from "@/lib/data";
@@ -114,7 +114,7 @@ export function QuestsPage() {
                   aria-pressed={filter === f.id}
                   onClick={() => setFilter(f.id)}
                   className={cn(
-                    "h-11 shrink-0 rounded-full border px-4 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2 desk:h-11 desk:px-[18px] desk:text-[15px]",
+                    "h-8 shrink-0 rounded-full border px-3.5 text-[13px] font-semibold outline-none transition-all duration-200 active:scale-95 focus-visible:ring-2 focus-visible:ring-maroon focus-visible:ring-offset-2 desk:px-4",
                     filter === f.id
                       ? "border-maroon bg-maroon text-white"
                       : "border-border-strong bg-surface text-ink hover:bg-sand desk:bg-sand desk:hover:bg-cream",
@@ -224,10 +224,10 @@ function BonusBanner({ large = false }: { large?: boolean }) {
     <div
       className={cn(
         "flex shrink-0 items-center justify-center rounded-lg bg-gold text-gold-foreground",
-        large ? "size-[52px]" : "size-12",
+        large ? "size-11" : "size-10",
       )}
     >
-      <svg width={large ? 26 : 24} height={large ? 26 : 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <svg width={large ? 22 : 20} height={large ? 22 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d={PEOPLE} />
       </svg>
     </div>
@@ -244,7 +244,7 @@ function BonusBanner({ large = false }: { large?: boolean }) {
         </p>
         <Link
           href="/leaderboard?tab=squads"
-          className="mt-4 inline-flex h-11 items-center rounded-lg bg-gold px-4 text-sm font-bold text-gold-foreground outline-none focus-visible:ring-2 focus-visible:ring-white"
+          className="mt-4 inline-flex h-9 items-center rounded-lg bg-gold px-4 text-sm font-bold text-gold-foreground outline-none focus-visible:ring-2 focus-visible:ring-white"
         >
           Start a squad
         </Link>
@@ -254,12 +254,12 @@ function BonusBanner({ large = false }: { large?: boolean }) {
   return (
     <Link
       href="/leaderboard?tab=squads"
-      className="flex items-center gap-3 rounded-[18px] bg-maroon p-3.5 text-white outline-none focus-visible:ring-2 focus-visible:ring-gold"
+      className="flex items-center gap-3 rounded-2xl bg-maroon p-3 text-white outline-none focus-visible:ring-2 focus-visible:ring-gold"
     >
       {icon}
       <div className="min-w-0 flex-1">
         <p className="type-eyebrow text-gold">Cross-school bonus</p>
-        <p className="mt-0.5 text-[15px] leading-snug font-semibold">
+        <p className="mt-0.5 text-[13.5px] leading-snug font-semibold">
           +20% XP with your squad, or double if a squad-mate from another school checks in within an hour
         </p>
       </div>
@@ -282,13 +282,13 @@ function QuestRow({
   const where = station ? `${station.neighborhood} · ${station.name}` : "";
   const cat = CATEGORY[quest.type];
   return (
-    <li className="relative flex items-center gap-3 rounded-[18px] border border-border bg-surface p-2.5 desk:gap-3.5 desk:rounded-xl desk:p-3.5">
-      <QuestThumb type={quest.type} photo={quest.photo_url} iconSize={34} className="size-16 shrink-0 rounded-lg desk:size-[76px]" />
+    <li className="group relative flex items-center gap-3 rounded-2xl border border-border bg-surface p-2.5 transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-card motion-reduce:transition-none desk:gap-3.5 desk:rounded-xl desk:p-3">
+      <QuestThumb type={quest.type} photo={quest.photo_url} iconSize={28} className="size-14 shrink-0 rounded-lg desk:size-16" />
       <div className="min-w-0 flex-1">
         {/* The title link covers the card, so the whole row opens the quest. */}
         <Link
           href={`/q/${quest.id}`}
-          className="block text-base leading-tight font-bold outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-2 focus-visible:after:ring-maroon desk:text-[17px]"
+          className="block text-[15px] leading-tight font-bold outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-2 focus-visible:after:ring-maroon desk:text-base"
         >
           {quest.title}
         </Link>
@@ -311,12 +311,14 @@ function QuestRow({
         <span
           role="img"
           aria-label="Done today"
-          className="relative flex size-11 shrink-0 items-center justify-center rounded-md bg-maroon text-white"
+          className="relative flex size-8 shrink-0 items-center justify-center rounded-full bg-maroon text-white shadow-sm"
         >
-          <Check className="size-[22px]" strokeWidth={2.4} aria-hidden />
+          <Check className="size-[18px]" strokeWidth={2.6} aria-hidden />
         </span>
       ) : (
-        <span aria-hidden className="relative size-11 shrink-0 rounded-md border-2 border-[#CDBBA3] bg-surface" />
+        <span aria-hidden className="relative flex size-8 shrink-0 items-center justify-center rounded-full bg-sand text-muted-foreground transition-colors duration-200 group-hover:bg-maroon group-hover:text-white">
+          <ChevronRight className="size-4" strokeWidth={2.4} />
+        </span>
       )}
     </li>
   );

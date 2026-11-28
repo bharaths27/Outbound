@@ -19,19 +19,21 @@ export function ShareQuestButton({
   className,
   variant = "outline",
   size = "default",
+  compact = false,
 }: {
   questId: string;
   questTitle: string;
   className?: string;
   variant?: "outline" | "ghost" | "default";
   size?: "default" | "sm";
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button type="button" variant={variant} size={size} className={className} onClick={() => setOpen(true)}>
         <Share2 aria-hidden />
-        Share quest
+        {compact ? <span>Share<span className="sr-only"> quest</span></span> : "Share quest"}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-page sm:max-w-[520px]">

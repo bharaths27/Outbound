@@ -24,12 +24,14 @@ export interface PageHeaderProps {
   children?: ReactNode;
   /** Right side of the desktop title row (e.g. a segmented control). */
   desktopAside?: ReactNode;
+  /** A small action beside the title on phones and desktop (e.g. the Events page's + Host). */
+  action?: ReactNode;
   /** Desktop shows only the back link (the page has its own big title). */
   desktopBackOnly?: boolean;
   className?: string;
 }
 
-export function PageHeader({ title, back, icon, children, desktopAside, desktopBackOnly, className }: PageHeaderProps) {
+export function PageHeader({ title, back, icon, children, desktopAside, action, desktopBackOnly, className }: PageHeaderProps) {
   const player = useShellPlayer();
   const guideInHeader = guideInHeaderOn(usePathname());
   return (
@@ -37,16 +39,16 @@ export function PageHeader({ title, back, icon, children, desktopAside, desktopB
       {/* Phones */}
       <header
         className={cn(
-          "bg-maroon px-4 pt-[calc(14px+env(safe-area-inset-top))] pb-4 text-on-maroon desk:hidden",
+          "ob-torn bg-maroon px-4 pt-[calc(14px+env(safe-area-inset-top))] pb-4 text-on-maroon desk:hidden",
           className,
         )}
       >
-        <div className="flex min-h-11 items-center gap-2.5">
+        <div className="relative flex min-h-9 items-center gap-2.5">
           {back ? (
             <Link
               href={back.href}
               aria-label={`Back to ${back.label}`}
-              className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-gold"
+              className="-ml-2 flex size-9 shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-gold"
             >
               <ArrowLeft className="size-6" aria-hidden />
             </Link>
@@ -54,10 +56,11 @@ export function PageHeader({ title, back, icon, children, desktopAside, desktopB
             icon
           )}
           <h1 className="min-w-0 flex-1 truncate font-display text-[26px] leading-8 font-semibold">{title}</h1>
+          {action}
           {guideInHeader && <AskGuideButton compact />}
           <ProfileLink player={player} size={34} />
         </div>
-        {children && <div className="mt-3">{children}</div>}
+        {children && <div className="relative mt-3">{children}</div>}
       </header>
 
       {/* Desktop */}
@@ -74,7 +77,12 @@ export function PageHeader({ title, back, icon, children, desktopAside, desktopB
         {!desktopBackOnly && (
           <div className="flex flex-wrap items-end justify-between gap-4">
             <h1 className="type-display text-ink">{title}</h1>
-            {desktopAside}
+            {(desktopAside || action) && (
+              <div className="flex items-center gap-3">
+                {desktopAside}
+                {action}
+              </div>
+            )}
           </div>
         )}
       </div>

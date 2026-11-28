@@ -25,10 +25,12 @@ import type {
   Visit,
   XpReason,
 } from "../types";
-import type { HostedEvent } from "../types";
+import type { CommentWithAuthor, HostedEvent, ImportedReview, ProfileBoard, Review, ReviewWithMeta } from "../types";
 import { matchesFilters } from "@/lib/search/matchFilters";
 import { parseQuery } from "@/lib/search/fallbackParser";
 import * as seed from "./seed";
+import { SAVED_SEED, buildSocial } from "./social-seed";
+import { earnedBadges } from "@/features/badges/rules";
 
 const DELAY_MS = 250;
 const CHECK_IN_DELAY_MS = 600;
@@ -103,9 +105,24 @@ const state = (() => {
   for (const p of profiles) {
     setXp(p, visits.filter((v) => v.user_id === p.id).reduce((sum, v) => sum + v.xp_awarded, 0));
   }
+  const social = buildSocial(visits, (id) => seed.quests.find((q) => q.id === id)?.title ?? id);
+  // Want-to-visit lists: quests the player hasn't checked in at yet.
+  for (const [user, n] of Object.entries(SAVED_SEED)) {
+    const been = new Set(visits.filter((v) => v.user_id === user).map((v) => v.quest_id));
+    seed.quests
+      .filter((q) => !been.has(q.id))
+      .filter((_, i) => i % 5 === user.length % 5)
+      .slice(0, n)
+      .forEach((q) => social.saved.push({ user_id: user, quest_id: q.id, created_at: new Date(now.getTime() - 86_400_000 * 3).toISOString() }));
+  }
   return {
     profiles,
     visits,
+    reviews: social.reviews,
+    likes: social.likes,
+    comments: social.comments,
+    saved: social.saved,
+    notes: [] as { owner_id: string; subject_id: string; text: string }[],
     squads: clone(seed.squads),
     squadMembers: clone(seed.squadMembers) as { squad_id: string; user_id: string; joined_at?: string }[],
     friendships: clone(seed.friendships),
@@ -203,20 +220,7 @@ function questOfTheWeek(now = new Date()): QuestOfTheWeek | null {
  * station, 3+ squad-mates (me included) checked in within 60 minutes of a squad visit that
  * started at most 60 minutes before mine.
  */
-function hasSquadGoals(mine: Visit[]): boolean {
-  const HOUR = 60 * 60_000;
-  const t = (v: Visit) => Date.parse(v.checked_in_at);
-  const stationIdOf = (v: Visit) => questById(v.quest_id)!.station_id;
-  return mine.some((m) => {
-    if (!m.squad_id) return false;
-    const squad = state.visits.filter((v) => v.squad_id === m.squad_id && stationIdOf(v) === stationIdOf(m));
-    return squad.some((start) => {
-      if (t(start) < t(m) - HOUR || t(start) > t(m)) return false;
-      const users = new Set(squad.filter((v) => t(v) >= t(start) && t(v) <= t(start) + HOUR).map((v) => v.user_id));
-      return users.size >= 3;
-    });
-  });
-}
+
 
 /** my_game_progress(): badges and streaks from the player's visits, in Boston days. */
 function gameProgress(user: Profile, now = new Date()): GameProgress {
@@ -235,25 +239,67 @@ function gameProgress(user: Profile, now = new Date()): GameProgress {
   }
   const yesterday = seed.nyDate(new Date(now.getTime() - 86_400_000));
   const latest = runs.at(-1);
-  const colors = new Set(visits.flatMap((v) => stationOf(v).lines.map((l) => l.split("-")[0])));
-  const hour = (v: Visit) =>
-    Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }).format(new Date(v.checked_in_at)));
-  const weekHoods = new Map<string, Set<string>>();
-  for (const v of visits) {
-    const wk = seed.nyDate(nyWeekStart(new Date(v.checked_in_at)));
-    weekHoods.set(wk, (weekHoods.get(wk) ?? new Set()).add(stationOf(v).neighborhood));
+  const longest = Math.max(0, ...runs.map((r) => r.days));
+  const perHood: Record<string, number> = {};
+  for (const q of seed.quests) {
+    const h = neighborhoodOf(q);
+    perHood[h] = (perHood[h] ?? 0) + 1;
   }
-  const badges: BadgeId[] = [];
-  if (["Red", "Orange", "Green"].every((c) => colors.has(c))) badges.push("line_collector");
-  if (visits.some((v) => hour(v) >= 22)) badges.push("night_owl");
-  if (hasSquadGoals(visits)) badges.push("squad_goals");
-  if ([...weekHoods.values()].some((h) => h.size >= 4)) badges.push("cross_town");
+  const qotwWeeks = visits
+    .filter((v) => questOfTheWeek(new Date(v.checked_in_at))?.quest_id === v.quest_id)
+    .map((v) => seed.nyDate(nyWeekStart(new Date(v.checked_in_at))));
+  const badges: BadgeId[] = earnedBadges({
+    visits: visits.map((v) => {
+      const st = stationOf(v);
+      return { quest_id: v.quest_id, station_lines: st.lines, neighborhood: st.neighborhood, checked_in_at: v.checked_in_at, visit_date: v.visit_date, squad_id: v.squad_id, cross_school: v.cross_school };
+    }),
+    questsPerNeighborhood: perHood,
+    reviews: state.reviews
+      .filter((r) => r.user_id === user.id)
+      .map((r) => ({ note: r.note, likes: state.likes.filter((l) => l.review_id === r.id).length })),
+    longestStreak: longest,
+    questOfWeekWeeks: qotwWeeks,
+  });
   return {
     badges,
     current_streak: latest && (latest.last === today || latest.last === yesterday) ? latest.days : 0,
-    longest_streak: Math.max(0, ...runs.map((r) => r.days)),
+    longest_streak: longest,
   };
 }
+
+
+// ---------- social helpers ----------
+
+function areFriends(a: string, b: string) {
+  return state.friendships.some(
+    (f) => f.status === "accepted" && ((f.user_id === a && f.friend_id === b) || (f.user_id === b && f.friend_id === a)),
+  );
+}
+
+/** Same rule as can_view_profile() in migration 011: you, public, or friends-only and you're friends. */
+function canView(viewer: string | null, owner: Profile) {
+  if (viewer === owner.id) return true;
+  if (owner.privacy === "public") return true;
+  return owner.privacy === "friends" && !!viewer && areFriends(viewer, owner.id);
+}
+
+function withMeta(r: Review, viewer: string | null): ReviewWithMeta {
+  const author = state.profiles.find((p) => p.id === r.user_id)!;
+  return {
+    ...clone(r),
+    likes: state.likes.filter((l) => l.review_id === r.id).length,
+    liked_by_me: !!viewer && state.likes.some((l) => l.review_id === r.id && l.user_id === viewer),
+    comments: state.comments.filter((c) => c.review_id === r.id).length,
+    author: { id: author.id, display_name: author.display_name ?? "Player", school_id: author.school_id },
+  };
+}
+
+function visibleReview(r: Review, viewer: string | null) {
+  const owner = state.profiles.find((p) => p.id === r.user_id);
+  return !!owner && canView(viewer, owner);
+}
+
+const round1 = (n: number) => Math.round(Math.min(10, Math.max(1, n)) * 10) / 10;
 
 export const mockService: DataService = {
   async getCurrentUser() {
@@ -655,6 +701,255 @@ export const mockService: DataService = {
     if (!exists && userId !== user.id) {
       state.friendships.push({ user_id: user.id, friend_id: userId, status: "pending", created_at: new Date().toISOString() });
     }
+  },
+
+  async getFriendships() {
+    await wait();
+    const user = requireMe();
+    return clone(state.friendships.filter((f) => f.user_id === user.id || f.friend_id === user.id));
+  },
+
+  async getFriendRequests() {
+    await wait();
+    const user = requireMe();
+    const ids = state.friendships.filter((f) => f.status === "pending" && f.friend_id === user.id).map((f) => f.user_id);
+    return clone(state.profiles.filter((p) => ids.includes(p.id)));
+  },
+
+  async acceptFriendRequest(userId) {
+    await wait();
+    const user = requireMe();
+    const row = state.friendships.find((f) => f.user_id === userId && f.friend_id === user.id);
+    if (row) row.status = "accepted";
+  },
+
+  async removeFriend(userId) {
+    await wait();
+    const user = requireMe();
+    state.friendships = state.friendships.filter(
+      (f) => !((f.user_id === user.id && f.friend_id === userId) || (f.user_id === userId && f.friend_id === user.id)),
+    );
+  },
+
+
+  // ---------- social ----------
+  async getProfileBoard(userId) {
+    await wait();
+    const owner = state.profiles.find((p) => p.id === userId);
+    if (!owner) return null;
+    const viewer = state.currentUserId;
+    const isMe = viewer === owner.id;
+    const visible = canView(viewer, owner);
+    const board: ProfileBoard = {
+      profile: clone(owner),
+      visible,
+      is_me: isMe,
+      visits: visible ? clone(state.visits.filter((v) => v.user_id === owner.id && (isMe || !v.hidden))) : [],
+      reviews: visible
+        ? state.reviews
+            .filter((r) => r.user_id === owner.id)
+            .sort((a, b) => b.created_at.localeCompare(a.created_at))
+            .map((r) => withMeta(r, viewer))
+        : [],
+      saved: visible ? clone(state.saved.filter((x) => x.user_id === owner.id)) : [],
+      badges: visible ? gameProgress(owner).badges : [],
+    };
+    return board;
+  },
+
+  async getMyPlaceState(questId) {
+    await wait();
+    const user = me();
+    if (!user) return { visited: false, saved: false, review: null };
+    return {
+      visited: state.visits.some((v) => v.user_id === user.id && v.quest_id === questId),
+      saved: state.saved.some((x) => x.user_id === user.id && x.quest_id === questId),
+      review: clone(state.reviews.find((r) => r.user_id === user.id && r.quest_id === questId) ?? null),
+    };
+  },
+
+  async getQuestReviews(questId) {
+    await wait();
+    const viewer = state.currentUserId;
+    return state.reviews
+      .filter((r) => r.quest_id === questId && visibleReview(r, viewer))
+      .sort((a, b) => b.rating - a.rating)
+      .map((r) => withMeta(r, viewer));
+  },
+
+  async getFriendFeed() {
+    await wait();
+    const user = requireMe();
+    return state.reviews
+      .filter((r) => r.user_id !== user.id && areFriends(user.id, r.user_id))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, 20)
+      .map((r) => withMeta(r, user.id));
+  },
+
+  async saveReview(questId, rating, note) {
+    await wait();
+    const user = requireMe();
+    const q = questById(questId);
+    if (!q) throw new Error("quest not found");
+    const visits = state.visits.filter((v) => v.user_id === user.id && v.quest_id === questId);
+    if (!visits.length) throw new Error("check in here before rating it");
+    const existing = state.reviews.find((r) => r.user_id === user.id && r.quest_id === questId);
+    if (existing) {
+      existing.rating = round1(rating);
+      existing.note = note.trim().slice(0, 600);
+      return clone(existing);
+    }
+    const r: Review = {
+      id: `rv-${user.id}-${Date.now()}`,
+      user_id: user.id,
+      quest_id: questId,
+      place_name: q.title,
+      place_address: null,
+      lat: q.lat,
+      lon: q.lon,
+      rating: round1(rating),
+      note: note.trim().slice(0, 600),
+      visited_on: visits.map((v) => v.visit_date).sort().at(-1)!,
+      source: "outbound",
+      created_at: new Date().toISOString(),
+    };
+    state.reviews.push(r);
+    return clone(r);
+  },
+
+  async deleteReview(reviewId) {
+    await wait();
+    const user = requireMe();
+    state.reviews = state.reviews.filter((r) => !(r.id === reviewId && r.user_id === user.id));
+    state.likes = state.likes.filter((l) => l.review_id !== reviewId || state.reviews.some((r) => r.id === reviewId));
+  },
+
+  async setSaved(questId, saved) {
+    await wait();
+    const user = requireMe();
+    state.saved = state.saved.filter((x) => !(x.user_id === user.id && x.quest_id === questId));
+    if (saved) state.saved.push({ user_id: user.id, quest_id: questId, created_at: new Date().toISOString() });
+  },
+
+  async setLiked(reviewId, liked) {
+    await wait();
+    const user = requireMe();
+    const r = state.reviews.find((x) => x.id === reviewId);
+    if (!r || !visibleReview(r, user.id)) throw new Error("review not found");
+    state.likes = state.likes.filter((l) => !(l.review_id === reviewId && l.user_id === user.id));
+    if (liked) state.likes.push({ review_id: reviewId, user_id: user.id });
+  },
+
+  async getComments(reviewId) {
+    await wait();
+    const r = state.reviews.find((x) => x.id === reviewId);
+    if (!r || !visibleReview(r, state.currentUserId)) return [];
+    return state.comments
+      .filter((c) => c.review_id === reviewId)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+      .map((c): CommentWithAuthor => {
+        const p = state.profiles.find((x) => x.id === c.user_id);
+        return { ...clone(c), author: { id: c.user_id, display_name: p?.display_name ?? "Player" } };
+      });
+  },
+
+  async addComment(reviewId, text) {
+    await wait();
+    const user = requireMe();
+    const r = state.reviews.find((x) => x.id === reviewId);
+    if (!r || !visibleReview(r, user.id)) throw new Error("review not found");
+    const t = text.trim().slice(0, 300);
+    if (!t) throw new Error("empty comment");
+    const c = { id: `cm-${Date.now()}`, review_id: reviewId, user_id: user.id, text: t, created_at: new Date().toISOString() };
+    state.comments.push(c);
+    return { ...clone(c), author: { id: user.id, display_name: user.display_name ?? "You" } };
+  },
+
+  async deleteComment(commentId) {
+    await wait();
+    const user = requireMe();
+    state.comments = state.comments.filter((c) => !(c.id === commentId && c.user_id === user.id));
+  },
+
+  async importReviews(items: ImportedReview[]) {
+    await wait();
+    const user = requireMe();
+    let imported = 0;
+    let skipped = 0;
+    for (const it of items) {
+      const dup = state.reviews.some(
+        (r) => r.user_id === user.id && r.source === "google" && r.place_name === it.name && r.visited_on === it.date,
+      );
+      if (dup || !it.name) {
+        skipped++;
+        continue;
+      }
+      state.reviews.push({
+        id: `rv-g-${user.id}-${Date.now()}-${imported}`,
+        user_id: user.id,
+        quest_id: null,
+        place_name: it.name,
+        place_address: it.address,
+        lat: it.lat,
+        lon: it.lon,
+        rating: round1(it.stars * 2),
+        note: it.text.slice(0, 600),
+        visited_on: it.date,
+        source: "google",
+        created_at: new Date(`${it.date}T12:00:00Z`).toISOString(),
+      });
+      imported++;
+    }
+    return { imported, skipped };
+  },
+
+  async updateProfileExtras(extras) {
+    await wait();
+    const user = requireMe();
+    if (extras.display_name !== undefined) user.display_name = extras.display_name.trim().slice(0, 40) || null;
+    if (extras.grad_year !== undefined) {
+      const y = extras.grad_year;
+      if (y !== null && (!Number.isInteger(y) || y < 2020 || y > 2040)) throw new Error("grad year must be 2020–2040");
+      user.grad_year = y;
+    }
+    if (extras.bio !== undefined) user.bio = extras.bio?.trim().slice(0, 160) || null;
+    if (extras.banner !== undefined) user.banner = extras.banner;
+    return clone(user);
+  },
+
+  async uploadAvatar(image) {
+    await wait();
+    const user = requireMe();
+    if (image.size > 2_000_000) throw new Error("photo too large");
+    if (!/^image\/(webp|jpeg|png)$/.test(image.type)) throw new Error("not an image");
+    const buf = new Uint8Array(await image.arrayBuffer());
+    let bin = "";
+    for (const b of buf) bin += String.fromCharCode(b);
+    user.avatar_url = `data:${image.type};base64,${btoa(bin)}`;
+    return clone(user);
+  },
+
+  async removeAvatar() {
+    await wait();
+    const user = requireMe();
+    user.avatar_url = null;
+    return clone(user);
+  },
+
+  async getNote(subjectId) {
+    await wait();
+    const user = me();
+    if (!user) return "";
+    return state.notes.find((n) => n.owner_id === user.id && n.subject_id === subjectId)?.text ?? "";
+  },
+
+  async setNote(subjectId, text) {
+    await wait();
+    const user = requireMe();
+    state.notes = state.notes.filter((n) => !(n.owner_id === user.id && n.subject_id === subjectId));
+    const t = text.trim().slice(0, 500);
+    if (t) state.notes.push({ owner_id: user.id, subject_id: subjectId, text: t });
   },
 
   async updatePrivacy(privacy) {

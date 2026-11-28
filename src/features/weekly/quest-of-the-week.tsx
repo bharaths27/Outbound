@@ -207,16 +207,16 @@ export function QuestOfTheWeekCard({
     <Link
       href={`/q/${quest.id}`}
       className={cn(
-        "flex items-center gap-3.5 rounded-[18px] bg-maroon p-3.5 text-white outline-none focus-visible:ring-2 focus-visible:ring-gold desk:rounded-xl desk:p-4",
+        "relative flex items-center gap-3 overflow-hidden rounded-2xl bg-maroon bg-[radial-gradient(120%_140%_at_100%_0%,rgb(242_193_78/0.18),transparent_55%)] p-3 text-white outline-none transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-card focus-visible:ring-2 focus-visible:ring-gold motion-reduce:transition-none desk:rounded-xl desk:p-4",
         className,
       )}
     >
-      <QuestThumb type={quest.type} photo={quest.photo_url} iconSize={30} className="size-16 shrink-0 rounded-lg desk:size-[76px]" />
+      <QuestThumb type={quest.type} photo={quest.photo_url} iconSize={26} className="size-14 shrink-0 rounded-lg desk:size-16" />
       <div className="min-w-0 flex-1">
         <p className="type-eyebrow text-gold">Quest of the Week</p>
-        <p className="mt-0.5 font-display text-xl leading-tight font-semibold">{quest.title}</p>
-        {where && <p className="mt-1.5 truncate text-[13px] text-on-maroon-muted">{where}</p>}
-        <p className="mt-1.5 text-[13px] text-on-maroon-muted">
+        <p className="mt-0.5 font-display text-lg leading-tight font-semibold desk:text-xl">{quest.title}</p>
+        {where && <p className="mt-1 truncate text-xs text-on-maroon-muted">{where}</p>}
+        <p className="mt-1 text-xs text-on-maroon-muted">
           {claimed
             ? "You've claimed this week's double XP. A new Quest of the Week comes Monday."
             : "Your first check-in this week earns its XP twice."}
@@ -257,38 +257,56 @@ function ExploreCard() {
     } catch {}
   };
   if (loaded.status !== "ready") return null;
+  const quest = loaded.quest;
   return (
-    // Phones: above the Ask Guide button, clear of the zoom buttons. Desktop: bottom middle, between
-    // Ask Guide (bottom left) and the zoom / locate buttons (bottom right), under the map's columns.
-    <div
-      className={cn(
-        "pointer-events-none absolute right-16 bottom-[84px] left-4 z-10 flex justify-center desk:bottom-4 desk:left-1/2 desk:right-auto desk:w-[min(440px,calc(100%-440px))] desk:-translate-x-1/2",
-        hubOpen && "hidden",
-      )}
-    >
-      {hidden ? (
-        <button
-          type="button"
-          onClick={() => hide(false)}
-          className="pointer-events-auto inline-flex h-10 items-center gap-1.5 rounded-full bg-maroon px-4 text-sm font-semibold text-white shadow-float hover:brightness-110"
+    <>
+      {/* Phones: one small gold button under the search bar, right side. Tap goes to the quest. */}
+      {quest && (
+        <Link
+          href={`/q/${quest.id}`}
+          aria-label={`Quest of the Week: ${quest.title}, double XP`}
+          className={cn(
+            "absolute top-[calc(var(--ob-map-top,0px)+10px)] right-3 z-10 inline-flex h-9 max-w-[52vw] animate-in items-center gap-1.5 rounded-full bg-gold pr-3 pl-1.5 text-[13px] font-bold text-gold-foreground shadow-float ring-2 ring-white/70 transition-transform duration-200 fade-in slide-in-from-right-2 active:scale-95 desk:hidden",
+            hubOpen && "hidden",
+          )}
         >
-          <Crown className="size-4 text-gold" aria-hidden />
-          Quest of the Week
-        </button>
-      ) : (
-        <div className="pointer-events-auto relative w-full">
-          <QuestOfTheWeekCard compact visits={player.visits} className="pr-11" />
+          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-maroon text-gold">
+            <Crown className="size-3.5" aria-hidden />
+          </span>
+          <span className="truncate">2× quest</span>
+        </Link>
+      )}
+      {/* Desktop: bottom middle, between Ask Guide and the zoom buttons. */}
+      <div
+        className={cn(
+          "pointer-events-none absolute bottom-4 left-1/2 z-10 hidden w-[min(440px,calc(100%-440px))] -translate-x-1/2 justify-center desk:flex",
+          hubOpen && "!hidden",
+        )}
+      >
+        {hidden ? (
           <button
             type="button"
-            aria-label="Hide the Quest of the Week"
-            title="Hide"
-            onClick={() => hide(true)}
-            className="absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-full text-white/80 hover:bg-white/15 hover:text-white"
+            onClick={() => hide(false)}
+            className="pointer-events-auto inline-flex h-10 items-center gap-1.5 rounded-full bg-maroon px-4 text-sm font-semibold text-white shadow-float hover:brightness-110"
           >
-            <X className="size-4" aria-hidden />
+            <Crown className="size-4 text-gold" aria-hidden />
+            Quest of the Week
           </button>
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="pointer-events-auto relative w-full">
+            <QuestOfTheWeekCard compact visits={player.visits} className="pr-11" />
+            <button
+              type="button"
+              aria-label="Hide the Quest of the Week"
+              title="Hide"
+              onClick={() => hide(true)}
+              className="absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-full text-white/80 hover:bg-white/15 hover:text-white"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

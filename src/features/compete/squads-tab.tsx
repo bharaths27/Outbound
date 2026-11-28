@@ -159,7 +159,7 @@ function CreateSquad({ onCreated }: { onCreated: (squad: SquadWithMembers) => vo
           onChange={(e) => setName(e.target.value)}
           placeholder="Late-night dumpling crew"
           maxLength={40}
-          className="h-11 bg-background"
+          className="h-9 bg-background"
         />
         <Button type="submit" disabled={busy} className="shrink-0">
           {busy ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden /> : <Plus aria-hidden />}
@@ -213,7 +213,7 @@ function JoinSquad({ onJoined, isMember }: { onJoined: () => void; isMember: (co
           autoComplete="off"
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? "squad-code-error" : undefined}
-          className="h-11 bg-background uppercase tabular-nums placeholder:normal-case"
+          className="h-9 bg-background uppercase tabular-nums placeholder:normal-case"
         />
         <Button type="submit" variant="outline" disabled={busy} className="shrink-0">
           {busy ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden /> : <UserPlus aria-hidden />}

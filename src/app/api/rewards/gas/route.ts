@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { playerFromRequest } from "@/lib/rewards-server";
 import { parseWallet, topUpSol } from "@/lib/solana-server";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -11,6 +12,9 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const player = await playerFromRequest(req);
   if (!player) return NextResponse.json({ error: "Sign in first", hint: "NOT_SIGNED_IN" }, { status: 401 });
+  // Each call can send 0.02 devnet SOL from the server wallet; cap it so nobody can drain it.
+  const limited = rateLimit(req, "gas", 3, 60 * 60_000, player.userId);
+  if (limited) return limited;
   const wallet = parseWallet((await req.json().catch(() => ({})))?.wallet);
   if (!wallet) return NextResponse.json({ error: "Connect a Solana wallet first", hint: "BAD_WALLET" }, { status: 400 });
   try {

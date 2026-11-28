@@ -74,6 +74,13 @@ export class GoogleTilesLayer implements CustomLayerInterface {
     this.tiles = tiles;
   }
 
+  /** Google's data credits for the tiles on screen (required on screen next to the Google logo). */
+  credits(): string {
+    if (!this.tiles) return "";
+    const list = (this.tiles as unknown as { getAttributions: (t?: { type: string; value: string }[]) => { type: string; value: string }[] }).getAttributions([]);
+    return [...new Set(list.filter((a) => a.type === "string" && a.value).flatMap((a) => a.value.split(/;\s*/)))].join("; ");
+  }
+
   onRemove() {
     this.tiles?.dispose();
   }

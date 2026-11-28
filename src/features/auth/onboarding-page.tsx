@@ -4,6 +4,7 @@
 // team, then your name and who sees your visits. Every step can be skipped; nothing here is
 // required to play. Returns to ?next= when done.
 
+import { SchoolLogo } from "@/features/schools/school-logo";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -66,7 +67,7 @@ export function OnboardingPage() {
   }
 
   const skip = (
-    <Button variant="ghost" onClick={done} className="min-h-11 px-2 text-[15px] font-bold text-maroon">
+    <Button variant="ghost" onClick={done} className="min-h-9 px-2 text-sm font-bold text-maroon">
       Skip
     </Button>
   );
@@ -127,9 +128,13 @@ export function OnboardingPage() {
                 className="flex h-[220px] flex-col items-center justify-center gap-2.5 rounded-[28px] bg-maroon text-white"
                 style={load.school?.color ? { backgroundColor: load.school.color } : undefined}
               >
-                <span aria-hidden className="flex size-[88px] items-center justify-center rounded-full border-4 border-white/90 text-[28px] font-bold">
-                  {load.school ? schoolAbbr(load.school.name) : "?"}
-                </span>
+                {load.school ? (
+                  <SchoolLogo school={load.school} height={112} tilt={-4} className="animate-in zoom-in-75 fade-in duration-500 motion-reduce:animate-none" />
+                ) : (
+                  <span aria-hidden className="flex size-[88px] items-center justify-center rounded-full border-4 border-white/90 text-[28px] font-bold">
+                    ?
+                  </span>
+                )}
                 <p className="font-display text-[22px] font-semibold">{load.school?.name ?? "Your school"}</p>
               </div>
               <div>
@@ -170,16 +175,16 @@ export function OnboardingPage() {
 
           <div className="flex gap-2">
             {step > 0 && (
-              <Button variant="outline" className="h-[52px] rounded-2xl px-6 text-base font-bold" onClick={() => setStep((s) => s - 1)}>
+              <Button variant="outline" className="h-11 rounded-2xl px-6 text-base font-bold" onClick={() => setStep((s) => s - 1)}>
                 Back
               </Button>
             )}
             {step < STEPS - 1 ? (
-              <Button className="h-[52px] flex-1 rounded-2xl text-base font-bold" onClick={() => setStep((s) => s + 1)}>
+              <Button className="h-11 flex-1 rounded-2xl text-base font-bold" onClick={() => setStep((s) => s + 1)}>
                 Next
               </Button>
             ) : (
-              <Button variant="gold" className="h-[52px] flex-1 rounded-2xl text-base font-bold" onClick={finish} disabled={saving}>
+              <Button variant="gold" className="h-11 flex-1 rounded-2xl text-base font-bold" onClick={finish} disabled={saving}>
                 {saving && <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden />}
                 Start exploring
               </Button>

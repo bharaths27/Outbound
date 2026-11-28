@@ -1,9 +1,6 @@
-// Host: students and clubs publish events that show on the map (src/features/host).
-import type { Metadata } from "next";
-import { HostPage } from "@/features/host/host-page";
-
-export const metadata: Metadata = { title: "Host" };
+// Hosting moved into Events: the + Host button there opens the form.
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <HostPage />;
+  redirect("/events?host=1");
 }

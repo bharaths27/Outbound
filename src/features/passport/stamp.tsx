@@ -93,6 +93,12 @@ export interface StampProps {
   className?: string;
 }
 
+/** Stations with a hand-drawn stamp in public/stations. */
+const HAND_DRAWN = new Set([
+  "place-pktrm", "place-gover", "place-haecl", "place-coecl", "place-kencl", "place-bucen", "place-harsq", "place-cntsq", "place-chncl",
+  "place-sstat", "place-harvd", "place-grnst", "place-knncl", "place-davis", "place-cool", "place-rbmnl", "place-qnctr",
+]);
+
 export function Stamp({
   questId,
   title,
@@ -122,6 +128,36 @@ export function Stamp({
       (locked
         ? `${title}, not collected yet`
         : `${titleCase(art.ribbon)} stamp, ${TIER_NAME[tier]}${crossSchool ? ", cross-school" : ""}`);
+    // Hand-drawn station stamps (public/stations/<station id>.webp) replace the code-drawn art.
+    if (stationId && HAND_DRAWN.has(stationId)) {
+      return (
+        <span
+          role="img"
+          aria-label={stationName}
+          className={cn("relative inline-grid shrink-0 place-items-center", className)}
+          style={{ width: size, height: size, transform: tilt ? `rotate(${tilt}deg)` : undefined }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- static stamp art */}
+          <img
+            src={`/stations/${stationId}.webp`}
+            alt=""
+            draggable={false}
+            className={cn("max-h-full max-w-full object-contain select-none", locked ? "opacity-45 grayscale" : "drop-shadow-[0_2px_2px_rgb(43_26_31/0.25)]")}
+          />
+          {!locked && (
+            // Tier seal (bronze star, silver two stars, gold crown) and the cross-school seal.
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/stamps/tier-${tier}.webp`} alt="" aria-hidden className="absolute -right-1 -bottom-1 drop-shadow-sm" style={{ width: size * 0.32, height: size * 0.32 }} />
+              {crossSchool && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src="/stamps/cross-school.webp" alt="" aria-hidden className="absolute -bottom-1 -left-1 drop-shadow-sm" style={{ width: size * 0.32, height: size * 0.32 }} />
+              )}
+            </>
+          )}
+        </span>
+      );
+    }
     return (
       <svg
         width={size}

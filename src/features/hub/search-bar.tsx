@@ -59,7 +59,7 @@ export function SearchBar({ stationName, knownTags, filters, onSearch, onChange 
           placeholder="Cheap pastry and coffee, 45 min…"
           aria-label={`Search quests near ${stationName}`}
           enterKeyHint="search"
-          className="h-12 rounded-full pr-10 pl-10 font-medium"
+          className="h-10 rounded-full pr-10 pl-10 font-medium"
         />
         {searching && (
           <Loader2
